@@ -1,0 +1,125 @@
+1. User Module
+
+
+User registration and registry object instantiated on-chain.
+
+Delete user and registry
+
+Implement deleteUser(userId) to remove both the user record and the registry entry.
+
+Ensure on-chain state is properly rolled back.
+
+Blob management
+
+Transfer all blobs to the user’s on-chain account and remove them from the global contract state.
+
+Create a deny list to block unauthorized (foreign) blobs.
+
+API and cryptographic key lifecycle
+
+Update the off-chain API to reflect new on-chain identifiers.
+
+Rotate and encrypt new user-specific keys; store their hashes on-chain.
+
+Implement key decay (e.g., TTL with periodic re-encryption).
+
+Cryptographic registry signatures
+
+Require a valid contract-level signature before accepting new registry entries to prevent spoofed blobs.
+
+2. Warlot System Module
+
+✅ Completed
+
+System object deployed on-chain; minting logic finalized.
+
+Next Steps:
+
+Paused version control
+
+Add a paused flag to freeze all new operations.
+
+Version migration control
+
+Implement migrateVersion(oldSystemId, newSystemId) with consistency checks.
+
+Freeze control
+
+Enable per-blob or per-user temporary lockouts.
+
+Trash and cleanup
+
+Introduce a soft-delete ("trash") mechanism plus permanent purge.
+
+Bulk blob operations
+
+Add efficient batch operations for exporting or deleting multiple blobs.
+
+3. Admin Module
+
+✅ Completed
+
+Admin hierarchy and mint-awareness logic implemented on-chain.
+
+Next Steps:
+
+Burn admin key when flagged
+
+Add flagAdmin(adminId) and burnKey(adminId) for handling malicious activity.
+
+Admin key decay
+
+Set expiration periods for admin keys to auto-revoke after a defined TTL.
+
+User denial
+
+Implement a blacklist (denyList) to prevent misbehaving users from uploading or performing operations.
+
+4. Storage and Blobs Library
+
+Completed/Planned Features:
+
+Store user and admin objects on-chain, tagged for efficient epoch renewal.
+
+Store blobs, including foreign blobs, and arbitrary tables.
+
+Support blob operations: renew, delete, withdraw.
+
+Issue placeholder tokens (e.g., wrapped WAL tokens).
+
+Identify blob settings by type (metadata schema).
+
+Next Steps:
+
+Storage abstraction library
+
+Develop a StorageObject base class (off-chain SDK + on-chain interface) for extensible storage types.
+
+Blob settings registry
+
+Map blobType → settingsSchema on-chain (encryption, TTL, maxSize, etc.).
+
+Epoch renewal scheduler
+
+Implement an off-chain worker to iterate through tagged users each epoch for re-encryption or renewal.
+
+
+
+
+
+
+
+Implementation Order
+
+Cryptographic registry signatures and deny list (blocks unauthorized uploads).
+
+User deletion and blob cleanup flows (tidies user state).
+
+Pause and freeze controls (operational safety).
+
+Key rotation and decay (security hygiene).
+
+Version migration and trash/purge (operational maturity).
+
+Storage abstraction library and blob settings (developer ergonomics).
+
