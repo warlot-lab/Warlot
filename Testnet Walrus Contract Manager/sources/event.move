@@ -39,24 +39,27 @@ public struct AdminMint has copy, drop, store {
 public struct WarlotFileStore has copy, drop, store {
     owner: address,
     blob_obj_id: ID,
-    blob_cfg_id: ID,
+    size: u64,
+    current_epoch: u32,
     epoch_set: u32,
     cycle_end: u64,
 }
 
 // Emitted each time a blob's renewal cycle is processed
 public struct RenewDigest has copy, drop, store {
-    blob_obj_id: ID,
     user: address,
+    blob_obj_id: ID,
     epoch: u32,
     amount: u64,
+    size: u64,
 }
 
 // Emitted when managed blobs are added for a user
 public struct ManagedBlobs has copy, drop, store {
     owner: address,
     blob_obj_id: ID,
-    blob_cfg_id: ID,
+    current_epoch: u32,
+    size: u64,
     epoch_set: u32,
     cycle_end: u64,
 }
@@ -65,6 +68,13 @@ public struct ManagedBlobs has copy, drop, store {
 public struct WithdrawBlob has copy, drop, store {
     owner: address,
     blob_obj_id: ID,
+}
+
+
+public struct BlobUpdate has copy, drop{
+    owner: address,
+    blob_obj_id: ID,
+    current_epoch: u32,
 }
 
 // Emitters
@@ -90,34 +100,41 @@ public(package) fun emit_admin_mint(new_admin: ID, minter: address) {
 }
 
 public(package) fun emit_warlot_file_store(
-    owner: address,
+     owner: address,
     blob_obj_id: ID,
-    blob_cfg_id: ID,
+    size: u64,
+    current_epoch: u32,
     epoch_set: u32,
-    cycle_end: u64
+    cycle_end: u64,
 ) {
-    event::emit(WarlotFileStore { owner, blob_obj_id, blob_cfg_id, epoch_set, cycle_end });
+    event::emit(WarlotFileStore { owner, blob_obj_id,  size, current_epoch, epoch_set, cycle_end });
 }
 
 public(package) fun emit_renew_digest(
-    blob_obj_id: ID,
     user: address,
+    blob_obj_id: ID,
     epoch: u32,
-    amount: u64
+    amount: u64,
+    size: u64,
 ) {
-    event::emit(RenewDigest { blob_obj_id, user, epoch, amount });
+    event::emit(RenewDigest { user, blob_obj_id, epoch, amount, size });
 }
 
 public(package) fun emit_managed_blobs(
     owner: address,
     blob_obj_id: ID,
-    blob_cfg_id: ID,
+    size: u64,
+    current_epoch: u32,
     epoch_set: u32,
-    cycle_end: u64
+    cycle_end: u64,
 ) {
-    event::emit(ManagedBlobs { owner, blob_obj_id, blob_cfg_id, epoch_set, cycle_end });
+    event::emit(ManagedBlobs { owner, blob_obj_id,  current_epoch, size, epoch_set, cycle_end });
 }
 
 public(package) fun emit_withdraw_blob(owner: address, blob_obj_id: ID) {
     event::emit(WithdrawBlob { owner, blob_obj_id });
+}
+
+public(package) fun emit_update_blob(owner: address, blob_obj_id: ID, current_epoch: u32){
+    event::emit(BlobUpdate{owner, blob_obj_id, current_epoch})
 }

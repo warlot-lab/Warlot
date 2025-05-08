@@ -4,7 +4,14 @@ use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, system::System};
 use std::string::String;
 use sui::{coin::{Self, Coin}, dynamic_object_field as ofields, clock::Clock};
-use setandrenew::{userstate::{Self, User}, config::{Self, BlobSettings},  constants::{Self}, registry::Registry};
+use setandrenew::{
+    userstate::{Self, User},
+    config::{Self, BlobSettings}, 
+    constants::{Self},
+    registry::Registry,
+    event::Self
+    };
+
 
 
 
@@ -35,6 +42,10 @@ public struct AdminCap has key, store {
     state: u8,
     total_system: u8,
 }
+
+
+
+
 
 /// Initialize the system and mint the first AdminCap in the ORIGINAL state
 fun init(ctx: &mut TxContext){
@@ -81,6 +92,8 @@ public fun mint_admin(
         state:     constants::state_duplicate(),
         total_system: 0,
     };
+
+    event::emit_admin_mint(object::id(&new_cap), ctx.sender());
     transfer::transfer(new_cap, receiver);
 }
 
@@ -96,8 +109,7 @@ public fun mint_system(
     // makes sure that only the original admin can create a new system
     assert!(admin_cap.state == constants::state_original(), 3);
 
-    transfer::public_share_object(
-    SystemConfig {
+    let new_system = SystemConfig {
         id: object::new(ctx),
         users: 0,
         managed_blobs: 0,
@@ -106,7 +118,11 @@ public fun mint_system(
             previous_system: object::id(old_system),
             has_minted: false
         }
-    });
+    };
+
+    event::emit_system_mint(object::id(&new_system), object::id(old_system), ctx.sender());
+    
+    transfer::public_share_object(new_system);
 
     let old_count = admin_cap.total_system;
     admin_cap.total_system = old_count + 1;
@@ -123,6 +139,7 @@ public fun create_user(
     ctx: &mut TxContext
     ){
     let new_user = userstate::create_user(apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
+
     add_user(system_cfg, new_user, ctx);
 
     let old_user_count = system_cfg.users;
@@ -137,7 +154,8 @@ public(package) fun raw_store_blob(
     blob: Blob,
     epoch_set: u32,
     cycle_end: u64,
-    user: address
+    user: address,
+
 ){
     let set = if (epoch_set > constants::half_set()) {
         constants::max()
@@ -153,6 +171,8 @@ public(package) fun raw_store_blob(
 
 
     let blob_setting: BlobSettings = config::new_config_blob(blob, set, cycle_end);
+
+
     let user = get_user_mut(system_cfg, user);
     userstate::add_blob(user, blob_setting, epoch_set);
     userstate::update_dash_data(user, 1, file_size);
@@ -166,18 +186,28 @@ public(package) fun raw_store_blob(
 public fun store_blob(
     _: &mut AdminCap,
     system_cfg: &mut SystemConfig,
-    blob: Blob,
+    raw_blob: Blob,
     epoch_set: u32,
     cycle_end: u64,
     user: address
 ){
-     raw_store_blob(
+
+    event::emit_warlot_file_store(
+        user, 
+        blob::object_id(&raw_blob), 
+        blob::size(&raw_blob), 
+        blob::end_epoch(&raw_blob), 
+        epoch_set, 
+        cycle_end
+        );
+
+        raw_store_blob(
             system_cfg,
-            blob,
+            raw_blob,
             epoch_set,
             cycle_end,
             user
-        )
+        );
 }
 
 
@@ -250,8 +280,25 @@ public fun renew(
                 if (blob_cfg_ref.cycle_at() != blob_cfg_ref.cycle_end()) {
                     let sync_epoch: u32 = blob_cfg_ref.get_renew_epoch_count(walrus_system, epoch_set);
                     let blob_obj   = blob_cfg_ref.blob();
+
+                   
+                    // setting 0 as place holder for the renewal to be changed in update
+                    
+
+
                     extend_blob(walrus_system, blob_obj, &mut funds, sync_epoch);
                     blob_cfg_ref.reduce_cycle();
+                    event::emit_renew_digest(
+                        user_addr, 
+                        blob_cfg_ref.get_blob_obj_id(),
+                        epoch_set,
+                        0,
+                        blob_cfg_ref.blob_size()
+                    );
+
+                    event::emit_update_blob(user_addr, blob_cfg_ref.get_blob_obj_id(), blob_cfg_ref.blob_current());
+
+
                 };
                 y = y + 1;
             };
@@ -276,22 +323,39 @@ public fun foreign_blob_add(
     system_cfg: &mut SystemConfig,
     cycle_end: u64,
     epoch_set: u32,
-    blobs: &mut vector<Blob>,
+    blobs:  vector<Blob>,
 ){
 
+    let mut temp_list = vector::empty<Blob>();
+    temp_list.append(blobs);
 
-    while(0 < blobs.length()){
+    while(!temp_list.is_empty()){
+        let raw_blob = temp_list.pop_back();
+
+
+        event::emit_managed_blobs(
+            registry.get_user(), 
+            blob::object_id(&raw_blob), 
+            blob::size(&raw_blob), 
+            blob::end_epoch(&raw_blob), 
+            epoch_set, 
+            cycle_end);
+
         raw_store_blob(
             system_cfg,
-            blobs.pop_back(),
+            raw_blob,
             epoch_set,
             cycle_end,
             registry.get_user()
 
-
         )
-    }
 
+         
+
+        
+    };
+
+    temp_list.destroy_empty()
 }
 
 
@@ -307,6 +371,10 @@ public(package) fun withdraw_blob(
 
     let old_m_blob = system_cfg.managed_blobs;
     system_cfg.managed_blobs = old_m_blob - 1;
+    event::emit_withdraw_blob(
+        user,
+        object::id_from_address(blob_obj_id)
+    );
 
     transfer::public_transfer(raw_blob, user);
 }

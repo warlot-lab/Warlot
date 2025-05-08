@@ -2,6 +2,7 @@ module setandrenew::wallet;
 use wal::wal::WAL;
 use sui::coin::{Self, Coin};
 use sui::{balance::{Self, Balance}, clock::Clock};
+use setandrenew::event::Self;
 
 
 public struct Wallet has key, store{
@@ -20,6 +21,8 @@ public(package) fun create_wallet(clock: &Clock, ctx: &mut TxContext): Wallet{
         balance: balance::zero<WAL>(),
     };
 
+    event::emit_wallet_created(object::id(&wallet), ctx.sender());
+
     wallet
 }
 
@@ -29,6 +32,7 @@ public(package) fun deposit(wallet: &mut Wallet, funds: &mut Coin<WAL>, amount: 
     assert!(funds.value() >= amount, 1);
     let d_amount = funds.split(amount, ctx);
     coin::put(&mut wallet.balance, d_amount);
+    event::emit_deposit(ctx.sender(), amount);
 
     wallet.balance.value()
 }

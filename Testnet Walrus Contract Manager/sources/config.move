@@ -28,6 +28,7 @@ public(package) fun blob(blob_cfg: &mut BlobSettings): &mut Blob{
     &mut blob_cfg.blob
 }
 
+
 public(package) fun epoch_set(blob_cfg: &BlobSettings): u32{
     blob_cfg.epoch_set
 }
@@ -41,7 +42,7 @@ public(package) fun cycle_end(blob_cfg: &BlobSettings): u64{
 }
 
 public(package) fun reduce_cycle(blob_cfg: &mut BlobSettings): u64{
-    blob_cfg.cycle_at = blob_cfg.cycle_at + 1;
+    blob_cfg.cycle_at = blob_cfg.cycle_at - 1;
     blob_cfg.cycle_at
 }
 
@@ -53,12 +54,20 @@ public(package) fun is_deletable(blob_cfg: &BlobSettings): bool{
     blob_cfg.blob.is_deletable()
 }
 
+public(package) fun blob_size(blob_cfg: &BlobSettings): u64{
+    blob_cfg.blob.size()
+}
+
+public(package) fun blob_current(blob_cfg: &BlobSettings): u32{
+    blob_cfg.blob.storage().end_epoch()
+}
+
 // this function is used to calculate the number of epoch a blob needs to sync with 
 // the needed epoch set
 // where ahead is the epoch sync epoch count
 public(package) fun get_renew_epoch_count(blob_cfg: &BlobSettings, system: &System, ahead: u32): u32{
     let current_epoch = system.epoch();
-    let blob_end_epoch = blob_cfg.blob.storage().end_epoch();
+    let blob_end_epoch = blob_cfg.blob_current();
     let new_end_epoch = current_epoch + ahead;
     new_end_epoch - blob_end_epoch
     // 33

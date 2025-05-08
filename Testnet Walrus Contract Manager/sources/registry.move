@@ -1,7 +1,7 @@
 module setandrenew::registry;
 use std::string::String;
 use sui::clock::Clock;
-use setandrenew::constants::Self;
+use setandrenew::{constants::Self, event::Self};
 
 public struct Registry has key{
     id: UID,
@@ -27,8 +27,9 @@ public(package) fun create_registry(user_object_id: ID, hashed_apikey: String, h
         warlot_sign_apikey,
         decay_at: clock.timestamp_ms() + constants::api_decay(),
     };
-
-      transfer::transfer(registry_state, ctx.sender());
+    
+    event::emit_new_user(user_object_id, object::id(&registry_state), ctx.sender());
+    transfer::transfer(registry_state, ctx.sender());
 }
 
 // public fun update_api_key(registry: &mut Registry, new_apikey: String){
