@@ -15,6 +15,46 @@ This Sui Move smart contract allows you to manage users and their associated tab
 
 ## 🧱 Core Data Structures
 
+### ⚙️ SystemCfg
+
+```rust
+│  ┌──                                                                                                       │
+│  │ ObjectID: 0xc8ebbb3a981aa1f3cee0827b3c434f9e45ee7d1b0de3e39bedf6cef976ce54c7                            │
+│  │ Sender: 0xa8c88213fac31eab2dd706c6e981072894a23e5479c18dcfe42dcdc2fc44bebd                              │
+│  │ Owner: Shared( 418879264 )                                                                              │
+│  │ ObjectType: 0x780c6fadcfbb8709beaa2b6f30b3796782f720100729d628df04d6428a70da41::warlottable::SystemCfg  │
+│  │ Version: 418879264                                                                                      │
+│  │ Digest: 6pJvedNM9PfdXwjsnmEkYeJbmMHpKm5FFw9UzRCzy16D                                                    │
+│  └──
+
+```
+
+### 🎫 AdminCap
+
+```rust
+┌──                                                                                                          │
+│  │ ObjectID: 0xf84579c2cd6949eccf96e9ee23a7fb2bbfed402cebf727606ee5dc87ef34f0af                            │
+│  │ Sender: 0xa8c88213fac31eab2dd706c6e981072894a23e5479c18dcfe42dcdc2fc44bebd                              │
+│  │ Owner: Account Address ( 0xa8c88213fac31eab2dd706c6e981072894a23e5479c18dcfe42dcdc2fc44bebd )           │
+│  │ ObjectType: 0x780c6fadcfbb8709beaa2b6f30b3796782f720100729d628df04d6428a70da41::warlottable::AdminCap   │
+│  │ Version: 418879264                                                                                      │
+│  │ Digest: 2X63ZwYsG5VYbwvonHZWuSnvs5HwTneKRLng5C2KqPDD                                                    │
+│  └──
+
+```
+
+## 🚀🚀 PackageInfo
+
+```rust
+│ Published Objects:                                                                                         │
+│  ┌──                                                                                                       │
+│  │ PackageID: 0x780c6fadcfbb8709beaa2b6f30b3796782f720100729d628df04d6428a70da41                           │
+│  │ Version: 1                                                                                              │
+│  │ Digest: CPXe5VJ7yc6xzKBa193FYVaPtQhhRAvQPufFbyogHgAV                                                    │
+│  │ Modules: warlottable                                                                                    │
+│  └──                                                                                                       │
+```
+
 ### `SystemCfg`
 
 Holds global configuration data:
