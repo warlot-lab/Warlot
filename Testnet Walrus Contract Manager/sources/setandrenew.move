@@ -174,7 +174,7 @@ public(package) fun raw_store_blob(
 
 
     let user = get_user_mut(system_cfg, user);
-    userstate::add_blob(user, blob_setting, epoch_set);
+    userstate::add_blob(user, blob_setting, set);
     userstate::update_dash_data(user, 1, file_size);
     let old_m_blob = system_cfg.managed_blobs;
     system_cfg.managed_blobs = old_m_blob + 1;
@@ -347,7 +347,6 @@ public fun foreign_blob_add(
             epoch_set,
             cycle_end,
             registry.get_user()
-
         )
 
          
@@ -365,7 +364,9 @@ public(package) fun withdraw_blob(
     user: address,
 ){
     let user_ref = get_user_mut(system_cfg, user);
-    let raw_blob = user_ref.remove_blob_from_user(object::id_from_address(blob_obj_id)).withdraw_and_burn();
+    let raw_blob = user_ref.
+        remove_blob_from_user(object::id_from_address(blob_obj_id))
+            .withdraw_and_burn();
     let blob_size = blob::size(&raw_blob) as u128;
     user_ref.reduce_dash_data(blob_size);
 
@@ -401,7 +402,7 @@ public fun replace(
     cycle_end: u64,
     user: address){
 
-     withdraw_blob(system_cfg, old_blob_id, user);
+    withdraw_blob(system_cfg, old_blob_id, user);
 
 
 

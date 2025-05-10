@@ -2,16 +2,13 @@
 
 [move]
 version = 3
-manifest_digest = "0AF8B006F40F9FA84D8F2C1FDA60322940EA2488577BC383C44A47D152FD7925"
-deps_digest = "CAFAD8A7CF51067FB4358215BECB86BD100DD64E57C2AC8A7AE7D74B688F5965"
+manifest_digest = "42FC2D5EBBC91A1286621E1677DE6AF8CEFCE1B092983DD8BF2190E97B6F6208"
+deps_digest = "F9B494B64F0615AED0E98FC12A85B85ECD2BC5185C22D30E7F67786BB52E507C"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },
-  { id = "WAL", name = "WAL" },
-  { id = "Walrus", name = "Walrus" },
-  { id = "warlotpackage", name = "warlotpackage" },
 ]
 
 [[move.package]]
@@ -45,43 +42,7 @@ dependencies = [
   { id = "Sui", name = "Sui" },
 ]
 
-[[move.package]]
-id = "WAL"
-source = { git = "https://github.com/MystenLabs/walrus.git", rev = "main", subdir = "testnet-contracts/wal" }
-
-dependencies = [
-  { id = "Sui", name = "Sui" },
-]
-
-[[move.package]]
-id = "Walrus"
-source = { git = "https://github.com/MystenLabs/walrus.git", rev = "main", subdir = "testnet-contracts/walrus" }
-
-dependencies = [
-  { id = "Sui", name = "Sui" },
-  { id = "WAL", name = "WAL" },
-]
-
-[[move.package]]
-id = "warlotpackage"
-source = { git = "https://github.com/steven3002/WarLot_sui-smart-contract.git", rev = "main", subdir = "" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-]
-
 [move.toolchain-version]
 compiler-version = "1.46.2"
 edition = "2024.beta"
 flavor = "sui"
-
-[env]
-
-[env.testnet]
-chain-id = "4c78adac"
-original-published-id = "0x68d2d393b8a58c0049a265a48c23566e5672932b102f90222d25fa2ca4252e34"
-latest-published-id = "0x68d2d393b8a58c0049a265a48c23566e5672932b102f90222d25fa2ca4252e34"
-published-version = "1"

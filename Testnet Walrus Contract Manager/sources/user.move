@@ -6,7 +6,6 @@ use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields
 
 
 
-
 public struct User has key, store{
     id: UID,
     owner: address,
@@ -15,17 +14,18 @@ public struct User has key, store{
 }
 
 
-    
 
 public struct EpochState has store, drop{
     epoch: u32,
     vector_index: u64,
 }
 
+
 public struct DashData has store {
     files: u128,
     storage_size: u128,
 }
+
 
 public(package) fun create_user(apikey: String, encrypt_key: String, warlot_sign_apikey: String, clock: &Clock, ctx: &mut TxContext): User{
     let safe_vault: Wallet = wallet::create_wallet(clock, ctx);
@@ -109,7 +109,7 @@ public(package) fun reduce_dash_data(user: &mut User, storage_size: u128): bool{
 }
 
 
-public(package) fun add_to_indexer(user: &mut User, blob_obj_id: ID, epoch: u32,vector_index: u64){
+public(package) fun add_to_indexer(user: &mut User, blob_obj_id: ID, epoch: u32, vector_index: u64){
     let indexed_table = ofields::borrow_mut<String, Table<ID, EpochState>>(&mut user.id, constants::indexer_key());
     indexed_table.add(blob_obj_id, EpochState{
         epoch,
@@ -117,12 +117,20 @@ public(package) fun add_to_indexer(user: &mut User, blob_obj_id: ID, epoch: u32,
     })
 }
 
-public(package) fun remove_from_indexer(user: &mut User, blob_obj_id: ID, replace: ID){
+
+
+public(package) fun remove_from_indexer(user: &mut User, blob_obj_id: ID, replace: Option<ID>){
     let indexed_table = ofields::borrow_mut<String, Table<ID, EpochState>>(&mut user.id, constants::indexer_key());
     let deleted_data = indexed_table.remove(blob_obj_id);
-    indexed_table.borrow_mut(replace).vector_index = deleted_data.vector_index;
+    if (option::is_some(&replace)){
+        indexed_table.borrow_mut(option::destroy_some(replace)).vector_index = deleted_data.vector_index;
+    }else{
+        option::destroy_none(replace)
+    };
+
     let _ = deleted_data;
 }
+
 
 
 // this function is used to delete a blob from the system
@@ -133,14 +141,23 @@ public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): Blo
     let blob_index_data = indexed_table.borrow(blob_obj_id);
     //get the vector set that the blob exist in 
     let blob_cfg_set: &vector<BlobSettings> = dfield::borrow<u32, vector<BlobSettings>>(&user.id, blob_index_data.epoch);
-    // we confirm if the blob is deletable or not
+    
+    //// we confirm if the blob is deletable or not
+    
     // assert!(blob_cfg_set.borrow(blob_index_data.vector_index).is_deletable(), 2);
+
 
     // get the deletable blob_obj_id 
     let deletable_blob_obj_id = blob_cfg_set.borrow(blob_index_data.vector_index).get_blob_obj_id();
 
     // we get the replace blob_obj_id; which is the last item in the vector list
-    let replace_id: ID = blob_cfg_set.borrow(blob_cfg_set.length() - 1).get_blob_obj_id();
+    let replace_id: Option<ID> = {
+            if (blob_cfg_set.length() > 1){
+                option::some(blob_cfg_set.borrow(blob_cfg_set.length() - 1).get_blob_obj_id())
+            }else{
+                option::none()
+            }
+        };
 
     // store the epoch
     let d_epoch = blob_index_data.epoch;
@@ -159,8 +176,4 @@ public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): Blo
 
     // returns the blob_config
     deletable_blob_cfg
-
-
-
-
 }
