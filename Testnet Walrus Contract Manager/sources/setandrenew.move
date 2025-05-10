@@ -192,12 +192,20 @@ public fun store_blob(
     user: address
 ){
 
+    let set = if (epoch_set > constants::half_set()) {
+            constants::max()
+        } else if (epoch_set > constants::first_set()) {
+            constants::half_set()
+        } else {
+            constants::first_set()
+        };
+
     event::emit_warlot_file_store(
         user, 
         blob::object_id(&raw_blob), 
         blob::size(&raw_blob), 
         blob::end_epoch(&raw_blob), 
-        epoch_set, 
+        set, 
         cycle_end
         );
 
@@ -325,6 +333,13 @@ public fun foreign_blob_add(
     epoch_set: u32,
     blobs:  vector<Blob>,
 ){
+    let set = if (epoch_set > constants::half_set()) {
+        constants::max()
+    } else if (epoch_set > constants::first_set()) {
+        constants::half_set()
+    } else {
+        constants::first_set()
+    };
 
     let mut temp_list = vector::empty<Blob>();
     temp_list.append(blobs);
@@ -338,7 +353,7 @@ public fun foreign_blob_add(
             blob::object_id(&raw_blob), 
             blob::size(&raw_blob), 
             blob::end_epoch(&raw_blob), 
-            epoch_set, 
+            set, 
             cycle_end);
 
         raw_store_blob(

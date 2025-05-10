@@ -42,7 +42,7 @@ public(package) fun cycle_end(blob_cfg: &BlobSettings): u64{
 }
 
 public(package) fun reduce_cycle(blob_cfg: &mut BlobSettings): u64{
-    blob_cfg.cycle_at = blob_cfg.cycle_at - 1;
+    blob_cfg.cycle_at = blob_cfg.cycle_at + 1;
     blob_cfg.cycle_at
 }
 

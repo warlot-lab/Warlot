@@ -58,3 +58,4 @@ public(package) fun has_estimate(wallet: &Wallet, estimate: u64):bool{
 public(package) fun get_owner(wallet: &Wallet): address{
     wallet.owner
 }
+
