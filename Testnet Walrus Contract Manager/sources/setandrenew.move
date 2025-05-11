@@ -249,34 +249,35 @@ public fun renew(
     walrus_system: &mut System,
     users: vector<address>,
     epoch_set: u32,
-    estimate: vector<u64>,
+    // estimate: vector<u64>,
     ctx: &mut TxContext
 ): vector<address> {
-    let mut insufficient = vector::empty<address>();
+    let insufficient = vector::empty<address>();
     let mut i = 0;
 
     while (i < vector::length(&users)) {
         let user_addr = *vector::borrow(&users, i);
-        let est_amt   = *vector::borrow(&estimate, i);
+        // let est_amt   = *vector::borrow(&estimate, i);
 
-        // 1) quick check & skip if not enough
-        {
-            let user_ref = get_user_mut(system_cfg, user_addr);
-            let wallet   = user_ref.get_wallet();
-            if (!wallet.has_estimate(est_amt)) {
-                vector::push_back(&mut insufficient, user_addr);
-                i = i + 1;
-                continue
-            };
-        };
+        // // 1) quick check & skip if not enough
+        // {
+        //     let user_ref = get_user_mut(system_cfg, user_addr);
+        //     let wallet   = user_ref.get_wallet();
+        //     if (!wallet.has_estimate(est_amt)) {
+        //         vector::push_back(&mut insufficient, user_addr);
+        //         i = i + 1;
+        //         continue
+        //     };
+        // };
 
         // 2) actually pull out the coins you need
         let mut funds = {
             let user_ref = get_user_mut(system_cfg, user_addr);
             let wallet   = user_ref.get_wallet();
-            coin::from_balance(wallet.get_balance(est_amt), ctx)
+            coin::from_balance(wallet.get_balance(), ctx)
         };
 
+       
         // 3) process each blob
         {
             let user_ref2 = get_user_mut(system_cfg, user_addr);
@@ -284,6 +285,8 @@ public fun renew(
             let blob_list     = user_ref2.get_mut_obj_list_blob_cfg(epoch_set);
             let mut y = 0;
             while (y < vector::length(blob_list)) {
+
+                let  funds_current_balance = funds.value();
                 let blob_cfg_ref = vector::borrow_mut(blob_list, y);
                 if (blob_cfg_ref.cycle_at() != blob_cfg_ref.cycle_end()) {
                     let sync_epoch: u32 = blob_cfg_ref.get_renew_epoch_count(walrus_system, epoch_set);
@@ -300,7 +303,7 @@ public fun renew(
                         user_addr, 
                         blob_cfg_ref.get_blob_obj_id(),
                         epoch_set,
-                        0,
+                        funds_current_balance - funds.value(),
                         blob_cfg_ref.blob_size()
                     );
 

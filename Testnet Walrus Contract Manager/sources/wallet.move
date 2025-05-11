@@ -43,8 +43,8 @@ public(package) fun return_balance(wallet: &mut Wallet, coin: Coin<WAL>){
 }
 
 
-public(package) fun get_balance(wallet: &mut Wallet, amount: u64): Balance<WAL> {
-    let cash = wallet.balance.split(amount);
+public(package) fun get_balance(wallet: &mut Wallet): Balance<WAL> {
+    let cash = wallet.balance.withdraw_all();
     cash
 }
 
