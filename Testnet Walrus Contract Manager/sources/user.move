@@ -152,12 +152,17 @@ public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): Blo
 
     // we get the replace blob_obj_id; which is the last item in the vector list
     let replace_id: Option<ID> = {
-            if (blob_cfg_set.length() > 1){
-                option::some(blob_cfg_set.borrow(blob_cfg_set.length() - 1).get_blob_obj_id())
-            }else{
+        if (blob_cfg_set.length() < 1) {
+            option::none()
+        } else {
+            let possible_replacement = blob_cfg_set.borrow(blob_cfg_set.length() - 1).get_blob_obj_id();
+            if (possible_replacement != deletable_blob_obj_id) {
+                option::some(possible_replacement)
+            } else {
                 option::none()
             }
-        };
+        }
+    };
 
     // store the epoch
     let d_epoch = blob_index_data.epoch;
