@@ -43,9 +43,9 @@ public(package) fun return_balance(wallet: &mut Wallet, coin: Coin<WAL>){
 }
 
 
-public(package) fun get_balance(wallet: &mut Wallet): Balance<WAL> {
-    let cash = wallet.balance.withdraw_all();
-    cash
+public(package) fun get_balance(wallet: &mut Wallet, ctx: &mut TxContext): Coin<WAL> {
+    let amount = wallet.balance.value();
+    coin::take<WAL>(&mut wallet.balance, amount, ctx)
 }
 
 public(package) fun has_estimate(wallet: &Wallet, estimate: u64):bool{

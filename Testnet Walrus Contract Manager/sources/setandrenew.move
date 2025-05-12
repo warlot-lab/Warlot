@@ -274,7 +274,7 @@ public fun renew(
         let mut funds = {
             let user_ref = get_user_mut(system_cfg, user_addr);
             let wallet   = user_ref.get_wallet();
-            coin::from_balance(wallet.get_balance(), ctx)
+            wallet.get_balance(ctx)
         };
 
        
@@ -290,26 +290,27 @@ public fun renew(
                 let blob_cfg_ref = vector::borrow_mut(blob_list, y);
                 if (blob_cfg_ref.cycle_at() != blob_cfg_ref.cycle_end()) {
                     let sync_epoch: u32 = blob_cfg_ref.get_renew_epoch_count(walrus_system, epoch_set);
-                    let blob_obj   = blob_cfg_ref.blob();
+                    if (sync_epoch > 0){
+                        let blob_obj   = blob_cfg_ref.blob();
 
-                   
-                    // setting 0 as place holder for the renewal to be changed in update
                     
+                        // setting 0 as place holder for the renewal to be changed in update
+                        
 
 
-                    extend_blob(walrus_system, blob_obj, &mut funds, sync_epoch);
-                    blob_cfg_ref.reduce_cycle();
-                    event::emit_renew_digest(
-                        user_addr, 
-                        blob_cfg_ref.get_blob_obj_id(),
-                        epoch_set,
-                        funds_current_balance - funds.value(),
-                        blob_cfg_ref.blob_size()
-                    );
+                        extend_blob(walrus_system, blob_obj, &mut funds, sync_epoch);
+                        blob_cfg_ref.reduce_cycle();
+                        event::emit_renew_digest(
+                            user_addr, 
+                            blob_cfg_ref.get_blob_obj_id(),
+                            epoch_set,
+                            funds_current_balance - funds.value(),
+                            blob_cfg_ref.blob_size()
+                        );
 
-                    event::emit_update_blob(user_addr, blob_cfg_ref.get_blob_obj_id(), blob_cfg_ref.blob_current());
+                        event::emit_update_blob(user_addr, blob_cfg_ref.get_blob_obj_id(), blob_cfg_ref.blob_current());
 
-
+                    };
                 };
                 y = y + 1;
             };

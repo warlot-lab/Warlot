@@ -36,7 +36,7 @@ func main() {
     
     for {
         events, nextCursor, err := client.QueryEvents(cursor)
-        log.Printf("⚓🛞 Querying events from cursor: %s", cursor)
+        log.Printf("⚓🛞 Querying cursor: %s", cursor.TxDigest)
 
 
         if err != nil {

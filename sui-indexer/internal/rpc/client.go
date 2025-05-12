@@ -22,11 +22,11 @@ func NewClient(endpoint string) *Client {
 }
 
 const(
-    packageID     = "0xe803132ea4b20d78a0a6a9ad90257b583404920bde58db338531cb599b50e385"
+    packageID     = "0xdeb10d41fefe33d5403207dc2b9451282463198f358c509bfe9aeb5728c59e50"
 	moduleName    = "event"
 	pageSize      = 50
 	descending    = false
-    retryInterval = 5 * time.Second
+    retryInterval = 2 * time.Second
 )
 
 func (c *Client) QueryEvents(cursor sui.Cursor) ([]sui.Event, sui.Cursor, error) {
@@ -69,7 +69,7 @@ func (c *Client) QueryEvents(cursor sui.Cursor) ([]sui.Event, sui.Cursor, error)
 
     if len(rpcResp.Result.Data) == 0 {
         fmt.Println("No events found; retrying in", retryInterval)
-        time.Sleep(retryInterval)
+        // time.Sleep(retryInterval)
     }
 
    

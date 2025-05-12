@@ -5,6 +5,7 @@ import (
  "database/sql"
     "fmt"
     "log"
+    "time"
 )
 
 
@@ -51,7 +52,7 @@ func (db *DB) InsertNewUser(data map[string]interface{}) error {
 
 
 
-func (db *DB) InsertDeposit(data map[string]interface{},  timestampMs string,  txDigest string) error {
+func (db *DB) InsertDeposit(data map[string]interface{},  timeStamp time.Time,  txDigest string) error {
     //Extract and parse fields
     
     userAddr, ok := data["user"].(string)
@@ -98,9 +99,9 @@ func (db *DB) InsertDeposit(data map[string]interface{},  timestampMs string,  t
     res, err := tx.Exec(
         `INSERT INTO poc.transaction_history
             (tx_digest, user_id, epoch, amount, size_bytes, tx_type, created_at)
-         VALUES ($1, $2, 0, $3, 0, 'fund_wallet', NOW())
-         ON CONFLICT (tx_digest) DO NOTHING`,
-        txDigest, userID, amount,
+         VALUES ($1, $2, 0, $3, 0, 'fund_wallet', $4)
+          ON CONFLICT (tx_digest, blob_obj_id) DO NOTHING`,
+        txDigest, userID, amount, timeStamp,
     )
     if err != nil {
         return err
@@ -309,7 +310,7 @@ type renewData struct {
     SizeBytes  int64
 }
 
-func (db *DB) InsertRenewDigest(data map[string]interface{}, txDigest string) error {
+func (db *DB) InsertRenewDigest(data map[string]interface{}, timeStamp time.Time, txDigest string) error {
     // Extract and parse
   
     userAddr, ok := data["user"].(string)
@@ -379,9 +380,9 @@ func (db *DB) InsertRenewDigest(data map[string]interface{}, txDigest string) er
              epoch, amount, size_bytes, tx_type, created_at)
          VALUES ($1, $2,
                  (SELECT registry_id FROM poc.registry WHERE user_id=$2),
-                 $3, $4, $5, $6, 'renew_digest', NOW())
-         ON CONFLICT (tx_digest) DO NOTHING`,
-        txDigest, userID, blobID, epochVal, amountVal, sizeBytes,
+                 $3, $4, $5, $6, 'renew_digest', $7)
+         ON CONFLICT (tx_digest, blob_obj_id) DO NOTHING`,
+        txDigest, userID, blobID, epochVal, amountVal, sizeBytes, timeStamp,
     )
     if err != nil {
         return err
@@ -427,7 +428,7 @@ func (db *DB) InsertBlobUpdate(data map[string]interface{}) error {
          WHERE blob_obj_id   = $2
     `, newEpoch, blobID)
 
-    log.Printf("✅ WithdrawBlob processed for blob\n\n", blobID)
+    log.Printf("✅ BlobUpdate processed for blob\n\n", blobID)
     return err
 }
 
@@ -435,7 +436,7 @@ func (db *DB) InsertBlobUpdate(data map[string]interface{}) error {
 
 
 // InsertWithdrawBlob logs a blob removal and deletes the stored file
-func (db *DB) InsertWithdrawBlob(data map[string]interface{}, txDigest string) error {
+func (db *DB) InsertWithdrawBlob(data map[string]interface{}, timeStamp time.Time, txDigest string) error {
     // Extract fields
     ownerAddr, ok := data["owner"].(string)
     if !ok {
@@ -496,9 +497,9 @@ func (db *DB) InsertWithdrawBlob(data map[string]interface{}, txDigest string) e
         `INSERT INTO poc.transaction_history
             (tx_digest, user_id, registry_id, blob_obj_id,
              epoch, amount, size_bytes, tx_type, created_at)
-         VALUES ($1, $2, $3, $4, $5, 0, $6, 'blob_removal', NOW())
-         ON CONFLICT (tx_digest) DO NOTHING`,
-        txDigest, userID, registryID, blobID, currentEpoch, sizeBytes,
+         VALUES ($1, $2, $3, $4, $5, 0, $6, 'blob_removal', $7)
+          ON CONFLICT (tx_digest, blob_obj_id) DO NOTHING`,
+        txDigest, userID, registryID, blobID, currentEpoch, sizeBytes, timeStamp,
     )
     if err != nil {
         return err
@@ -514,6 +515,6 @@ func (db *DB) InsertWithdrawBlob(data map[string]interface{}, txDigest string) e
         }
     }
 
-    log.Printf("✅ WithdrawBlob processed for blob", blobID)
+    log.Printf("✅ WithdrawBlob processed for blob %s", blobID)
     return tx.Commit()
 }

@@ -17,7 +17,7 @@ type Config struct {
 
 
 func Load() *Config {
-    retry := time.Second * 5
+    retry := time.Second * 2
 
     dbURL := os.Getenv("DATABASE_URL")
     if dbURL == "" {
