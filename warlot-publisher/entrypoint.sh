@@ -63,7 +63,7 @@ fi
 
 
 
-walrus list-blobs --context testnet
+walrus list-blobs --context testnet --wallet "/home/appuser/.sui/sui_config/client.yaml"
 
 
 

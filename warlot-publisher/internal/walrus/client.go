@@ -16,6 +16,7 @@ func Store(path string, epochs int, ctx string, deletable bool) (string, error) 
         path,
         "--epochs", fmt.Sprint(epochs),
         "--context", ctx,
+        "--wallet", "/home/appuser/.sui/sui_config/client.yaml",
     }
 
     // Only include --deletable when requested
