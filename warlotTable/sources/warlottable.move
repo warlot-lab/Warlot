@@ -74,6 +74,13 @@ public fun create_user(_: &mut AdminCap, system_cfg: &mut SystemCfg, user: addre
 
 }
 
+
+
+public fun update_data(user: &mut User, api_key: String, api_url: String){
+    user.api_key = api_key;
+    user.api_url = api_url;
+}
+
 public fun create_table(_: &mut AdminCap, system_cfg: &mut SystemCfg, user: address, table_name: String, blob_id: String, blob_sui_obj_id: String,  ctx: &mut TxContext){
     let user_holder = ofields::borrow_mut<address, UserPlaceHolder>(&mut system_cfg.id, user);
     ofields::add<String, TableSet>(&mut user_holder.id, table_name, TableSet{

@@ -15,7 +15,46 @@ This Sui Move smart contract allows you to manage users and their associated tab
 
 ## 🧱 Core Data Structures
 
-### ⚙️ SystemCfg
+### ⚓ Admincap
+
+```rust
+ ┌──                                                                                                       │
+│  │ ObjectID: 0x50aa954eab867d617b9d585b1eecf16e29a81681633f4a35eb77cabe5de85372                            │
+│  │ Sender: 0xa8c88213fac31eab2dd706c6e981072894a23e5479c18dcfe42dcdc2fc44bebd                              │
+│  │ Owner: Account Address ( 0xa8c88213fac31eab2dd706c6e981072894a23e5479c18dcfe42dcdc2fc44bebd )           │
+│  │ ObjectType: 0x4a6651ae46511bd1a79a5d750ecfa0dc7ca385145daf8ab67d9786ad13fe127f::warlottable::AdminCap   │
+│  │ Version: 423548363                                                                                      │
+│  │ Digest: 3MeBw7yPqJamGHa13nyB5YEqbVC42XQpRcZ93yw8w33G                                                    │
+│  └──                                                                                                       │
+```
+
+### 🛞Systemcfg
+
+```rust
+ ┌──                                                                                                       │
+│  │ ObjectID: 0xf4a8a88456e8491bb2d26743b59c15c46ef13467e1c8a9ec047ad9e6d6235fd1                            │
+│  │ Sender: 0xa8c88213fac31eab2dd706c6e981072894a23e5479c18dcfe42dcdc2fc44bebd                              │
+│  │ Owner: Shared( 423548363 )                                                                              │
+│  │ ObjectType: 0x4a6651ae46511bd1a79a5d750ecfa0dc7ca385145daf8ab67d9786ad13fe127f::warlottable::SystemCfg  │
+│  │ Version: 423548363                                                                                      │
+│  │ Digest: AC2NxLNSgpNC7goeJybvpTuL8FKsRTMQQBXLFjMi2svU                                                    │
+│  └──                                                                                                       │
+```
+
+## 🚀🚀PackageInfo
+
+```rust
+  ┌──                                                                                                       │
+│  │ PackageID: 0x4a6651ae46511bd1a79a5d750ecfa0dc7ca385145daf8ab67d9786ad13fe127f                           │
+│  │ Version: 1                                                                                              │
+│  │ Digest: AcRiyDdU4xA8dRX43B331FvzM2M8sHwxiSQo9z89zzKf                                                    │
+│  │ Modules: warlottable                                                                                    │
+│  └──                                                                                                       │
+```
+
+---
+
+### ⚙️ old SystemCfg
 
 ```rust
 │  ┌──                                                                                                       │
@@ -29,7 +68,7 @@ This Sui Move smart contract allows you to manage users and their associated tab
 
 ```
 
-### 🎫 AdminCap
+### 🎫old AdminCap
 
 ```rust
 ┌──                                                                                                          │
@@ -43,7 +82,7 @@ This Sui Move smart contract allows you to manage users and their associated tab
 
 ```
 
-## 🚀🚀 PackageInfo
+## 🚀🚀old PackageInfo
 
 ```rust
 │ Published Objects:                                                                                         │
