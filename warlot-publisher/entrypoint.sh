@@ -11,7 +11,7 @@ trap 'abort' TERM INT
 
 echo "🔨 Starting Warlot Publisher entrypoint…"
 
-# 1) Import key
+# Import key
 if [[ -n "${SUI_KEY_PATH:-}" && -f "$SUI_KEY_PATH" ]]; then
   echo "🔑 Importing Sui key from file at \$SUI_KEY_PATH"
   sui keytool import --name default --path "$SUI_KEY_PATH"
@@ -23,7 +23,7 @@ else
   echo "⚠️  No SUI_KEY_PATH or SUI_MNEMONIC—skipping key import."
 fi
 
-# 2) Bootstrap Sui config if missing
+# Bootstrap Sui config if missing
 if [[ ! -f "$HOME/.sui/sui_config/client.yaml" ]]; then
   echo "📡 Bootstrapping Sui client configuration..."
 
@@ -31,7 +31,7 @@ if [[ ! -f "$HOME/.sui/sui_config/client.yaml" ]]; then
 fi
 
 
-# 3) Switch address
+# Switch address
 if [[ -n "${SUI_ADDRESS:-}" ]]; then
   echo "📌 Switching to address \$SUI_ADDRESS"
   sui client switch --address "$SUI_ADDRESS"
@@ -39,12 +39,12 @@ else
   echo "ℹ️  No SUI_ADDRESS—using default address"
 fi
 
-# 4) Show envs
+# Show envs
 echo "🔍 Sui client environments:"
 sui client envs
 
 
-# 4.1) show active address
+#  show active address
 echo "⚙️ active address"
 sui client active-address
 
@@ -67,8 +67,7 @@ walrus list-blobs --context testnet
 
 
 
-# … earlier steps …
-# 6) Determine ports and TLS file paths
+
 : "${PORT:=8080}"
 : "${TLS_CERT:=/home/appuser/server.crt}"
 : "${TLS_KEY:=/home/appuser/server.key}"
@@ -82,7 +81,7 @@ else
   CMD=(/usr/local/bin/warlot-publisher --http "$PORT")
 fi
 
-# 7) Start the server and wait
+# Start the server and wait
 "${CMD[@]}" &
 PID=$!
 wait "$PID"
