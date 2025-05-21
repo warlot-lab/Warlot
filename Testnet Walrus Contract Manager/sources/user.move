@@ -27,7 +27,7 @@ public struct DashData has store {
 }
 
 
-public(package) fun create_user(system_id: ID, apikey: String, encrypt_key: String, warlot_sign_apikey: String, clock: &Clock, ctx: &mut TxContext): User{
+public(package) fun create_user( public_username: String, system_id: ID, apikey: String, encrypt_key: String, warlot_sign_apikey: String, clock: &Clock, ctx: &mut TxContext): User{
     let safe_vault: Wallet = wallet::create_wallet(clock, ctx);
 
    
@@ -45,7 +45,7 @@ public(package) fun create_user(system_id: ID, apikey: String, encrypt_key: Stri
     ofields::add<String, Table<ID, EpochState>>(&mut new_user.id, constants::indexer_key(), table::new(ctx));
 
 
-    registry::create_registry(object::id(&new_user), system_id, apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
+    registry::create_registry( public_username, object::id(&new_user), system_id, apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
     new_user
 }
 

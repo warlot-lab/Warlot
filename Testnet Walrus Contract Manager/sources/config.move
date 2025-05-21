@@ -77,14 +77,17 @@ public(package) fun get_renew_epoch_count(blob_cfg: &BlobSettings, system: &Syst
 
 }
 
-public fun sync_epoch_count(system: &System, epoch_checkpoint: u32): u32 {
-    let current = system.epoch();
+public fun sync_epoch_count(blob_cfg: &BlobSettings, epoch_checkpoint: u32): u32 {
 
-    if (current >= epoch_checkpoint) {
+  
+
+    let blob_end_epoch = blob_cfg.blob_current();
+
+    if (blob_end_epoch >= epoch_checkpoint) {
         return 2
     };
 
-    let gap = epoch_checkpoint - current;
+    let gap = epoch_checkpoint - blob_end_epoch;
 
 
     if (gap > constants::max_sync_epochs()) {

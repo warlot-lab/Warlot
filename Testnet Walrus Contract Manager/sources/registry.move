@@ -8,6 +8,7 @@ public struct Registry has key{
     user: address,
     user_object_id: ID,
     system_id: ID,
+    public_username: String,
     created_at: u64,
     updated_at: u64,
     hashed_apikey: String, //this is the hashed api key of the user; it will be used by our publisher to identify the user that sent the blob
@@ -18,12 +19,13 @@ public struct Registry has key{
 
 
 
-public(package) fun create_registry(user_object_id: ID, system_id: ID, hashed_apikey: String, hashed_encrypt_key: String, warlot_sign_apikey: String,  clock: &Clock, ctx: &mut TxContext){
+public(package) fun create_registry( public_username: String, user_object_id: ID, system_id: ID, hashed_apikey: String, hashed_encrypt_key: String, warlot_sign_apikey: String,  clock: &Clock, ctx: &mut TxContext){
    let registry_state =  Registry{
         id: object::new(ctx),
         user: ctx.sender(),
         user_object_id,
         system_id,
+        public_username,
         created_at: clock.timestamp_ms(),
         updated_at: clock.timestamp_ms(),
         hashed_apikey,

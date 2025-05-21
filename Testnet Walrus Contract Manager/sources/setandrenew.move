@@ -180,10 +180,11 @@ public fun create_user(
     apikey: String,
     encrypt_key: String,
     warlot_sign_apikey: String,
+     public_username: String,
     clock: &Clock,
     ctx: &mut TxContext
     ){
-    let new_user = userstate::create_user(object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
+    let new_user = userstate::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
 
     add_user(system_cfg, new_user, ctx);
 
@@ -439,7 +440,7 @@ public fun sync_blob(
                 let blob_cfg_ref = vector::borrow_mut(blob_list, y);
                
             //    this get the sync pad epoch of that particular blob
-                    let sync_epoch: u32 = config::sync_epoch_count(walrus_system, epoch_checkpoint);
+                    let sync_epoch: u32 = config::sync_epoch_count(blob_cfg_ref, epoch_checkpoint);
                     // this makes sure that only the ones that need padding gets padded 
                     if (sync_epoch > 0){
                         // get the blob form the blob config
