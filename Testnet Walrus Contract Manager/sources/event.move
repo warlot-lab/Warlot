@@ -1,5 +1,6 @@
-module setandrenew::event;
+module warlot::event;
 use sui::event;
+use std::string::String;
 
 // Events emitted for indexing and off-chain processing
 
@@ -40,6 +41,7 @@ public struct WarlotFileStore has copy, drop, store {
     owner: address,
     blob_obj_id: ID,
     size: u64,
+    encoded_size: u64,
     current_epoch: u32,
     epoch_set: u32,
     cycle_end: u64,
@@ -60,6 +62,7 @@ public struct ManagedBlobs has copy, drop, store {
     blob_obj_id: ID,
     current_epoch: u32,
     size: u64,
+    encoded_size: u64,
     epoch_set: u32,
     cycle_end: u64,
 }
@@ -70,12 +73,29 @@ public struct WithdrawBlob has copy, drop, store {
     blob_obj_id: ID,
 }
 
-
+//Emitted when a blob is updated
 public struct BlobUpdate has copy, drop{
     owner: address,
     blob_obj_id: ID,
     current_epoch: u32,
 }
+
+//Emitted when a blob is given is in a project 
+public struct BlobWarlotAttribut has copy, drop, store{
+    owner: address,
+    blob_obj_id: ID,
+    project_name: String,
+    bucket_name: String,
+    file_name: String,
+    file_type: String,
+}
+
+public struct SystemWithdraw has copy, drop, store{
+    operator: address,
+    system: ID,
+    amount: u64
+}
+
 
 // Emitters
 
@@ -103,11 +123,12 @@ public(package) fun emit_warlot_file_store(
      owner: address,
     blob_obj_id: ID,
     size: u64,
+     encoded_size: u64,
     current_epoch: u32,
     epoch_set: u32,
     cycle_end: u64,
 ) {
-    event::emit(WarlotFileStore { owner, blob_obj_id,  size, current_epoch, epoch_set, cycle_end });
+    event::emit(WarlotFileStore { owner, blob_obj_id,  size,  encoded_size, current_epoch, epoch_set, cycle_end });
 }
 
 public(package) fun emit_renew_digest(
@@ -124,11 +145,12 @@ public(package) fun emit_managed_blobs(
     owner: address,
     blob_obj_id: ID,
     size: u64,
+    encoded_size: u64,
     current_epoch: u32,
     epoch_set: u32,
     cycle_end: u64,
 ) {
-    event::emit(ManagedBlobs { owner, blob_obj_id,  current_epoch, size, epoch_set, cycle_end });
+    event::emit(ManagedBlobs { owner, blob_obj_id,  current_epoch, size,  encoded_size, epoch_set, cycle_end });
 }
 
 public(package) fun emit_withdraw_blob(owner: address, blob_obj_id: ID) {
@@ -137,4 +159,12 @@ public(package) fun emit_withdraw_blob(owner: address, blob_obj_id: ID) {
 
 public(package) fun emit_update_blob(owner: address, blob_obj_id: ID, current_epoch: u32){
     event::emit(BlobUpdate{owner, blob_obj_id, current_epoch})
+}
+
+public(package) fun emit_warlot_attribute(owner: address, blob_obj_id: ID, project_name: String, bucket_name: String, file_name: String, file_type: String){
+    event::emit(BlobWarlotAttribut{owner, blob_obj_id, project_name, bucket_name, file_name, file_type})
+}
+
+public(package) fun emit_system_withdraw(operator: address, system: ID, amount: u64){
+    event::emit(SystemWithdraw{operator, system, amount})
 }

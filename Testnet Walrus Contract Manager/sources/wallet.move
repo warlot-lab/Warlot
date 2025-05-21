@@ -1,8 +1,8 @@
-module setandrenew::wallet;
+module warlot::wallet;
 use wal::wal::WAL;
 use sui::coin::{Self, Coin};
 use sui::{balance::{Self, Balance}, clock::Clock};
-use setandrenew::event::Self;
+use warlot::event::Self;
 
 
 public struct Wallet has key, store{

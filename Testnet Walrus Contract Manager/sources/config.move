@@ -1,5 +1,6 @@
-module setandrenew::config;
+module warlot::config;
 use walrus::{blob::Blob, system::System};
+use warlot::constants::Self;
 
 
 // public struct Table has copy, drop, store {}
@@ -76,6 +77,22 @@ public(package) fun get_renew_epoch_count(blob_cfg: &BlobSettings, system: &Syst
 
 }
 
+public fun sync_epoch_count(system: &System, epoch_checkpoint: u32): u32 {
+    let current = system.epoch();
+
+    if (current >= epoch_checkpoint) {
+        return 2
+    };
+
+    let gap = epoch_checkpoint - current;
+
+
+    if (gap > constants::max_sync_epochs()) {
+        return constants::max_sync_epochs()
+    } else {
+        return gap
+    }
+}
 
 public(package) fun withdraw_and_burn(blob_cfg: BlobSettings): Blob{
    let BlobSettings { blob, epoch_set: _, cycle_at: _, cycle_end: _ } = blob_cfg;

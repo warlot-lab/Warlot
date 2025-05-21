@@ -8,7 +8,6 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 # For remote import, use the `{ git = "...", subdir = "...", rev = "..." }`.
 # Revision can be a branch, a tag, and a commit hash.
-warlotpackage    = { git = "https://github.com/steven3002/WarLot_sui-smart-contract.git", rev = "main"}
 WAL = { git = "https://github.com/MystenLabs/walrus.git",   rev = "main", subdir = "testnet-contracts/wal"}
 Walrus = { git = "https://github.com/MystenLabs/walrus.git",   rev = "main", subdir = "testnet-contracts/walrus"}
 
@@ -22,7 +21,7 @@ Walrus = { git = "https://github.com/MystenLabs/walrus.git",   rev = "main", sub
 
 [addresses]
 
-setandrenew = "0x0"
+warlot = "0x0"
 # warlotpackage    = "0x90a4dbfcfb4762416a81436e54fbf3ebba1cd5729c06705ed10ea66da547d704"
 # Named addresses will be accessible in Move as `@name`. They're also exported:
 # for example, `std = "0x1"` is exported by the Standard Library.

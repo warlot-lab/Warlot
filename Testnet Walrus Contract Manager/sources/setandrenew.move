@@ -1,16 +1,16 @@
-module setandrenew::setandrenew;
+module warlot::setandrenew;
 
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, system::System};
 use std::string::String;
-use sui::{coin::{Self, Coin}, dynamic_object_field as ofields, clock::Clock};
-use setandrenew::{
+use sui::{coin::{Self, Coin}, dynamic_object_field as ofields, clock::Clock, balance::{Self, Balance}};
+use warlot::{
     userstate::{Self, User},
     config::{Self, BlobSettings}, 
     constants::{Self},
     registry::Registry,
     event::Self
-    };
+};
 
 
 
@@ -28,6 +28,8 @@ public struct SystemConfig has key, store {
     managed_blobs: u64,
     version: u8,
     mint_cap: SystemMintCap,
+    user_modification_cfg: UserMdCfg,
+    balance: Balance<WAL>
 }
 
 public struct SystemMintCap has store{
@@ -41,6 +43,19 @@ public struct AdminCap has key, store {
     system_config_id: ID,
     state: u8,
     total_system: u8,
+}
+
+// this struct holds bound for modifing your user registry
+// todo
+// to be use to show whwn you can leave the system
+// to show when you can migrate to another system storage 
+// to modify the system state 
+// to became a validator on the next system mint 
+
+public struct UserMdCfg has store {
+    cost_change_apikey_forms : u64,
+    cost_to_migrate_system: u64,
+    cost_to_delete: u64,
 }
 
 
@@ -57,7 +72,13 @@ fun init(ctx: &mut TxContext){
         mint_cap: SystemMintCap{
             previous_system: object::id_from_address(@0x0),
             has_minted: false
-        }
+        },
+        user_modification_cfg: UserMdCfg{
+            cost_change_apikey_forms : 100,
+            cost_to_migrate_system: 100,
+            cost_to_delete: 100,
+        },
+        balance: balance::zero<WAL>()
     };
     
 
@@ -97,10 +118,28 @@ public fun mint_admin(
     transfer::transfer(new_cap, receiver);
 }
 
+#[allow(lint(self_transfer))]
+public fun withdraw_system(system_cfg: &mut SystemConfig, admin_cap : &mut AdminCap, amount: u64, ctx: &mut TxContext){
+    // only allow once, from the “original” cap
+    assert!(admin_cap.state == constants::state_original(), 1);
+    
+    transfer::public_transfer(
+        coin::take<WAL>(
+            &mut system_cfg.balance, 
+            amount, 
+            ctx),
+
+        ctx.sender()
+    )
+
+}
 
 public fun mint_system(
     admin_cap: &mut AdminCap,
     old_system: &mut SystemConfig,
+    cost_change_apikey_forms : u64,
+    cost_to_migrate_system: u64,
+    cost_to_delete: u64,
     ctx: &mut TxContext
 ){
     //makes sure the minting of system is linear 
@@ -117,7 +156,13 @@ public fun mint_system(
         mint_cap: SystemMintCap{
             previous_system: object::id(old_system),
             has_minted: false
-        }
+        },
+        user_modification_cfg: UserMdCfg{
+        cost_change_apikey_forms,
+        cost_to_migrate_system,
+        cost_to_delete,
+        },
+        balance: balance::zero<WAL>()
     };
 
     event::emit_system_mint(object::id(&new_system), object::id(old_system), ctx.sender());
@@ -138,7 +183,7 @@ public fun create_user(
     clock: &Clock,
     ctx: &mut TxContext
     ){
-    let new_user = userstate::create_user(apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
+    let new_user = userstate::create_user(object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
 
     add_user(system_cfg, new_user, ctx);
 
@@ -146,6 +191,31 @@ public fun create_user(
     system_cfg.users = old_user_count + 1;
 }
 
+
+
+public fun update_api_key(
+    system_cfg: &mut SystemConfig,
+    registry: &mut Registry, 
+    new_hashed_apikey: String, 
+    new_warlot_sign_apikey: String,
+    clock: &Clock,
+    payment: &mut Coin<WAL>,
+    ctx: &mut TxContext
+){
+    assert!(object::id(system_cfg) == registry.get_system(), 9);
+    let funds = payment.split(
+                    system_cfg
+                    .user_modification_cfg
+                    .cost_change_apikey_forms, 
+                    ctx);
+
+    coin::put<WAL>(&mut system_cfg.balance, funds);
+    registry.update_api_key(
+    new_hashed_apikey, 
+    new_warlot_sign_apikey,
+    clock
+    )
+}
 
 
 // this is used to store the blob in the contract
@@ -200,10 +270,11 @@ public fun store_blob(
             constants::first_set()
         };
 
-    event::emit_warlot_file_store(
+        event::emit_warlot_file_store(
         user, 
         blob::object_id(&raw_blob), 
         blob::size(&raw_blob), 
+        blob::storage(&raw_blob).size(),
         blob::end_epoch(&raw_blob), 
         set, 
         cycle_end
@@ -316,7 +387,7 @@ public fun renew(
             };
         };
 
-        // 4) return any leftover
+    //   return any leftover token
         {
             let user_ref3 = get_user_mut(system_cfg, user_addr);
             user_ref3.get_wallet().return_balance(funds);
@@ -329,6 +400,84 @@ public fun renew(
 }
 
 
+
+public fun sync_blob( 
+    _: &mut AdminCap,
+    system_cfg: &mut SystemConfig,
+    walrus_system: &mut System,
+    users: vector<address>,
+    epoch_set: u32,
+    epoch_checkpoint: u32,
+    ctx: &mut TxContext){
+
+    let mut i = 0;
+
+    while (i < vector::length(&users)) {
+        let user_addr = *vector::borrow(&users, i);
+        
+    //    get funds 
+        let mut funds = {
+            let user_ref = get_user_mut(system_cfg, user_addr);
+            let wallet   = user_ref.get_wallet();
+            wallet.get_balance(ctx)
+        };
+
+       
+        //process each blob
+        {
+            // get the user object 
+            let user_ref2 = get_user_mut(system_cfg, user_addr);
+
+            //get the blob_cfg objects for that epoch
+            let blob_list     = user_ref2.get_mut_obj_list_blob_cfg(epoch_set);
+            let mut y = 0;
+            while (y < vector::length(blob_list)) {
+                // store the current value of the token before the sync
+                // this is for the event to be able to emit the actual cost of renewal of the data 
+                let  funds_current_balance = funds.value();
+                // this holds the mut ref to that particular blob in that index
+                let blob_cfg_ref = vector::borrow_mut(blob_list, y);
+               
+            //    this get the sync pad epoch of that particular blob
+                    let sync_epoch: u32 = config::sync_epoch_count(walrus_system, epoch_checkpoint);
+                    // this makes sure that only the ones that need padding gets padded 
+                    if (sync_epoch > 0){
+                        // get the blob form the blob config
+                        let blob_obj   = blob_cfg_ref.blob();
+
+                    
+                        // setting 0 as place holder for the renewal to be changed in update
+                        
+
+
+                        extend_blob(walrus_system, blob_obj, &mut funds, sync_epoch);
+                        event::emit_renew_digest(
+                            user_addr, 
+                            blob_cfg_ref.get_blob_obj_id(),
+                            epoch_set,
+                            funds_current_balance - funds.value(),
+                            blob_cfg_ref.blob_size()
+                        );
+
+                        event::emit_update_blob(user_addr, blob_cfg_ref.get_blob_obj_id(), blob_cfg_ref.blob_current());
+
+                    };
+          
+                y = y + 1;
+            };
+        };
+
+    //   return any leftover token
+        {
+            let user_ref3 = get_user_mut(system_cfg, user_addr);
+            user_ref3.get_wallet().return_balance(funds);
+        };
+
+        i = i + 1;
+    };
+
+
+}
 
 public fun foreign_blob_add(
     registry: &mut Registry,
@@ -356,6 +505,7 @@ public fun foreign_blob_add(
             registry.get_user(), 
             blob::object_id(&raw_blob), 
             blob::size(&raw_blob), 
+            blob::storage(&raw_blob).size(),
             blob::end_epoch(&raw_blob), 
             set, 
             cycle_end);

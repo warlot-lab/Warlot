@@ -1,6 +1,6 @@
-module setandrenew::userstate;
+module warlot::userstate;
 use std::string::String;
-use setandrenew::{wallet::{Self, Wallet}, config::{Self, BlobSettings}, registry::{Self}, constants::{Self}};
+use warlot::{wallet::{Self, Wallet}, config::{Self, BlobSettings}, registry::{Self}, constants::{Self}};
 use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields, table::{Self, Table}};
 
 
@@ -27,7 +27,7 @@ public struct DashData has store {
 }
 
 
-public(package) fun create_user(apikey: String, encrypt_key: String, warlot_sign_apikey: String, clock: &Clock, ctx: &mut TxContext): User{
+public(package) fun create_user(system_id: ID, apikey: String, encrypt_key: String, warlot_sign_apikey: String, clock: &Clock, ctx: &mut TxContext): User{
     let safe_vault: Wallet = wallet::create_wallet(clock, ctx);
 
    
@@ -45,7 +45,7 @@ public(package) fun create_user(apikey: String, encrypt_key: String, warlot_sign
     ofields::add<String, Table<ID, EpochState>>(&mut new_user.id, constants::indexer_key(), table::new(ctx));
 
 
-    registry::create_registry(object::id(&new_user), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
+    registry::create_registry(object::id(&new_user), system_id, apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
     new_user
 }
 
