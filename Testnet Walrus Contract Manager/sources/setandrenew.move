@@ -55,6 +55,7 @@ public struct AdminCap has key, store {
 public struct UserMdCfg has store {
     cost_change_apikey_forms : u64,
     cost_to_migrate_system: u64,
+    cost_to_update_name: u64,
     cost_to_delete: u64,
 }
 
@@ -76,6 +77,7 @@ fun init(ctx: &mut TxContext){
         user_modification_cfg: UserMdCfg{
             cost_change_apikey_forms : 100,
             cost_to_migrate_system: 100,
+               cost_to_update_name: 100,
             cost_to_delete: 100,
         },
         balance: balance::zero<WAL>()
@@ -139,6 +141,7 @@ public fun mint_system(
     old_system: &mut SystemConfig,
     cost_change_apikey_forms : u64,
     cost_to_migrate_system: u64,
+    cost_to_update_name: u64,
     cost_to_delete: u64,
     ctx: &mut TxContext
 ){
@@ -160,6 +163,7 @@ public fun mint_system(
         user_modification_cfg: UserMdCfg{
         cost_change_apikey_forms,
         cost_to_migrate_system,
+        cost_to_update_name,
         cost_to_delete,
         },
         balance: balance::zero<WAL>()
@@ -172,6 +176,19 @@ public fun mint_system(
     let old_count = admin_cap.total_system;
     admin_cap.total_system = old_count + 1;
     old_system.mint_cap.has_minted = true;
+}
+
+
+public fun update_cost(
+    admin_cap: &mut AdminCap,
+    system: &mut SystemConfig,
+    cost_change_apikey_forms : u64,
+    cost_to_migrate_system: u64,
+    cost_to_update_name: u64,){
+    assert!(admin_cap.state == constants::state_original(), 3);
+    system.user_modification_cfg.cost_change_apikey_forms = cost_change_apikey_forms;
+    system.user_modification_cfg.cost_to_migrate_system = cost_to_migrate_system;
+    system.user_modification_cfg.cost_to_update_name = cost_to_update_name;
 }
 
 
@@ -216,6 +233,24 @@ public fun update_api_key(
     new_warlot_sign_apikey,
     clock
     )
+}
+
+public fun update_username(
+    system_cfg: &mut SystemConfig, 
+    registry: &mut Registry, 
+    new_username: String,
+    payment: &mut Coin<WAL>,
+    ctx: &mut TxContext,
+    ){
+    assert!(object::id(system_cfg) == registry.get_system(), 9);
+    let funds = payment.split(
+                    system_cfg
+                    .user_modification_cfg
+                    .cost_to_update_name, 
+                    ctx);
+
+    coin::put<WAL>(&mut system_cfg.balance, funds);
+    registry.update_username(new_username)
 }
 
 

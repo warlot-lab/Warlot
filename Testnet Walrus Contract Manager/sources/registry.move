@@ -49,7 +49,9 @@ public(package) fun update_api_key(
     registry.updated_at = clock.timestamp_ms();
 }
 
-
+public(package) fun update_username(registry: &mut Registry, new_username: String){
+    registry.public_username = new_username;
+}
 // send funds for new apikey
 
 
