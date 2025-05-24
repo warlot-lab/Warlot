@@ -1,10 +1,9 @@
-
 package utils
 
 import (
 	"strings"
 
-	"github.com/steven3002/warlot-publisher/internal/wmodels"
+	"github.com/steven3002/warlot/warlot-publisher/internal/wmodels"
 )
 
 // ParseSuccessInfo extracts the SuccessInfo from the raw walrus output.
@@ -48,4 +47,3 @@ func ParseMetadata(output string, result *wmodels.UploadResponse) {
 		}
 	}
 }
-

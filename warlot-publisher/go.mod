@@ -1,4 +1,4 @@
-module github.com/steven3002/warlot-publisher
+module github.com/steven3002/warlot/warlot-publisher
 
 go 1.24.2
 

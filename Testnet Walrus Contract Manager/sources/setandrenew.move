@@ -22,6 +22,7 @@ use warlot::{
 const EUserExist: vector<u8> = b"user already exists";
 
 /// System configuration on-chain
+/// this holds the warlot system config and data
 public struct SystemConfig has key, store {
     id: UID,
     users: u64,
@@ -32,6 +33,7 @@ public struct SystemConfig has key, store {
     balance: Balance<WAL>
 }
 
+// this is a key to make sure that system are minted linearly 
 public struct SystemMintCap has store{
         previous_system: ID,
         has_minted: bool
@@ -136,6 +138,7 @@ public fun withdraw_system(system_cfg: &mut SystemConfig, admin_cap : &mut Admin
 
 }
 
+// create a new system
 public fun mint_system(
     admin_cap: &mut AdminCap,
     old_system: &mut SystemConfig,
@@ -178,7 +181,7 @@ public fun mint_system(
     old_system.mint_cap.has_minted = true;
 }
 
-
+// update the cost of the system
 public fun update_cost(
     admin_cap: &mut AdminCap,
     system: &mut SystemConfig,
@@ -191,7 +194,7 @@ public fun update_cost(
     system.user_modification_cfg.cost_to_update_name = cost_to_update_name;
 }
 
-
+// create user internal object and public registry
 public fun create_user(
     system_cfg: &mut SystemConfig,
     apikey: String,
@@ -210,7 +213,7 @@ public fun create_user(
 }
 
 
-
+// update your api keys with cost
 public fun update_api_key(
     system_cfg: &mut SystemConfig,
     registry: &mut Registry, 
@@ -235,6 +238,8 @@ public fun update_api_key(
     )
 }
 
+
+// update name with cost
 public fun update_username(
     system_cfg: &mut SystemConfig, 
     registry: &mut Registry, 
@@ -327,7 +332,7 @@ public fun store_blob(
 
 
 
-
+// add coin to your internal wallet
 public fun deposit_coin(
      system_cfg: &mut SystemConfig,
      coin: &mut Coin<WAL>,
@@ -349,7 +354,7 @@ public fun deposit_coin(
 //  confirm work list
 //  return unrenewd list
 
-
+// system renew list of blobs
 public fun renew(
     _: &mut AdminCap,
     system_cfg: &mut SystemConfig,
@@ -436,7 +441,7 @@ public fun renew(
 }
 
 
-
+// system sync_blob
 public fun sync_blob( 
     _: &mut AdminCap,
     system_cfg: &mut SystemConfig,
@@ -515,6 +520,7 @@ public fun sync_blob(
 
 }
 
+// add external blobs to system to renew
 public fun foreign_blob_add(
     registry: &mut Registry,
     system_cfg: &mut SystemConfig,
@@ -562,7 +568,7 @@ public fun foreign_blob_add(
     temp_list.destroy_empty()
 }
 
-
+// withdraw_blob for the internal system
 public(package) fun withdraw_blob(
     system_cfg: &mut SystemConfig,
     blob_obj_id: address,

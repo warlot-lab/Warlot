@@ -2,7 +2,7 @@ module warlot::filemain;
 use sui::clock::Clock;
 use std::string::{String};
 
-
+// this is an object that contains onchain atribut of blobs 
 public struct FileMeta has key, store {
     id: UID, //using the indexer you can get the file by id fast
     name: String,
@@ -15,6 +15,7 @@ public struct FileMeta has key, store {
     time_created: u64,
  }
 
+// create a fileMeta
 public fun create(
     name: String,
     description: String,
@@ -46,7 +47,7 @@ public fun create(
 
 }
 
-
+// safe get file name
 public fun get_name(file: &FileMeta): String{
     file.name
 }

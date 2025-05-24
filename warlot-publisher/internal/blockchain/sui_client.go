@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/joho/godotenv"
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/steven3002/warlot-publisher/internal/constants"
+	"github.com/joho/godotenv"
+	"github.com/steven3002/warlot/warlot-publisher/internal/constants"
 )
 
 // Client wraps the Sui client and struct type config
@@ -62,4 +62,3 @@ func (c *Client) GetAPIKey(ctx context.Context, address string) (string, error) 
 	}
 	return fmt.Sprintf("%v", val), nil
 }
-

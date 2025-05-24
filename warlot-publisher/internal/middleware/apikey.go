@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/steven3002/warlot-publisher/internal/blockchain"
-	"github.com/steven3002/warlot-publisher/internal/services"
+	"github.com/steven3002/warlot/warlot-publisher/internal/blockchain"
+	"github.com/steven3002/warlot/warlot-publisher/internal/services"
 )
 
 // APIKey returns a Gin middleware that uses the given Signer to verify HMAC signatures.

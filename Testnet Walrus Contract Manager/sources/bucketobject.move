@@ -4,6 +4,9 @@ use sui::dynamic_object_field as ofields;
 use warlot::filemain::FileMeta;
 use std::string::{String};
 
+
+
+// this is an object that is responsible for the holding a collective of files i.e blobid with arttributes
 public struct Bucket has key, store{
     id: UID,
     name: String,
@@ -16,7 +19,8 @@ public struct Bucket has key, store{
 const InvalidName: vector<u8> = b"name has been created, enter another name";
 
 
-
+// public function to create a bucket
+// onces created the name of the bucket becomes unique
 public fun create(
     name: String, 
     description: String, 
@@ -32,11 +36,12 @@ public fun create(
    bucket
 }
 
+// get name of the bucket
 public fun get_name(bucket: &Bucket): String{
     bucket.name
 }
 
-
+// add file type to your bucket collection
 public fun add_file(bucket: &mut Bucket, file: FileMeta){
     let name = file.get_name();
     assert!(!check_file_name_created(bucket, name), InvalidName);
@@ -44,6 +49,7 @@ public fun add_file(bucket: &mut Bucket, file: FileMeta){
 
 }
 
+// chek if the bucket with the name has been created 
 public fun check_file_name_created(bucket: &Bucket, file_name: String): bool{
     ofields::exists_(&bucket.id, file_name)
 }

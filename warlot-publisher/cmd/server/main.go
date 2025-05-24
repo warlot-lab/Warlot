@@ -7,10 +7,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/steven3002/warlot-publisher/internal/handlers"
-	"github.com/steven3002/warlot-publisher/internal/middleware"
-	"github.com/steven3002/warlot-publisher/internal/services"
-	"github.com/steven3002/warlot-publisher/internal/storage"
+	"github.com/steven3002/warlot/warlot-publisher/internal/handlers"
+	"github.com/steven3002/warlot/warlot-publisher/internal/middleware"
+	"github.com/steven3002/warlot/warlot-publisher/internal/services"
+	"github.com/steven3002/warlot/warlot-publisher/internal/storage"
 )
 
 func main() {

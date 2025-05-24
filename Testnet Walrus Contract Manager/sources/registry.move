@@ -3,6 +3,7 @@ use std::string::String;
 use sui::clock::Clock;
 use warlot::{constants::Self, event::Self};
 
+// this is the warlot user identifier
 public struct Registry has key{
     id: UID,
     user: address,
@@ -18,7 +19,7 @@ public struct Registry has key{
 }
 
 
-
+// this is used to create a registry
 public(package) fun create_registry( public_username: String, user_object_id: ID, system_id: ID, hashed_apikey: String, hashed_encrypt_key: String, warlot_sign_apikey: String,  clock: &Clock, ctx: &mut TxContext){
    let registry_state =  Registry{
         id: object::new(ctx),

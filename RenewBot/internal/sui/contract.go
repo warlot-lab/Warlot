@@ -1,4 +1,4 @@
-package blockchain
+package sui
 
 import (
 	"context"
@@ -9,27 +9,26 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/signer"
+
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/joho/godotenv"
-	"github.com/steven3002/warlot/warlot-publisher/internal/constants"
-	"github.com/steven3002/warlot/warlot-publisher/internal/wmodels"
 )
 
-// StoreBlobTx wraps the Move call and execution for the 'store_blob' function.
-func StoreBlobTx(usersAddress string, resp *wmodels.UploadResponse, epochs, cycle uint64) error {
+// RenewBlob chain epoch renew
+func RenewBlob(usersAddress []string, epochs uint64) error {
 	// Convert numeric values to strings
 	epochStr := strconv.FormatUint(epochs, 10)
-	cycleStr := strconv.FormatUint(cycle, 10)
 
 	godotenv.Load()
 
-	packageID := os.Getenv("USER_CONTRACT_ID")
+	packageID := os.Getenv("WARLOT_PACKAGE_ID")
 	moduleName := os.Getenv("MOVE_MODULE_NAME")
 	adminCap := os.Getenv("ADMIN_CAP")
 	sysCfgID := os.Getenv("SYSTEM_CFG_ID")
+	walrusSysCfg := os.Getenv("WALRUS_SYSTEM")
 	mnemonic := os.Getenv("USER_MNEMONIC")
 
-	cli := sui.NewSuiClient(constants.Testnet)
+	cli := sui.NewSuiClient("https://fullnode.testnet.sui.io")
 	client, ok := cli.(*sui.Client)
 	if !ok {
 		log.Fatal("Failed to cast to *sui.Client")
@@ -38,6 +37,7 @@ func StoreBlobTx(usersAddress string, resp *wmodels.UploadResponse, epochs, cycl
 	signerAcct, err := signer.NewSignertWithMnemonic(mnemonic)
 
 	if err != nil {
+		fmt.Println("Signer creation failed: ", err)
 		return fmt.Errorf("Signer creation failed: %v", err)
 	}
 
@@ -45,16 +45,21 @@ func StoreBlobTx(usersAddress string, resp *wmodels.UploadResponse, epochs, cycl
 
 	ctx := context.Background()
 
+	address := make([]interface{}, len(usersAddress))
+	for i, addr := range usersAddress {
+		address[i] = addr
+	}
+
 	// Prepare arguments
 
-	args := []interface{}{adminCap, sysCfgID, resp.SuiObjectID, epochStr, cycleStr, usersAddress}
+	args := []interface{}{adminCap, sysCfgID, walrusSysCfg, address, epochStr}
 
 	// Build MoveCall request
 	movReq := models.MoveCallRequest{
 		Signer:          signerAcct.Address,
 		PackageObjectId: packageID,
 		Module:          moduleName,
-		Function:        "store_blob",
+		Function:        "renew",
 		TypeArguments:   []interface{}{},
 		Arguments:       args,
 		Gas:             &[]string{os.Getenv("GAS_COIN_ID")}[0],
@@ -63,6 +68,7 @@ func StoreBlobTx(usersAddress string, resp *wmodels.UploadResponse, epochs, cycl
 
 	rsp, err := client.MoveCall(ctx, movReq)
 	if err != nil {
+		fmt.Println("move call failed: ", err)
 		return fmt.Errorf("move call failed: %w", err)
 	}
 
@@ -76,29 +82,30 @@ func StoreBlobTx(usersAddress string, resp *wmodels.UploadResponse, epochs, cycl
 		RequestType: "WaitForLocalExecution",
 	})
 	if err != nil {
+		fmt.Println("execute tx failed: ", err)
 		return fmt.Errorf("execute tx failed: %w", err)
 	}
 
-	// Attach results to response
-	resp.TxDigest = txRes.Effects.TransactionDigest
-	resp.MoveEffects = &txRes.Effects
+	fmt.Println("this is my output: ", txRes.Effects.TransactionDigest)
+	fmt.Println("Effects: ", txRes.Effects)
 	return nil
 }
 
-func ReplaceBlobTx(toAddress string, oldID string, resp *wmodels.UploadResponse, epochs, cycle uint64) error {
+// RenewBlob chain epoch renew
+func SyncBlob(usersAddress []string, epochSet, epochCheckpoint uint64) error {
 	// Convert numeric values to strings
-	epochStr := strconv.FormatUint(epochs, 10)
-	cycleStr := strconv.FormatUint(cycle, 10)
-
+	epochStr := strconv.FormatUint(epochSet, 10)
+	epochCheckpointStr := strconv.FormatUint(epochCheckpoint, 10)
 	godotenv.Load()
 
-	packageID := os.Getenv("USER_CONTRACT_ID")
+	packageID := os.Getenv("WARLOT_PACKAGE_ID")
 	moduleName := os.Getenv("MOVE_MODULE_NAME")
 	adminCap := os.Getenv("ADMIN_CAP")
 	sysCfgID := os.Getenv("SYSTEM_CFG_ID")
+	walrusSysCfg := os.Getenv("WALRUS_SYSTEM")
 	mnemonic := os.Getenv("USER_MNEMONIC")
 
-	cli := sui.NewSuiClient(constants.Testnet)
+	cli := sui.NewSuiClient("https://fullnode.testnet.sui.io")
 	client, ok := cli.(*sui.Client)
 	if !ok {
 		log.Fatal("Failed to cast to *sui.Client")
@@ -114,16 +121,21 @@ func ReplaceBlobTx(toAddress string, oldID string, resp *wmodels.UploadResponse,
 
 	ctx := context.Background()
 
+	address := make([]interface{}, len(usersAddress))
+	for i, addr := range usersAddress {
+		address[i] = addr
+	}
+
 	// Prepare arguments
 
-	args := []interface{}{adminCap, sysCfgID, oldID, resp.SuiObjectID, epochStr, cycleStr, toAddress}
+	args := []interface{}{adminCap, sysCfgID, walrusSysCfg, address, epochStr, epochCheckpointStr}
 
 	// Build MoveCall request
 	movReq := models.MoveCallRequest{
 		Signer:          signerAcct.Address,
 		PackageObjectId: packageID,
 		Module:          moduleName,
-		Function:        "replace",
+		Function:        "sync_blob",
 		TypeArguments:   []interface{}{},
 		Arguments:       args,
 		Gas:             &[]string{os.Getenv("GAS_COIN_ID")}[0],
@@ -136,7 +148,7 @@ func ReplaceBlobTx(toAddress string, oldID string, resp *wmodels.UploadResponse,
 	}
 
 	// Sign & execute
-	txRes, err := client.SignAndExecuteTransactionBlock(ctx, models.SignAndExecuteTransactionBlockRequest{
+	_, err = client.SignAndExecuteTransactionBlock(ctx, models.SignAndExecuteTransactionBlockRequest{
 		TxnMetaData: rsp,
 		PriKey:      signerAcct.PriKey,
 		Options: models.SuiTransactionBlockOptions{
@@ -148,8 +160,5 @@ func ReplaceBlobTx(toAddress string, oldID string, resp *wmodels.UploadResponse,
 		return fmt.Errorf("execute tx failed: %w", err)
 	}
 
-	// Attach results to response
-	resp.TxDigest = txRes.Effects.TransactionDigest
-	resp.MoveEffects = &txRes.Effects
 	return nil
 }

@@ -7,6 +7,7 @@ use std::string::String;
 
 // project istance is being owned by the user 
 // allowing the sdk to get all the one the user has created
+// project is used to tie down the bucket, files and others to a specific field
 public struct Project has key, store{
     id: UID,
     name: String,
@@ -20,7 +21,7 @@ public struct Project has key, store{
 // const InvalidName: vector<u8> = b"name has been created, enter another name";
 
 
-
+// create a project
 #[allow(lint(self_transfer))]
 public fun create_project(name: String, description: String, clock: &Clock, ctx: &mut TxContext){
     let project =  Project{
@@ -35,7 +36,7 @@ public fun create_project(name: String, description: String, clock: &Clock, ctx:
 }
 
 
-
+// safe create bucket
 public fun create_bucket(
     project: &mut Project, 
     name: String, 
@@ -47,7 +48,7 @@ public fun create_bucket(
     project.add_bucket(bucket);
 }
 
-
+// create table
 public fun create_table(
     project: &mut Project,
     name: String,

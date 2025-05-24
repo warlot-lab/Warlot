@@ -4,7 +4,7 @@ use sui::coin::{Self, Coin};
 use sui::{balance::{Self, Balance}, clock::Clock};
 use warlot::event::Self;
 
-
+// this is the internal system wallet of a user using the platform
 public struct Wallet has key, store{
     id: UID,
     owner: address,
