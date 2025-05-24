@@ -10,22 +10,7 @@ This indexer powers dashboards, user insights, and other applications that rely 
 
 ---
 
-## ⚙️ Installation & Setup
-
-### Requirements
-
-- Go 1.19+ installed
-- PostgreSQL database accessible
-- Access to a Sui RPC endpoint
-
-### Step 1: Clone the repository
-
-```bash
-git clone https://github.com/yourorg/warlot-sui-indexer.git
-cd warlot-sui-indexer
-```
-
-### Step 2: Configure Environment Variables
+### Configure Environment Variables
 
 Create a `.env` file at the root with these variables:
 

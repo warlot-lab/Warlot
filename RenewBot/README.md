@@ -164,7 +164,7 @@ RenewBot requires these environment variables for operation:
 | ------------------- | --------------------------------------------- |
 | `WALRUS_SYSTEM`     | Walrus system object ID on the blockchain.    |
 | `RPC_URL`           | Sui blockchain RPC endpoint.                  |
-| `WARLOT_PACKAGE_ID` | Move package ID for transactions.             |
+| `WARLOT_PACKAGE_ID` | WARLOT Move package ID for transactions.      |
 | `MOVE_MODULE_NAME`  | Move module name for Warlot smart contract.   |
 | `ADMIN_CAP`         | Admin capability object ID for transactions.  |
 | `SYSTEM_CFG_ID`     | System configuration object ID.               |
