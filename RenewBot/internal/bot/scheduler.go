@@ -25,8 +25,8 @@ type EpochScheduler struct {
 
 func NewEpochScheduler() *EpochScheduler {
 	return &EpochScheduler{
-		EpochDuration:    24 * time.Hour,        // 1 day
-		IntervalDuration: (24 * time.Hour) / 48, // 48 intervals in a day (each 30 minutes)
+		EpochDuration:    4 * time.Second,        // 1 day
+		IntervalDuration: (4 * time.Second) / 48, // 48 intervals in a day (each 30 minutes)
 
 	}
 }

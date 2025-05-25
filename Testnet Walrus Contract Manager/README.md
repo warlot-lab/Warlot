@@ -1,170 +1,153 @@
+# Warlot Set and Renew Module
+
+This Move smart contract module is part of the **Warlot** system, designed for managing user registrations, system administration, and blob storage with renew and update functionality. It provides core functionality for initializing the system, managing users, minting system administration capabilities, storing and renewing blobs (data chunks), and handling associated balances with the WAL token.
+
 ---
-# Warlot Smart Contract Documentation
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Core Structures](#core-structures)
+- [Public Functions](#public-functions)
+- [Events](#events)
+- [Error Handling](#error-handling)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+
 ---
 
 ## Overview
 
-Warlot is a decentralized storage management system built on the Sui blockchain. It enables users to register, manage wallets, store and renew blobs (files), track usage data, and interact with dynamic tables for efficient data indexing.
+The **Warlot Set and Renew** module governs system-wide configurations and user interactions within the Warlot platform. It manages the lifecycle of users and system state via an admin capability pattern, ensuring that only authorized actors can perform critical system updates.
 
-Key features include:
-
-- User registration with wallet creation and metadata initialization
-- Blob lifecycle management (add, replace, remove, extend)
-- Internal wallet management for deposits, withdrawals, and balance tracking
-- Dynamic field usage for scalable and flexible data storage
-- Epoch-based state tracking for blobs
-- Event emission for key system actions
+The module also handles storing and renewing blobs (files or data objects) linked to users and manages WAL token balances associated with these operations.
 
 ---
 
-## Modules and Core Components
+## Key Features
 
-### 1. `warlot::userstate`
-
-**Purpose:** Manages user-related data including registration, blob management, metadata, and indexing.
-
-#### Structs
-
-- **User**: Stores user identity, owner address, wallet, and metadata.
-- **EpochState**: Tracks epoch number and vector index for blobs.
-- **DashData**: Aggregates file count and storage size for user statistics.
-
-#### Key Functions
-
-- `create_user(...) -> User`
-  Creates a new user with a wallet and registers them in the system.
-
-- `add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32)`
-  Adds a new blob configuration to a user for a specific epoch, updating the indexing table.
-
-- `remove_blob_from_user(user: &mut User, blob_obj_id: ID) -> BlobSettings`
-  Removes a blob configuration from the user, updating the indexer and internal vectors.
-
-- `update_dash_data(user: &mut User, files: u128, storage_size: u128) -> bool`
-  Updates user's dashboard data with incremented files and storage usage.
-
-- `reduce_dash_data(user: &mut User, storage_size: u128) -> bool`
-  Reduces file count and storage usage for the user.
-
-- `get_mut_obj_list_blob_cfg(user: &mut User, epoch: u32) -> &mut vector<BlobSettings>`
-  Access the mutable vector of blob settings for a user at a specific epoch.
-
-- `add_to_indexer(user: &mut User, blob_obj_id: ID, epoch: u32, vector_index: u64)`
-  Adds a blob entry to the user’s indexer table.
-
-- `remove_from_indexer(user: &mut User, blob_obj_id: ID, replace: Option<ID>)`
-  Removes a blob entry from the indexer, optionally replacing it with another.
+- System initialization and admin capability minting
+- User creation with unique public usernames and API keys
+- Controlled minting of new system versions
+- Updating user API keys and usernames with associated costs
+- Secure storage and management of blobs
+- Renewal logic for blob lifecycle with token payments
+- Coin deposit and balance management within user wallets
 
 ---
 
-### 2. `warlot::wallet`
+## Core Structures
 
-**Purpose:** Manages user wallets and WAL token balances.
+### `SystemConfig`
 
-#### Structs
+- Holds the global system state, including user counts, system version, blob management, and balance.
 
-- **Wallet**: Holds wallet ID, owner address, creation timestamp, and WAL balance.
+### `SystemMintCap`
 
-#### Key Functions
+- Tracks minting status for linear system upgrades.
 
-- `create_wallet(clock: &Clock, ctx: &mut TxContext) -> Wallet`
-  Creates a new wallet for a user, initializing balance and emitting creation events.
+### `AdminCap`
 
-- `deposit(wallet: &mut Wallet, funds: &mut Coin<WAL>, amount: u64, ctx: &mut TxContext) -> u64`
-  Deposits funds into the wallet from an external coin, emits a deposit event.
+- Admin capability token used for privileged actions like minting new systems, withdrawing funds, and blob management.
 
-- `return_balance(wallet: &mut Wallet, coin: Coin<WAL>)`
-  Returns coins to the wallet balance.
+### `UserMdCfg`
 
-- `get_balance(wallet: &mut Wallet, ctx: &mut TxContext) -> Coin<WAL>`
-  Withdraws all WAL from the wallet as a coin object.
-
-- `has_estimate(wallet: &Wallet, estimate: u64) -> bool`
-  Checks if wallet has at least `estimate` amount.
-
-- `get_owner(wallet: &Wallet) -> address`
-  Returns the wallet owner's address.
+- Configuration for user modification costs (e.g., updating API keys, migrating systems).
 
 ---
 
-### 3. `warlot::tablemain`
+## Public Functions
 
-**Purpose:** Manages dynamic tables used for indexing blobs and other data structures.
+### System Management
 
-#### Structs
+- **`init(ctx: &mut TxContext)`**
+  Initializes the system, creating the first `SystemConfig` and minting the original `AdminCap`.
 
-- **Table**: Represents a dynamic table with ID, name, timestamps, and cache references.
+- **`mint_admin(receiver: address, admin_cap: &AdminCap, ctx: &mut TxContext)`**
+  Mint a new admin capability if caller holds the original admin cap.
 
-#### Key Functions
+- **`mint_system(...)`**
+  Mint a new system configuration with incremented version, ensuring linear system upgrades and only allowed by the original admin.
 
-- `create(name: String, cache_obj: address, cache_file: String, clock: &Clock, ctx: &mut TxContext) -> Table`
-  Creates a new table with timestamps.
+- **`update_cost(...)`**
+  Update user modification costs in the system config.
 
-- `update(table: &mut Table, cache_obj: address, cache_file: String, clock: &Clock)`
-  Updates the cache object and file, and refreshes the last updated timestamp.
-
-- `get_name(table: &Table) -> String`
-  Returns the name of the table.
-
----
-
-### 4. Miscellaneous Functions and Modules
-
-- `add_user(system_cfg: &mut SystemConfig, user: User, ctx: &TxContext)`
-  Adds a new user to the system configuration, ensuring no duplicate users.
-
-- `get_user_mut(system_cfg: &mut SystemConfig, user: address) -> &mut User`
-  Mutable access to a user object.
-
-- `get_user(system_cfg: &SystemConfig, user: address) -> &User`
-  Immutable access with user existence check.
-
-- `check_user(system_cfg: &SystemConfig, user: address) -> bool`
-  Verifies if a user exists in the system.
-
-- `replace(admin_cap: &mut AdminCap, system_cfg: &mut SystemConfig, old_blob_id: address, blob: Blob, epoch_set: u32, cycle_end: u64, user: address)`
-  Replaces an existing blob with a new one, withdrawing the old and storing the new blob.
-
-- `extend_blob(system: &mut System, blob: &mut Blob, payment: &mut Coin<WAL>, new_epoch: u32)`
-  Extends the lifetime of a blob with payment.
+- **`withdraw_system(system_cfg: &mut SystemConfig, admin_cap: &mut AdminCap, amount: u64, ctx: &mut TxContext)`**
+  Withdraw WAL tokens from the system balance, callable only by the original admin.
 
 ---
 
-## Data Flow and Typical Usage
+### User and Blob Management
 
-1. **User Registration**
-   User calls `create_user` providing metadata and keys, which creates the user record and wallet.
+- **`create_user(...)`**
+  Create a new user with API keys and public username, incrementing user count.
 
-2. **Adding Blobs**
-   User adds blob settings with `add_blob`, which stores configuration and indexes the blob.
+- **`update_api_key(...)`**
+  Update a user's API keys with associated WAL token payment.
 
-3. **Managing Wallet**
-   Deposits and withdrawals handled via `deposit` and `get_balance`.
+- **`update_username(...)`**
+  Update a user's public username with associated WAL token payment.
 
-4. **Blob Lifecycle**
-   Blobs can be replaced or extended via `replace` and `extend_blob`. Removing blobs uses `remove_blob_from_user`.
+- **`store_blob(...)`**
+  Store a blob linked to a user, only callable by an admin.
 
-5. **Dashboard Updates**
-   File counts and storage sizes are updated via `update_dash_data` and `reduce_dash_data` for usage tracking.
+- **`deposit_coin(...)`**
+  Deposit WAL tokens into the user's internal wallet.
 
-6. **Indexing**
-   Dynamic tables maintain blob indices for quick lookup.
+- **`renew(...)`**
+  Renew blobs for a list of users, deducting funds from their wallets and updating blob states.
 
----
-
-## Error Codes
-
-- `1`: User does not exist or requested field missing.
-- `2`: Blob not deletable or invalid.
-- `3`: Unauthorized access (sender mismatch).
-- Additional codes should be documented as per your system.
+- **`sync_blob(...)`**
+  Sync blob states across users and system.
 
 ---
 
-## Event Emissions
+## Events
 
-- **Wallet Created**: Emits on wallet creation.
-- **Deposit**: Emits on successful deposit.
-- (Add more as you implement further events for blob storage, removal, renewal, etc.)
+The module emits events for:
+
+- Minting of new admin caps
+- Minting of new systems
+- Blob storage
+- Blob renewals and updates
+
+These events are crucial for tracking system changes and user interactions on-chain.
+
+---
+
+## Error Handling
+
+The contract defines explicit errors such as:
+
+- `EUserExist`: Returned if attempting to create a user that already exists.
+- Various asserts ensure only authorized admin caps can perform sensitive actions.
+- Minting and versioning are strictly enforced to maintain system integrity.
+
+---
+
+## Usage
+
+1. **System Initialization**
+   Call `init` once to create the initial system configuration and mint the original admin cap.
+
+2. **Minting Admins and Systems**
+   Use the original admin cap to mint additional admin caps or upgrade the system by minting a new system.
+
+3. **User Registration**
+   Users can be created with unique public usernames and secured API keys.
+
+4. **Blob Management**
+   Admins store blobs on behalf of users and renew them periodically.
+
+5. **Token Management**
+   WAL tokens are used for payment of user updates and system operations, managed internally.
+
+---
+
+## Contributing
+
+Contributions and improvements to this module are welcome. Please submit pull requests or open issues for bugs, enhancements, or questions.
 
 ---

@@ -480,7 +480,7 @@ public fun sync_blob(
                 let blob_cfg_ref = vector::borrow_mut(blob_list, y);
                
             //    this get the sync pad epoch of that particular blob
-                    let sync_epoch: u32 = config::sync_epoch_count(blob_cfg_ref, epoch_checkpoint);
+                    let sync_epoch: u32 = config::sync_epoch_count(blob_cfg_ref, epoch_checkpoint, walrus_system);
                     // this makes sure that only the ones that need padding gets padded 
                     if (sync_epoch > 0){
                         // get the blob form the blob config
