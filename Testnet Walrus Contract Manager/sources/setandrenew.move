@@ -47,6 +47,11 @@ public struct AdminCap has key, store {
     total_system: u8,
 }
 
+// process renew object
+public struct ProcessSync has copy, drop{
+    epoch_checkpoint: u32,
+}
+
 // this struct holds bound for modifing your user registry
 // todo
 // to be use to show whwn you can leave the system
@@ -349,12 +354,13 @@ public fun deposit_coin(
 
 
 // todo
-// get work list form bot
+// get work list form bot ✅
 // renew worklist
 //  confirm work list
 //  return unrenewd list
 
 // system renew list of blobs
+
 public fun renew(
     _: &mut AdminCap,
     system_cfg: &mut SystemConfig,
@@ -369,64 +375,19 @@ public fun renew(
 
     while (i < vector::length(&users)) {
         let user_addr = *vector::borrow(&users, i);
-        // let est_amt   = *vector::borrow(&estimate, i);
+       
 
-        // // 1) quick check & skip if not enough
-        // {
-        //     let user_ref = get_user_mut(system_cfg, user_addr);
-        //     let wallet   = user_ref.get_wallet();
-        //     if (!wallet.has_estimate(est_amt)) {
-        //         vector::push_back(&mut insufficient, user_addr);
-        //         i = i + 1;
-        //         continue
-        //     };
-        // };
-
-        // 2) actually pull out the coins you need
         let mut funds = {
             let user_ref = get_user_mut(system_cfg, user_addr);
             let wallet   = user_ref.get_wallet();
             wallet.get_balance(ctx)
         };
 
+        let process_state = option::none();
        
-        // 3) process each blob
-        {
-            let user_ref2 = get_user_mut(system_cfg, user_addr);
-
-            let blob_list     = user_ref2.get_mut_obj_list_blob_cfg(epoch_set);
-            let mut y = 0;
-            while (y < vector::length(blob_list)) {
-
-                let  funds_current_balance = funds.value();
-                let blob_cfg_ref = vector::borrow_mut(blob_list, y);
-                if (blob_cfg_ref.cycle_at() != blob_cfg_ref.cycle_end()) {
-                    let sync_epoch: u32 = blob_cfg_ref.get_renew_epoch_count(walrus_system, epoch_set);
-                    if (sync_epoch > 0){
-                        let blob_obj   = blob_cfg_ref.blob();
-
-                    
-                        // setting 0 as place holder for the renewal to be changed in update
-                        
-
-
-                        extend_blob(walrus_system, blob_obj, &mut funds, sync_epoch);
-                        blob_cfg_ref.reduce_cycle();
-                        event::emit_renew_digest(
-                            user_addr, 
-                            blob_cfg_ref.get_blob_obj_id(),
-                            epoch_set,
-                            funds_current_balance - funds.value(),
-                            blob_cfg_ref.blob_size()
-                        );
-
-                        event::emit_update_blob(user_addr, blob_cfg_ref.get_blob_obj_id(), blob_cfg_ref.blob_current());
-
-                    };
-                };
-                y = y + 1;
-            };
-        };
+        //process each blob
+        process_blob(system_cfg, user_addr, epoch_set, walrus_system, &mut funds, &process_state);
+        
 
     //   return any leftover token
         {
@@ -463,9 +424,36 @@ public fun sync_blob(
             wallet.get_balance(ctx)
         };
 
+
+    // create processSync state
+        let process_state =  option::some(ProcessSync{epoch_checkpoint});
        
         //process each blob
+        process_blob(system_cfg, user_addr, epoch_set, walrus_system, &mut funds, &process_state);
+        
+    //   return any leftover token
         {
+            let user_ref3 = get_user_mut(system_cfg, user_addr);
+            user_ref3.get_wallet().return_balance(funds);
+        };
+
+        i = i + 1;
+    };
+
+
+}
+
+
+fun process_blob(
+    system_cfg: &mut SystemConfig,
+    user_addr: address,
+    epoch_set: u32,
+    walrus_system: &mut System,
+    funds: &mut Coin<WAL>,
+    process_state: &Option<ProcessSync>){
+        //  this get the sync pad epoch of that particular blob
+            let mut sync_epoch: u32;
+
             // get the user object 
             let user_ref2 = get_user_mut(system_cfg, user_addr);
 
@@ -479,19 +467,28 @@ public fun sync_blob(
                 // this holds the mut ref to that particular blob in that index
                 let blob_cfg_ref = vector::borrow_mut(blob_list, y);
                
-            //    this get the sync pad epoch of that particular blob
-                    let sync_epoch: u32 = config::sync_epoch_count(blob_cfg_ref, epoch_checkpoint, walrus_system);
+            
+            
+                if (option::is_some(process_state)){
+                        sync_epoch = config::sync_epoch_count(blob_cfg_ref, option::borrow(process_state).epoch_checkpoint, walrus_system);
+                }else{
+                    if (blob_cfg_ref.cycle_at() != blob_cfg_ref.cycle_end()){return};
+                    sync_epoch = config::get_renew_epoch_count(blob_cfg_ref, walrus_system, epoch_set);
+
+                };
+            
+                   
                     // this makes sure that only the ones that need padding gets padded 
                     if (sync_epoch > 0){
+                        // setting 0 as place holder for the renewal to be changed in update
+                        if (!option::is_some(process_state)){let _ =blob_cfg_ref.reduce_cycle();};
+
+
                         // get the blob form the blob config
                         let blob_obj   = blob_cfg_ref.blob();
 
-                    
-                        // setting 0 as place holder for the renewal to be changed in update
-                        
-
-
-                        extend_blob(walrus_system, blob_obj, &mut funds, sync_epoch);
+                   
+                        extend_blob(walrus_system, blob_obj, funds, sync_epoch);
                         event::emit_renew_digest(
                             user_addr, 
                             blob_cfg_ref.get_blob_obj_id(),
@@ -506,16 +503,6 @@ public fun sync_blob(
           
                 y = y + 1;
             };
-        };
-
-    //   return any leftover token
-        {
-            let user_ref3 = get_user_mut(system_cfg, user_addr);
-            user_ref3.get_wallet().return_balance(funds);
-        };
-
-        i = i + 1;
-    };
 
 
 }

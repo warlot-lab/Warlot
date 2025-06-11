@@ -73,9 +73,10 @@ public(package) fun blob_current(blob_cfg: &BlobSettings): u32{
 public(package) fun get_renew_epoch_count(blob_cfg: &BlobSettings, system: &System, ahead: u32): u32{
     let current_epoch = system.epoch();
     let blob_end_epoch = blob_cfg.blob_current();
-    if blob_end_epoch > current_epoch{
+    // to make sure that the expired blobs do not panic the transaction 
+    if (blob_end_epoch > current_epoch){
         return 0
-    }
+    };
     let new_end_epoch = current_epoch + ahead;
     new_end_epoch - blob_end_epoch
     // 33
@@ -92,9 +93,9 @@ public fun sync_epoch_count(blob_cfg: &BlobSettings, epoch_checkpoint: u32, syst
 
     let blob_end_epoch = blob_cfg.blob_current();
 
-     if blob_end_epoch > current_epoch{
+     if (blob_end_epoch > current_epoch){
         return 0
-    }
+    };
 
     if (blob_end_epoch >= epoch_checkpoint) {
         return 2
