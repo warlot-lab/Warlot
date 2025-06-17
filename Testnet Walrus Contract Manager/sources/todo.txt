@@ -1,3 +1,17 @@
+// todo
+important 
+create a dry run for the sync and renew; also creating a onchain indexer for the application 
+the dry run will make sure that the bot will not need to depend on a data base for the renewal;
+so on operations the bot will call the dry run functionality; to check the system for sync opration; <or there will be an onchain indexer 
+that can be easily check if a dry run should be conducted>
+this allows the bot operations to be truly just transactional 
+
+also; remove all operation that compromises the integrity of the user data 
+
+
+
+
+
 1. User Module
 
 
