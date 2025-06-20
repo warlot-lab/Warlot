@@ -23,9 +23,14 @@ public struct Issue has key, store{
     problem: vector<u8>,
     state: vector<u8>,
     created_at_ms: u64,
+    resolved_meta: Option<IssueResolvedMeta>,
     writer: address,
 }
 
+public struct IssueResolvedMeta has store, drop{
+    resolved_at: u64,
+    resolved_by: address,
+}
 
 // ======================dynamic fileds key ====================//
 const UNRESOLVEDKEY: vector<u8> = b"Unresolved Key";
@@ -67,6 +72,7 @@ public fun create_issue_Meta(
             problem,
             state,
             created_at_ms: clock.timestamp_ms(),
+            resolved_meta: option::none(),
             writer: ctx.sender(),
         };
 
@@ -78,18 +84,36 @@ public fun create_issue_Meta(
 }
 
 
-// public(package) fun resolve_issue(
-//       issue_meta: &mut FileIssueMeta,
-//       issue: u64
-// ){
+public(package) fun resolve_issue(
+      issue_meta: &mut FileIssueMeta,
+      state: vector<u8>,
+      clock: &Clock,
+      resolved_by: address,
+      issue_index: u64,
+){
+    confirm_issue(issue_meta, issue_index);
+    let unresolved = ofields::borrow_mut<vector<u8>, Unresolved>(&mut issue_meta.id, UNRESOLVEDKEY);
+    let mut resolved_issue = ofields::remove<u64, Issue>(&mut unresolved.id, issue_index);
+    resolved_issue.state = state;
+    option::fill(&mut resolved_issue.resolved_meta, IssueResolvedMeta{
+        resolved_at: clock.timestamp_ms(),
+        resolved_by,
+    });
+    
+    let resolved = ofields::borrow_mut<vector<u8>, Resolved>(&mut issue_meta.id, RESOLVEDKEY);
+    ofields::add<u64, Issue>(&mut resolved.id, issue_index, resolved_issue); 
 
-// }
+}
 
 // issue:
 // // check if the issue exist 
-// public(package) fun confirm_issue(issue_meta: &mut FileIssueMeta, issue: u64){
-//     assert!(ofields::exists_(&issue_meta.id, ));
-// }
+public(package) fun confirm_issue(issue_meta: &FileIssueMeta, issue: u64): Option<ID>{
+    let unresolved = ofields::borrow<vector<u8>, Unresolved>(&issue_meta.id, UNRESOLVEDKEY);
+    assert!(ofields::exists_(&unresolved.id, issue), INVALIDISSUEINDEX);
+    let issue = ofields::borrow<u64, Issue>(&unresolved.id, issue);
+    let issue_id = object::id(issue);
+    option::some(issue_id)
+}
 
 // todo
 // create issue by only writers, pin issue to the file object 
