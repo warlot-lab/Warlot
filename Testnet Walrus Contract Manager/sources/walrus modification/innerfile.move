@@ -224,7 +224,8 @@ public fun write_(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
     to_draft: bool, // this allows for flexibility. when modifing the file the user even if they have the admin pass can still choose to push to the draft branch of the application
-    issue: address,
+    file_issue: u64, //acts like an option for the frontend
+    should_include_issue: bool,
     // fileData info
     commit: vector<u8>,
     walrus_blob_id: String,
@@ -247,17 +248,18 @@ public fun write_(
     };
 
         // create issue option
+    let file_issue_meta = get_issue_meta(inner_file);
     let issue_state =  {
-        if (issue == @0x0){
-            option::none()
+        if (should_include_issue){
+            issue::confirm_issue(file_issue_meta, file_issue)
         }else{
-            option::some(object::id_from_address(issue))
+            option::none() 
         }
     };
 
 
 
-    // todo check if the issue is @0x0 if not check if the issue exist 
+    
     // create the draft obj
     let file_draft = draft::create_draft(
         object::id(writer_pass), 
@@ -513,6 +515,11 @@ fun override_file_add(
     inner_file.file_history.track_back.insert(file_data, 0);
     inner_file.file_history.last_modified = clock.timestamp_ms();
 
+}
+
+
+fun get_issue_meta(inner_file: &InnerFile): &FileIssueMeta{
+    ofields::borrow<vector<u8>, FileIssueMeta>(&inner_file.id, ISSUEKEY)
 }
 
 // todo replace main file with draft and delete draft option
