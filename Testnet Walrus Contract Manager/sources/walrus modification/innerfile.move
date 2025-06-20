@@ -2,7 +2,8 @@ module warlot::innerfile;
 use std::string::String;
 use warlot::{
     innerfiledata::{Self, FileData},
-    draft::{Self, FileDraftHolder}
+    draft::{Self, FileDraftHolder},
+    issue::{Self, FileIssueMeta},
     };
 use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields};
 
@@ -64,7 +65,7 @@ public struct AdminPass has store, drop{
 // ========= File attribute keys =========//
 const DENYLISTKEY: vector<u8> = b"deny list";
 const FILEDRAFTKEY: vector<u8> = b"file draft";
-const FileDataKEY: vector<u8> = b"file meta";
+const ISSUEKEY: vector<u8> = b"file issue";
 
 
 // ======== writer attributes ======= //
@@ -83,7 +84,8 @@ const INVALIDPASS: vector<u8> = b"enter valid pass";
 const ACCESSDENIED: vector<u8> =  b"invalid writer pass";
 #[error]
 const INVALIDTRACKBACKLENGTH: vector<u8> = b"provide a valid track back len data";
-
+#[error]
+const INVALIDACCESS: vector<u8> = b"Invalid access";
 // file track data
 public fun root_change(inner_file: &InnerFile): &FileData{
     inner_file.file_history.root_change.borrow()
@@ -160,7 +162,8 @@ public fun create_file(
     ofields::add<vector<u8>, DenyList>(&mut new_file.id, DENYLISTKEY, default_deny_list);
     // add draftholder object to the file 
     ofields::add<vector<u8>, FileDraftHolder>(&mut new_file.id, FILEDRAFTKEY, draft::create_draft_holder(draft_epoch_duration, ctx));
-
+    //add the issue object to the file
+    ofields::add<vector<u8>, FileIssueMeta>(&mut new_file.id, ISSUEKEY, issue::create_file_issue_meta(clock, ctx));
     // todo to be updated to party share, to allow more secure group modification of the file
     transfer::public_share_object(new_file);
     transfer::transfer(immortal_pass, owner);
@@ -198,18 +201,21 @@ public fun remove_deny_writer(file: &mut InnerFile, writer: address, ctx: &mut T
 
 // this function allows the use to write directly to the inner file object
 //warning: using this fuction will make unreversable changes to the inner file object
-fun write(
-    file: &mut InnerFile,
+public fun force_write_innerfile(
+    inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
-    system_to_draft: bool, //force file to draft
     walrus_blob_id: String,
     walrus_blob_object_id: address,
     clock: &Clock,
-    issue: Option<ID>,
-    file_data: Option<FileData>,
     commit: vector<u8>,
+    ctx: &mut TxContext,
 ){
+    // making sure that only the owner with a pass can call this function
+    verify_pass(inner_file, ctx.sender(), writer_pass, clock);
+    assert!(inner_file.owner == ctx.sender(), INVALIDACCESS);
 
+    let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, object::id_from_address(walrus_blob_object_id));
+    override_file_add(inner_file, file_data, clock);
 
 }
 
@@ -222,16 +228,25 @@ public fun write_(
     // fileData info
     commit: vector<u8>,
     walrus_blob_id: String,
-    walrus_blob_object_id: ID,
+    walrus_blob_object_id: address,
     clock: &Clock,
     ctx: &mut TxContext
 ){
     verify_pass(inner_file, ctx.sender(), writer_pass, clock);
 
     //  build the fileData object
-    let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, walrus_blob_object_id);
+    let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, object::id_from_address(walrus_blob_object_id));
 
-    // create issue option
+
+    if (to_draft){
+        // confirm if the user have the permission to make this changes
+        assert!(option::is_some(&writer_pass.admin_privilege), ACCESSDENIED);
+        // make the chages and return
+        override_file_add(inner_file, file_data, clock);
+        return
+    };
+
+        // create issue option
     let issue_state =  {
         if (issue == @0x0){
             option::none()
@@ -240,14 +255,7 @@ public fun write_(
         }
     };
 
-    // generate the issue
-    if (!to_draft){
-        // confirm if the user have the permission to make this changes
-        assert!(option::is_some(&writer_pass.admin_privilege), ACCESSDENIED);
-        // make the chages and return
-        override_file_add(inner_file, file_data, clock);
-        return
-    };
+
 
     // todo check if the issue is @0x0 if not check if the issue exist 
     // create the draft obj
@@ -265,6 +273,143 @@ public fun write_(
     
 }
 
+
+// create or set root_change
+public fun set_root_change(
+    inner_file: &mut InnerFile,
+    writer_pass: &mut WriterPass,
+    commit: vector<u8>,
+    walrus_blob_id: String,
+    walrus_blob_object_id: ID,
+    clock: &Clock,
+    ctx: &mut TxContext
+){
+    assert!(inner_file.owner == ctx.sender(), INVALIDACCESS);
+    verify_pass(inner_file, ctx.sender(), writer_pass, clock);
+
+      //  build the fileData object
+    let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, walrus_blob_object_id);
+
+    let _ = option::swap(&mut inner_file.file_history.root_change, file_data);
+
+}
+
+
+//remove root change
+// a user is given the option to delete the root change from the walrus system or
+// just to remove the data from the inner_file fields
+public fun remove_root_change(
+    inner_file: &mut InnerFile,
+    writer_pass: &mut WriterPass,
+    delete_blob: bool,
+    clock: &Clock,
+    ctx: &mut TxContext,
+){
+    assert!(inner_file.owner == ctx.sender(), INVALIDACCESS);
+    verify_pass(inner_file, ctx.sender(), writer_pass, clock);
+
+    let _ = option::extract(&mut inner_file.file_history.root_change);
+    // todo delete blob object from the warlot system
+    if (delete_blob){
+        // todo do something to the main blob obj
+    }
+}
+
+
+
+// ================== draft functionalities =========================//
+// this modifies the inner file file data with one from the draft
+public fun merge_draft_into_file(
+    inner_file: &mut InnerFile,
+    writer_pass: &mut WriterPass,
+    draft_index: u64,
+    // since the typescript sdk does not have a type for move option we will have to use this for the mean time 
+    merge_latest: bool, //if true; this function will ignore the draft index and merge the latest draft
+    clock: &Clock,
+    ctx: &mut TxContext
+
+){
+    assert!(inner_file.owner == ctx.sender(), INVALIDACCESS);
+    verify_pass(inner_file, ctx.sender(), writer_pass, clock);
+
+    let draft_holder = get_draft_holder(inner_file);
+
+    let file_data: FileData  = {
+        if (merge_latest){
+            draft::resolve_draft_to_file(
+            draft_holder,
+            draft_index,
+            clock)
+            }else{
+            draft::fetch_and_delete_latest_draft(
+                draft_holder,
+                clock
+            )
+        }
+    
+    };
+
+    override_file_add(inner_file, file_data, clock);
+}
+
+
+public fun delete_draft(
+    inner_file: &mut InnerFile,
+    writer_pass: &mut WriterPass,
+    draft_index: u64,
+    clock: &Clock,
+    ctx: &mut TxContext
+){
+    assert!(inner_file.owner == ctx.sender(), INVALIDACCESS);
+    verify_pass(inner_file, ctx.sender(), writer_pass, clock);
+
+    let draft_holder = get_draft_holder(inner_file);
+
+
+    draft::delete_draft(
+        draft_holder,
+        draft_index,
+        clock,
+    );
+
+}
+
+
+// deletes all the draft associated with the inner_file and resets it's fields
+public fun clear_all_draft(
+    inner_file: &mut InnerFile,
+    writer_pass: &mut WriterPass,
+    clock: &Clock,
+    ctx: &mut TxContext
+){
+    
+    assert!(inner_file.owner == ctx.sender(), INVALIDACCESS);
+    verify_pass(inner_file, ctx.sender(), writer_pass, clock);
+
+    let draft_holder = get_draft_holder(inner_file);
+
+
+    draft::clear_all_draft(
+        draft_holder,
+        clock,
+    );
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================= writers pass =======================================//
 
 
 // create pass with either admin functionality or without
@@ -329,17 +474,23 @@ public fun verify_pass(file: &InnerFile, writer: address, writer_pass: &WriterPa
     );
 }
 
+//====================================================================================================//
 
-//======= helper functions ======//
 
+
+
+
+
+
+//==================== helper functions ====================//
 
 fun get_draft_holder(inner_file: &mut InnerFile): &mut FileDraftHolder{
     ofields::borrow_mut<vector<u8>, FileDraftHolder>(&mut inner_file.id, FILEDRAFTKEY)
 }
 
-fun get_file_track(inner_file: &mut InnerFile): &mut FileTrack{
-    &mut inner_file.file_history
-}
+// fun get_file_track(inner_file: &mut InnerFile): &mut FileTrack{
+//     &mut inner_file.file_history
+// }
 
 // modifies and add new files to the file track
 fun override_file_add(

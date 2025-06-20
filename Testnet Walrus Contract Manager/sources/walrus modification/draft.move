@@ -54,14 +54,14 @@ public(package) fun resolve_draft_to_file(draft_holder: &mut FileDraftHolder, dr
     option::destroy_some(file)
 }
 
-public(package) fun fetch_and_delete_latest_draft(draft_holder: &mut FileDraftHolder, clock: &Clock){
+public(package) fun fetch_and_delete_latest_draft(draft_holder: &mut FileDraftHolder, clock: &Clock): FileData{
     // the latest draft is the draft whoose index is available_index - 1
     let latest = draft_holder.available_index - 1;
     resolve_draft_to_file(
         draft_holder,
         latest,
         clock
-    );
+    )
 }
 
 
@@ -134,12 +134,14 @@ public(package) fun get_draft(
 
 public(package) fun delete_draft(
     draft_holder: &mut FileDraftHolder,
-    draft: u64
+    draft: u64,
+    clock: &Clock
 ){
     assert!(ofields::exists_(&draft_holder.id, draft), INVALIDDRAFT);
     let draft_obj = ofields::remove<u64, Draft>(&mut draft_holder.id, draft);
     let Draft{id, writer_pass: _, issue: _, file: _} = draft_obj;
     id.delete();
+    draft_holder.last_modified = clock.timestamp_ms();
     let old_total_draft = draft_holder.total_draft;
     draft_holder.total_draft = old_total_draft - 1; 
 }
@@ -149,7 +151,7 @@ public(package) fun clear_all_draft(draft_holder: &mut FileDraftHolder, clock: &
     let mut i: u64 = 0;
     while (i < draft_holder.available_index){
         if (ofields::exists_(&draft_holder.id, i)){
-            delete_draft(draft_holder, i)
+            delete_draft(draft_holder, i, clock)
         };
         i = i + 1; 
     };
