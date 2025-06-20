@@ -22,7 +22,7 @@ public struct FileTrack has store{
     // this will give the user a safe state of the file to fall back to
     // this gives the power of collaboration while still keeping the integrity of the file state 
     root_change: Option<FileData>, 
-    track_back_lenght: u8, //this is the max cache of file change of this file can exist on chain; it is needed so that users that want to revert changes can find it possible 
+    track_back_length: u8, //this is the max cache of file change of this file can exist on chain; it is needed so that users that want to revert changes can find it possible 
     track_back: vector<FileData>, // holds file history
     last_modified : u64,
 }
@@ -79,18 +79,40 @@ const INVALIDTIME: vector<u8> = b"enter valid time";
 const DECAYEXCEEDED: vector<u8> = b"destroy current pass, and create new pass";
 #[error]
 const INVALIDPASS: vector<u8> = b"enter valid pass";
+#[error]
+const ACCESSDENIED: vector<u8> =  b"invalid writer pass";
+#[error]
+const INVALIDTRACKBACKLENGTH: vector<u8> = b"provide a valid track back len data";
+
+// file track data
+public fun root_change(inner_file: &InnerFile): &FileData{
+    inner_file.file_history.root_change.borrow()
+}
+
+public fun track_back_length(inner_file: &InnerFile): u8{
+    inner_file.file_history.track_back_length
+}
+
+public fun track_back(inner_file: &InnerFile): &vector<FileData>{
+    &inner_file.file_history.track_back
+}
+
+
+
 
 // using 
 public fun create_file(
     owner: address, 
     writers_length: u8,
-    track_back_lenght: u8,
+    track_back_length: u8,
     walrus_blob_id: String,
     walrus_blob_object_id: address,
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
     ctx: &mut TxContext){
+    // make sure that the trackbcak_length is > 0
+    assert!(track_back_length > 0 , INVALIDTRACKBACKLENGTH);
 
     let mut new_file  = InnerFile{
         id : object::new(ctx),
@@ -98,15 +120,18 @@ public fun create_file(
         owner,
         writers_length,
         file_history: FileTrack{
+
             root_change : option::none(),
-            track_back_lenght,
+            track_back_length,
             track_back: vector::singleton(
+
                 innerfiledata::create_file_data(
                     commit,
                     ctx.sender(),
                     walrus_blob_id,
                     object::id_from_address(walrus_blob_object_id),
                 )
+
             ),
             last_modified: clock.timestamp_ms(),
         },
@@ -171,7 +196,8 @@ public fun remove_deny_writer(file: &mut InnerFile, writer: address, ctx: &mut T
     let _ = dfield::remove<address, u64>(&mut deny_obj.id, writer);
 }
 
-
+// this function allows the use to write directly to the inner file object
+//warning: using this fuction will make unreversable changes to the inner file object
 fun write(
     file: &mut InnerFile,
     writer_pass: &mut WriterPass,
@@ -189,24 +215,56 @@ fun write(
 
 // allows users to write to the draft object awaiting approval from the admin
 public fun write_(
-    file: &mut InnerFile,
+    inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
     to_draft: bool, // this allows for flexibility. when modifing the file the user even if they have the admin pass can still choose to push to the draft branch of the application
-    walrus_blob_id: String,
-    walrus_blob_object_id: address,
-    clock: &Clock,
-    issue: Option<ID>,
-    file_data: Option<FileData>,
+    issue: address,
+    // fileData info
     commit: vector<u8>,
+    walrus_blob_id: String,
+    walrus_blob_object_id: ID,
+    clock: &Clock,
     ctx: &mut TxContext
 ){
-    verify_pass(file, ctx.sender(), writer_pass, clock);
-    // if (!to_draft){
-    //     assert!(writer_pass.admin_privilege.)
-    // }
-    // write(file, writer_pass)
+    verify_pass(inner_file, ctx.sender(), writer_pass, clock);
 
+    //  build the fileData object
+    let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, walrus_blob_object_id);
+
+    // create issue option
+    let issue_state =  {
+        if (issue == @0x0){
+            option::none()
+        }else{
+            option::some(object::id_from_address(issue))
+        }
+    };
+
+    // generate the issue
+    if (!to_draft){
+        // confirm if the user have the permission to make this changes
+        assert!(option::is_some(&writer_pass.admin_privilege), ACCESSDENIED);
+        // make the chages and return
+        override_file_add(inner_file, file_data, clock);
+        return
+    };
+
+    // todo check if the issue is @0x0 if not check if the issue exist 
+    // create the draft obj
+    let file_draft = draft::create_draft(
+        object::id(writer_pass), 
+        issue_state,
+        option::some(file_data),
+        ctx );
+
+    draft::pin_draft(
+        get_draft_holder(inner_file), //draft holder of this file
+        file_draft,
+        clock,
+        );
+    
 }
+
 
 
 // create pass with either admin functionality or without
@@ -272,3 +330,46 @@ public fun verify_pass(file: &InnerFile, writer: address, writer_pass: &WriterPa
 }
 
 
+//======= helper functions ======//
+
+
+fun get_draft_holder(inner_file: &mut InnerFile): &mut FileDraftHolder{
+    ofields::borrow_mut<vector<u8>, FileDraftHolder>(&mut inner_file.id, FILEDRAFTKEY)
+}
+
+fun get_file_track(inner_file: &mut InnerFile): &mut FileTrack{
+    &mut inner_file.file_history
+}
+
+// modifies and add new files to the file track
+fun override_file_add(
+    inner_file: &mut InnerFile,
+    file_data: FileData,
+    clock: &Clock
+){
+    // checking if the track_back length is less than the max track back length 
+
+    let max_length = inner_file.file_history.track_back_length as u64;
+    let current_length = vector::length(&inner_file.file_history.track_back);
+
+    if ( max_length <= current_length){
+        // pop the oldest file in the history and place the new one
+        let _ = inner_file.file_history.track_back.pop_back();  
+    };
+
+    // inserts the file at the beging of the list
+    // making the order of file to be latest at index [0]
+    inner_file.file_history.track_back.insert(file_data, 0);
+    inner_file.file_history.last_modified = clock.timestamp_ms();
+
+}
+
+// todo replace main file with draft and delete draft option
+// deleting draft is not reversable
+// fun override_file_add_via_draft(
+//     inner_file: &mut InnerFile,
+
+// ){
+
+// }
+// todo delete file track

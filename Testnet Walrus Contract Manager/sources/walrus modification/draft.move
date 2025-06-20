@@ -1,7 +1,6 @@
 module warlot::draft;
-use warlot::innerfiledata::{Self, FileData};
-use std::string::String;
-use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields};
+use warlot::innerfiledata::FileData;
+use sui::{clock::Clock, dynamic_object_field as ofields};
 
 
 
@@ -31,10 +30,39 @@ public struct Draft has key, store{
 // ======    error      =======//
 #[error]
 const INVALIDDRAFT: vector<u8> = b"enter a vaild draft";
+
+#[error]
+const INVALIDDRAFTINDEX: vector<u8> = b"enter a valid draft index";
  
 public fun writer_pass(draft: &Draft): ID{draft.writer_pass}
 public fun issue(draft: &Draft): &Option<ID>{&draft.issue}
 public fun file(draft: &Draft): &Option<FileData>{&draft.file}
+
+
+// this function extract the file data from the draft object ande deletes the draft 
+public(package) fun resolve_draft_to_file(draft_holder: &mut FileDraftHolder, draft_index: u64, clock: &Clock): FileData{
+    // confirm that the draft exist
+    assert!(ofields::exists_(&draft_holder.id, draft_index), INVALIDDRAFTINDEX);
+    let old_total_draft = draft_holder.total_draft;
+    draft_holder.total_draft = old_total_draft - 1;
+
+    draft_holder.last_modified = clock.timestamp_ms();
+
+    let draft = ofields::remove<u64, Draft>(&mut draft_holder.id, draft_index);
+    let Draft{id, writer_pass: _, issue: _, file} = draft;
+    id.delete();
+    option::destroy_some(file)
+}
+
+public(package) fun fetch_and_delete_latest_draft(draft_holder: &mut FileDraftHolder, clock: &Clock){
+    // the latest draft is the draft whoose index is available_index - 1
+    let latest = draft_holder.available_index - 1;
+    resolve_draft_to_file(
+        draft_holder,
+        latest,
+        clock
+    );
+}
 
 
 
@@ -67,7 +95,8 @@ public(package) fun create_draft(
 
 }
 
-
+// add a draft to a draft holder
+// ⚓
 public(package) fun pin_draft(
     draft_holder: &mut FileDraftHolder,
     draft: Draft,
@@ -115,10 +144,22 @@ public(package) fun delete_draft(
     draft_holder.total_draft = old_total_draft - 1; 
 }
 
-// public(package) fun clear_all_draft(){
-//     // this will delete all the draft concering a particular file
+public(package) fun clear_all_draft(draft_holder: &mut FileDraftHolder, clock: &Clock){
 
-// }
+    let mut i: u64 = 0;
+    while (i < draft_holder.available_index){
+        if (ofields::exists_(&draft_holder.id, i)){
+            delete_draft(draft_holder, i)
+        };
+        i = i + 1; 
+    };
+
+    // this will delete all the draft concering a particular file
+
+    draft_holder.last_modified = clock.timestamp_ms();
+    draft_holder.available_index = 0;
+    draft_holder.total_draft = 0;
+}
 
 
 
