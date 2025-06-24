@@ -49,6 +49,10 @@ public struct WriterPass has key{
     admin_privilege: Option<AdminPass>
 }
 
+
+
+
+
 // this pass is given to users for them to bypass the draft and push direct chages to the file trackback 
 // example useage will be a user that want to give a remote server the ability to modify large files that the user local system can not handle
 //  since the user can not load the draft on their local system. it makes more sense for the user to give their trusted service the permission to make this modification
@@ -112,7 +116,8 @@ public fun create_file(
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
-    ctx: &mut TxContext){
+    ctx: &mut TxContext
+    ){
     // make sure that the trackbcak_length is > 0
     assert!(track_back_length > 0 , INVALIDTRACKBACKLENGTH);
 
@@ -157,6 +162,29 @@ public fun create_file(
         )
     };
 
+    // give writter pass to the file creator 
+    // this will give the system that created the file the permission to perform restricted operations on the file 
+
+    /*
+     todo this is a temp solution;
+     todo to integrate this with the user setting. 
+     so that the user can give the person the permission to do so 
+    */
+    if (owner != ctx.sender()){
+        let temp_pass =  WriterPass{
+            id: object::new(ctx),
+            file_id: object::id(&new_file),
+            duration: ImmortalPASS, //todo to be changed to the user set default duration
+            admin_privilege: option::some(
+                AdminPass{
+                    admin: owner
+                }
+            )
+        };
+
+        transfer::transfer(temp_pass, ctx.sender());
+    };
+
 
 
     ofields::add<vector<u8>, DenyList>(&mut new_file.id, DENYLISTKEY, default_deny_list);
@@ -168,6 +196,8 @@ public fun create_file(
     transfer::public_share_object(new_file);
     transfer::transfer(immortal_pass, owner);
 }
+
+
 
 
 
@@ -531,3 +561,14 @@ fun get_issue_meta(inner_file: &InnerFile): &FileIssueMeta{
 
 // }
 // todo delete file track
+
+
+
+
+
+
+
+
+
+
+

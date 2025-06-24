@@ -182,3 +182,11 @@ public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): Blo
     // returns the blob_config
     deletable_blob_cfg
 }
+
+
+
+
+// todo create a acceptance list; so that only those address can create files on thier behalf
+// todo create a deny list; so that even the if the address have the permission to create fiales on their behalf they can not create the writer pass for them self 
+// permission for the creator to hv a writer pass; and the duration it should exist
+// todo create a general ban or deny list that will ban address from all files that belongs to an address 

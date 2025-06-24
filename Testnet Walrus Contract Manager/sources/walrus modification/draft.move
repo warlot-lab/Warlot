@@ -19,6 +19,7 @@ public struct FileDraftHolder has key, store{
     // draft
 }
 
+
 public struct Draft has key, store{
     id: UID,
     writer_pass: ID, // the id os the pass the user used to make this draft
