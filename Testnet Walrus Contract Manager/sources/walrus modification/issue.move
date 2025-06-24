@@ -11,6 +11,7 @@ public struct FileIssueMeta has key, store{
     available_index: u64, 
 }
 
+
 // type to show unresolved file type
 public struct Unresolved has key, store { id: UID}
 
