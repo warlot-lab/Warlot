@@ -361,6 +361,7 @@ public fun merge_draft_into_file(
     ctx: &mut TxContext
 
 ){
+
     assert!(inner_file.owner == ctx.sender(), INVALIDACCESS);
     verify_pass(inner_file, ctx.sender(), writer_pass, clock);
 
@@ -530,8 +531,12 @@ fun override_file_add(
     file_data: FileData,
     clock: &Clock
 ){
+    /*
+     todo make sure that if a root change exist that while deleting the blob object we do not delete the root_chage object in this function
+     todo the root change object can only be deleted via the root_change delete function
+    */
     // checking if the track_back length is less than the max track back length 
-
+    
     let max_length = inner_file.file_history.track_back_length as u64;
     let current_length = vector::length(&inner_file.file_history.track_back);
 

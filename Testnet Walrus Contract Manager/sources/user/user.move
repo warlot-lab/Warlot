@@ -1,7 +1,7 @@
 module warlot::userstate;
 use std::string::String;
 use warlot::{wallet::{Self, Wallet}, config::{Self, BlobSettings}, registry::{Self}, constants::{Self}};
-use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields, table::{Self, Table}};
+use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields, table::{Self, Table}, bag::{Self, Bag}};
 
 
 
@@ -27,6 +27,13 @@ public struct DashData has store {
 }
 
 
+// this will hold the address that are allowed to make changes to the filke
+public struct Acceptance has store{
+    allowed: Bag<address, bool>
+    deny_
+}
+
+
 public(package) fun create_user( public_username: String, system_id: ID, apikey: String, encrypt_key: String, warlot_sign_apikey: String, clock: &Clock, ctx: &mut TxContext): User{
     let safe_vault: Wallet = wallet::create_wallet(clock, ctx);
 
@@ -43,10 +50,12 @@ public(package) fun create_user( public_username: String, system_id: ID, apikey:
          };
 
     ofields::add<String, Table<ID, EpochState>>(&mut new_user.id, constants::indexer_key(), table::new(ctx));
-
+    ofields::add<vector<u8>, Acceptance>(&mut new_user.id, constants::Acceptance_Key(), Acceptance{
+        allowed: bag::new(ctx)
+    } );
 
     registry::create_registry( public_username, object::id(&new_user), system_id, apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
-    new_user
+
 }
 
 
@@ -183,6 +192,9 @@ public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): Blo
     deletable_blob_cfg
 }
 
+
+
+ 
 
 
 
