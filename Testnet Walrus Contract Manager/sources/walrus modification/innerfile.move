@@ -13,27 +13,39 @@ public struct InnerFile has key, store{
     owner: address,  //address of the owner of the data or admin of the data
     writers_length: u8, // total amount of draft a writer can add to the draft obj at a time 
     file_history: FileTrack,
+    // public: Option<PublicMod>,
     created_at_ms: u64,
 }
 
 
+
 public struct FileTrack has store{
-    // root change is a file meta that the owner of the file can choose to fall back to if significant changes have been made to the fileTrack
-    // like a remote server making multiple chages to the file, and the user do not approve of this changes. 
-    // this will give the user a safe state of the file to fall back to
-    // this gives the power of collaboration while still keeping the integrity of the file state 
+    /*
+    root change is a file meta that the owner of the file can choose to fall back to if significant changes have been made to the fileTrack
+    like a remote server making multiple chages to the file, and the user do not approve of this changes. 
+    this will give the user a safe state of the file to fall back to
+    this gives the power of collaboration while still keeping the integrity of the file state 
+    */
+
     root_change: Option<FileData>, 
     track_back_length: u8, //this is the max cache of file change of this file can exist on chain; it is needed so that users that want to revert changes can find it possible 
     track_back: vector<FileData>, // holds file history
     last_modified : u64,
+  
 }
 
 
 
+// public struct PublicMod has store{
+//     // this gives the public the general permission to write to the draft
+// }
 
 
-// this holds the dynamic list of all the address that have been denied access to modify this file
-// so that if they have a writters pass, and they try to modify the file the writers pass will be destroyed 
+
+/*
+    this holds the dynamic list of all the address that have been denied access to modify this file
+    so that if they have a writters pass, and they try to modify the file the writers pass will be destroyed 
+*/
 public struct DenyList  has key, store{
     id: UID,
     numbers_of_deny: u64,
@@ -52,11 +64,12 @@ public struct WriterPass has key{
 
 
 
-
-// this pass is given to users for them to bypass the draft and push direct chages to the file trackback 
-// example useage will be a user that want to give a remote server the ability to modify large files that the user local system can not handle
-//  since the user can not load the draft on their local system. it makes more sense for the user to give their trusted service the permission to make this modification
-//  example this pass can be given to warlot, to modify table files, and sql based files. thereby reducing the load on the user local machine; expecialy if you want to build a service ontop of walrus 
+/*
+this pass is given to users for them to bypass the draft and push direct chages to the file trackback 
+example useage will be a user that want to give a remote server the ability to modify large files that the user local system can not handle
+since the user can not load the draft on their local system. it makes more sense for the user to give their trusted service the permission to make this modification
+example this pass can be given to warlot, to modify table files, and sql based files. thereby reducing the load on the user local machine; expecialy if you want to build a service ontop of walrus 
+*/
 
 public struct AdminPass has store, drop{
     admin: address
@@ -162,10 +175,11 @@ public fun create_file(
         )
     };
 
-    // give writter pass to the file creator 
-    // this will give the system that created the file the permission to perform restricted operations on the file 
-
     /*
+     give writter pass to the file creator 
+     this will give the system that created the file the permission to perform restricted operations on the file 
+
+
      todo this is a temp solution;
      todo to integrate this with the user setting. 
      so that the user can give the person the permission to do so 
@@ -205,10 +219,11 @@ public fun create_file(
 public fun deny_writer(file: &mut InnerFile, writer: address, period: u64, clock: &Clock,  ctx: &mut TxContext){
     assert!(file.owner == ctx.sender(), 1);
     let deny_obj = ofields::borrow_mut<vector<u8>, DenyList>(&mut file.id, DENYLISTKEY);
-    // the deny list can be used to restrict a user from the file for just a duration
-    //  in this case if the value  ==  0; then the deny is indefinate 
-    // any > 0 is a period
-    // <user, period>
+    /* the deny list can be used to restrict a user from the file for just a duration
+     in this case if the value  ==  0; then the deny is indefinate 
+     any > 0 is a period
+     <user, period>
+     */
     assert!(period == 0 || period > clock.timestamp_ms(), INVALIDTIME);
     if (dfield::exists_(&deny_obj.id, writer)){
         // if deny exist, modify period
@@ -229,8 +244,12 @@ public fun remove_deny_writer(file: &mut InnerFile, writer: address, ctx: &mut T
     let _ = dfield::remove<address, u64>(&mut deny_obj.id, writer);
 }
 
-// this function allows the use to write directly to the inner file object
-//warning: using this fuction will make unreversable changes to the inner file object
+/* this function allows the use to write directly to the inner file object
+
+// ============
+warning: using this fuction will make unreversable changes to the inner file object
+
+*/
 public fun force_write_innerfile(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
@@ -327,9 +346,11 @@ public fun set_root_change(
 }
 
 
-//remove root change
-// a user is given the option to delete the root change from the walrus system or
-// just to remove the data from the inner_file fields
+/*
+remove root change
+a user is given the option to delete the root change from the walrus system or
+just to remove the data from the inner_file fields
+*/
 public fun remove_root_change(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
@@ -476,10 +497,11 @@ public fun destroy_writer_pass(pass :WriterPass){
 }
 
 
-
-//  If the writer is not denied, or has an ImmortalPASS, allow access.
-// ensure their pass is not expired
-// ensure they are not still in the deny period or permanently denied.
+/*
+  If the writer is not denied, or has an ImmortalPASS, allow access.
+ ensure their pass is not expired
+ ensure they are not still in the deny period or permanently denied.
+*/
 public fun verify_pass(file: &InnerFile, writer: address, writer_pass: &WriterPass, clock: &Clock){
     // check if the pass is for this file
     assert!(object::id(file) == writer_pass.file_id, INVALIDPASS);

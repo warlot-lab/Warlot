@@ -1,0 +1,156 @@
+{
+  "doc": " Coin<SUI> is the token used to pay for gas in Sui.\n It has 9 decimals, and the smallest unit (10^-9) is called \"mist\".",
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "option"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "balance"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "coin"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "transfer"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "tx_context"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "url"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "new": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Register the `SUI` Coin to acquire its `Supply`.\n This should be called only once during genesis creation.",
+      "attributes": [
+        {
+          "Parameterized": [
+            "allow",
+            [
+              {
+                "Name": "unused_function"
+              }
+            ]
+          ]
+        }
+      ],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "balance"
+            },
+            "name": "Balance",
+            "type_arguments": [
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "sui"
+                  },
+                  "name": "SUI",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "transfer": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "c",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "coin"
+              },
+              "name": "Coin",
+              "type_arguments": [
+                {
+                  "Datatype": {
+                    "module": {
+                      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                      "name": "sui"
+                    },
+                    "name": "SUI",
+                    "type_arguments": []
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "recipient",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    }
+  },
+  "structs": {
+    "SUI": {
+      "index": 0,
+      "doc": " Name of the coin",
+      "attributes": [],
+      "abilities": [
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "dummy_field": {
+            "index": 0,
+            "type_": "bool"
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

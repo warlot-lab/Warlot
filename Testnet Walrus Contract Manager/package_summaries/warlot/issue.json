@@ -1,0 +1,496 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "option"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "clock"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "dynamic_object_field"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "tx_context"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "create_file_issue_meta": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "clock",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "clock"
+                  },
+                  "name": "Clock",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "issue"
+            },
+            "name": "FileIssueMeta",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "create_issue_Meta": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "issue_meta",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "issue"
+                  },
+                  "name": "FileIssueMeta",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "problem",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "state",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "clock",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "clock"
+                  },
+                  "name": "Clock",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "resolve_issue": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "issue_meta",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "issue"
+                  },
+                  "name": "FileIssueMeta",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "state",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "clock",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "clock"
+                  },
+                  "name": "Clock",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolved_by",
+          "type_": "address"
+        },
+        {
+          "name": "issue_index",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "confirm_issue": {
+      "source_index": 3,
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "issue_meta",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "issue"
+                  },
+                  "name": "FileIssueMeta",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "issue",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000001",
+              "name": "option"
+            },
+            "name": "Option",
+            "type_arguments": [
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "object"
+                  },
+                  "name": "ID",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "structs": {
+    "FileIssueMeta": {
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "unresolved": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          },
+          "resolved": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          },
+          "last_modified": {
+            "index": 3,
+            "doc": null,
+            "type_": "u64"
+          },
+          "available_index": {
+            "index": 4,
+            "doc": null,
+            "type_": "u64"
+          }
+        }
+      }
+    },
+    "Unresolved": {
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "Resolved": {
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "Issue": {
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "problem": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "vector": "u8"
+            }
+          },
+          "state": {
+            "index": 2,
+            "doc": null,
+            "type_": {
+              "vector": "u8"
+            }
+          },
+          "created_at_ms": {
+            "index": 3,
+            "doc": null,
+            "type_": "u64"
+          },
+          "resolved_meta": {
+            "index": 4,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                  "name": "option"
+                },
+                "name": "Option",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "issue"
+                      },
+                      "name": "IssueResolvedMeta",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "writer": {
+            "index": 5,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    },
+    "IssueResolvedMeta": {
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "resolved_at": {
+            "index": 0,
+            "doc": null,
+            "type_": "u64"
+          },
+          "resolved_by": {
+            "index": 1,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

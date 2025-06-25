@@ -1,0 +1,1352 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "encoding"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "events"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "messages"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "metadata"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "storage_resource"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "option"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "string"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "bcs"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "dynamic_field"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "hash"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "tx_context"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "object_id": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "object"
+            },
+            "name": "ID",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "registered_epoch": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u32"
+      ]
+    },
+    "blob_id": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u256"
+      ]
+    },
+    "size": {
+      "source_index": 3,
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "encoding_type": {
+      "source_index": 4,
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u8"
+      ]
+    },
+    "certified_epoch": {
+      "source_index": 5,
+      "index": 5,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            false,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                  "name": "option"
+                },
+                "name": "Option",
+                "type_arguments": [
+                  "u32"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "storage": {
+      "source_index": 6,
+      "index": 6,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            false,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "storage_resource"
+                },
+                "name": "Storage",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "is_deletable": {
+      "source_index": 7,
+      "index": 7,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "encoded_size": {
+      "source_index": 8,
+      "index": 8,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "n_shards",
+          "type_": "u16"
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "storage_mut": {
+      "source_index": 9,
+      "index": 9,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "storage_resource"
+                },
+                "name": "Storage",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "end_epoch": {
+      "source_index": 10,
+      "index": 10,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u32"
+      ]
+    },
+    "assert_certified_not_expired": {
+      "source_index": 11,
+      "index": 11,
+      "doc": " Aborts if the blob is not certified or already expired.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "current_epoch",
+          "type_": "u32"
+        }
+      ],
+      "return_": []
+    },
+    "derive_blob_id": {
+      "source_index": 12,
+      "index": 12,
+      "doc": " Derives the blob_id for a blob given the root_hash, encoding_type and size.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "root_hash",
+          "type_": "u256"
+        },
+        {
+          "name": "encoding_type",
+          "type_": "u8"
+        },
+        {
+          "name": "size",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        "u256"
+      ]
+    },
+    "new": {
+      "source_index": 13,
+      "index": 13,
+      "doc": " Creates a new blob in `registered_epoch`.\n `size` is the size of the unencoded blob. The reserved space in `storage` must be at\n least the size of the encoded blob.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "storage",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "storage_resource"
+              },
+              "name": "Storage",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        },
+        {
+          "name": "root_hash",
+          "type_": "u256"
+        },
+        {
+          "name": "size",
+          "type_": "u64"
+        },
+        {
+          "name": "encoding_type",
+          "type_": "u8"
+        },
+        {
+          "name": "deletable",
+          "type_": "bool"
+        },
+        {
+          "name": "registered_epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "n_shards",
+          "type_": "u16"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "blob"
+            },
+            "name": "Blob",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "certify_with_certified_msg": {
+      "source_index": 14,
+      "index": 14,
+      "doc": " Certifies that a blob will be available in the storage system until the end epoch of the\n storage associated with it, given a [`CertifiedBlobMessage`].",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "blob",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "current_epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "message",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "messages"
+              },
+              "name": "CertifiedBlobMessage",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "delete": {
+      "source_index": 15,
+      "index": 15,
+      "doc": " Deletes a deletable blob and returns the contained storage.\n\n Emits a `BlobDeleted` event for the given epoch.\n Aborts if the Blob is not deletable or already expired.\n Also removes any metadata associated with the blob.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "blob"
+              },
+              "name": "Blob",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "epoch",
+          "type_": "u32"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "storage_resource"
+            },
+            "name": "Storage",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "burn": {
+      "source_index": 16,
+      "index": 16,
+      "doc": " Allow the owner of a blob object to destroy it.\n\n This function also burns any [`Metadata`] associated with the blob, if present.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "blob"
+              },
+              "name": "Blob",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "extend_with_resource": {
+      "source_index": 17,
+      "index": 17,
+      "doc": " Extend the period of validity of a blob with a new storage resource.\n The new storage resource must be the same size as the storage resource\n used in the blob, and have a longer period of validity.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "blob",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "extension",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "storage_resource"
+              },
+              "name": "Storage",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "current_epoch",
+          "type_": "u32"
+        }
+      ],
+      "return_": []
+    },
+    "emit_certified": {
+      "source_index": 18,
+      "index": 18,
+      "doc": " Emits a `BlobCertified` event for the given blob.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "is_extension",
+          "type_": "bool"
+        }
+      ],
+      "return_": []
+    },
+    "add_metadata": {
+      "source_index": 19,
+      "index": 19,
+      "doc": " Adds the metadata dynamic field to the Blob.\n\n Aborts if the metadata is already present.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "metadata",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "metadata"
+              },
+              "name": "Metadata",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "add_or_replace_metadata": {
+      "source_index": 20,
+      "index": 20,
+      "doc": " Adds the metadata dynamic field to the Blob, replacing the existing metadata if present.\n\n Returns the replaced metadata if present.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "metadata",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "metadata"
+              },
+              "name": "Metadata",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000001",
+              "name": "option"
+            },
+            "name": "Option",
+            "type_arguments": [
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "metadata"
+                  },
+                  "name": "Metadata",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "take_metadata": {
+      "source_index": 21,
+      "index": 21,
+      "doc": " Removes the metadata dynamic field from the Blob, returning the contained `Metadata`.\n\n Aborts if the metadata does not exist.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "metadata"
+            },
+            "name": "Metadata",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "metadata": {
+      "source_index": 22,
+      "index": 22,
+      "doc": " Returns the metadata associated with the Blob.\n\n Aborts if the metadata does not exist.",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "metadata"
+                },
+                "name": "Metadata",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "metadata_or_create": {
+      "source_index": 23,
+      "index": 23,
+      "doc": " Returns the metadata associated with the Blob, if it exists.\n\n Creates new metadata if it does not exist.",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "metadata"
+                },
+                "name": "Metadata",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "insert_or_update_metadata_pair": {
+      "source_index": 24,
+      "index": 24,
+      "doc": " Inserts a key-value pair into the metadata.\n\n If the key is already present, the value is updated. Creates new metadata on the Blob object if\n it does not exist already.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "key",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                "name": "string"
+              },
+              "name": "String",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "value",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                "name": "string"
+              },
+              "name": "String",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "remove_metadata_pair": {
+      "source_index": 25,
+      "index": 25,
+      "doc": " Removes the metadata associated with the given key.\n\n Aborts if the metadata does not exist.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "key",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                    "name": "string"
+                  },
+                  "name": "String",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000001",
+              "name": "string"
+            },
+            "name": "String",
+            "type_arguments": []
+          }
+        },
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000001",
+              "name": "string"
+            },
+            "name": "String",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "remove_metadata_pair_if_exists": {
+      "source_index": 26,
+      "index": 26,
+      "doc": " Removes and returns the metadata associated with the given key, if it exists.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "key",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                    "name": "string"
+                  },
+                  "name": "String",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000001",
+              "name": "option"
+            },
+            "name": "Option",
+            "type_arguments": [
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                    "name": "string"
+                  },
+                  "name": "String",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "structs": {
+    "Blob": {
+      "index": 0,
+      "doc": " The blob structure represents a blob that has been registered to with some storage,\n and then may eventually be certified as being available in the system.",
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "registered_epoch": {
+            "index": 1,
+            "doc": null,
+            "type_": "u32"
+          },
+          "blob_id": {
+            "index": 2,
+            "doc": null,
+            "type_": "u256"
+          },
+          "size": {
+            "index": 3,
+            "doc": null,
+            "type_": "u64"
+          },
+          "encoding_type": {
+            "index": 4,
+            "doc": null,
+            "type_": "u8"
+          },
+          "certified_epoch": {
+            "index": 5,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                  "name": "option"
+                },
+                "name": "Option",
+                "type_arguments": [
+                  "u32"
+                ]
+              }
+            }
+          },
+          "storage": {
+            "index": 6,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "storage_resource"
+                },
+                "name": "Storage",
+                "type_arguments": []
+              }
+            }
+          },
+          "deletable": {
+            "index": 7,
+            "doc": null,
+            "type_": "bool"
+          }
+        }
+      }
+    },
+    "BlobIdDerivation": {
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "encoding_type": {
+            "index": 0,
+            "doc": null,
+            "type_": "u8"
+          },
+          "size": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          },
+          "root_hash": {
+            "index": 2,
+            "doc": null,
+            "type_": "u256"
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

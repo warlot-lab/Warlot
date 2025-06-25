@@ -59,3 +59,5 @@ public(package) fun get_owner(wallet: &Wallet): address{
     wallet.owner
 }
 
+
+//todo wallet sharing; company wallet

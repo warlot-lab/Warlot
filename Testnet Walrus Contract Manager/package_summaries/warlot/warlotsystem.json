@@ -1,0 +1,1950 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "blob"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "config"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "constants"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "event"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "registry"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "storage_resource"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "system"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "userstate"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "wal"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "wallet"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "option"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "string"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "vector"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "balance"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "coin"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "dynamic_object_field"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "transfer"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "tx_context"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "cost_change_apikey_forms": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "system_balance": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "get_mut_system_balance": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "balance"
+                },
+                "name": "Balance",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "wal"
+                      },
+                      "name": "WAL",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "init": {
+      "source_index": 3,
+      "index": 3,
+      "doc": " Initialize the system and mint the first AdminCap in the ORIGINAL state",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "mint_admin": {
+      "source_index": 4,
+      "index": 4,
+      "doc": " Mint a new admin cap only if the caller holds an ORIGINAL one",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "receiver",
+          "type_": "address"
+        },
+        {
+          "name": "admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "withdraw_system": {
+      "source_index": 5,
+      "index": 5,
+      "doc": null,
+      "attributes": [
+        {
+          "Parameterized": [
+            "allow",
+            [
+              {
+                "Parameterized": [
+                  "lint",
+                  [
+                    {
+                      "Name": "self_transfer"
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      ],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin_cap",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "mint_system": {
+      "source_index": 6,
+      "index": 6,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "admin_cap",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "old_system",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cost_change_apikey_forms",
+          "type_": "u64"
+        },
+        {
+          "name": "cost_to_migrate_system",
+          "type_": "u64"
+        },
+        {
+          "name": "cost_to_update_name",
+          "type_": "u64"
+        },
+        {
+          "name": "cost_to_delete",
+          "type_": "u64"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "update_cost": {
+      "source_index": 7,
+      "index": 7,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "admin_cap",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "system",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cost_change_apikey_forms",
+          "type_": "u64"
+        },
+        {
+          "name": "cost_to_migrate_system",
+          "type_": "u64"
+        },
+        {
+          "name": "cost_to_update_name",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "increase_user_count": {
+      "source_index": 8,
+      "index": 8,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "update_username": {
+      "source_index": 9,
+      "index": 9,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "registry"
+                  },
+                  "name": "Registry",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_username",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                "name": "string"
+              },
+              "name": "String",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "payment",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "coin"
+                  },
+                  "name": "Coin",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "raw_store_blob": {
+      "source_index": 10,
+      "index": 10,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "blob"
+              },
+              "name": "Blob",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "epoch_set",
+          "type_": "u32"
+        },
+        {
+          "name": "cycle_end",
+          "type_": "u64"
+        },
+        {
+          "name": "user",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "store_blob": {
+      "source_index": 11,
+      "index": 11,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "_",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "raw_blob",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "blob"
+              },
+              "name": "Blob",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "epoch_set",
+          "type_": "u32"
+        },
+        {
+          "name": "cycle_end",
+          "type_": "u64"
+        },
+        {
+          "name": "user",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "deposit_coin": {
+      "source_index": 12,
+      "index": 12,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "coin",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "coin"
+                  },
+                  "name": "Coin",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "renew": {
+      "source_index": 13,
+      "index": 13,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "_",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "walrus_system",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system"
+                  },
+                  "name": "System",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "users",
+          "type_": {
+            "vector": "address"
+          }
+        },
+        {
+          "name": "epoch_set",
+          "type_": "u32"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "vector": "address"
+        }
+      ]
+    },
+    "sync_blob": {
+      "source_index": 14,
+      "index": 14,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "_",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "walrus_system",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system"
+                  },
+                  "name": "System",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "users",
+          "type_": {
+            "vector": "address"
+          }
+        },
+        {
+          "name": "epoch_set",
+          "type_": "u32"
+        },
+        {
+          "name": "epoch_checkpoint",
+          "type_": "u32"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "process_blob": {
+      "source_index": 15,
+      "index": 15,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_addr",
+          "type_": "address"
+        },
+        {
+          "name": "epoch_set",
+          "type_": "u32"
+        },
+        {
+          "name": "walrus_system",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system"
+                  },
+                  "name": "System",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "funds",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "coin"
+                  },
+                  "name": "Coin",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "process_state",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                    "name": "option"
+                  },
+                  "name": "Option",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "warlotsystem"
+                        },
+                        "name": "ProcessSync",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "foreign_blob_add": {
+      "source_index": 16,
+      "index": 16,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "registry",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "registry"
+                  },
+                  "name": "Registry",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cycle_end",
+          "type_": "u64"
+        },
+        {
+          "name": "epoch_set",
+          "type_": "u32"
+        },
+        {
+          "name": "blobs",
+          "type_": {
+            "vector": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "blob"
+                },
+                "name": "Blob",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "withdraw_blob": {
+      "source_index": 17,
+      "index": 17,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob_obj_id",
+          "type_": "address"
+        },
+        {
+          "name": "user",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "self_withdraw_blob": {
+      "source_index": 18,
+      "index": 18,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "registry",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "registry"
+                  },
+                  "name": "Registry",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob_obj_id",
+          "type_": "address"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "replace": {
+      "source_index": 19,
+      "index": 19,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "admin_cap",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "old_blob_id",
+          "type_": "address"
+        },
+        {
+          "name": "blob",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "blob"
+              },
+              "name": "Blob",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "epoch_set",
+          "type_": "u32"
+        },
+        {
+          "name": "cycle_end",
+          "type_": "u64"
+        },
+        {
+          "name": "user",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "add_user": {
+      "source_index": 20,
+      "index": 20,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "userstate"
+              },
+              "name": "User",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "get_user_mut": {
+      "source_index": 21,
+      "index": 21,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "type_": "address"
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "userstate"
+                },
+                "name": "User",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "get_user": {
+      "source_index": 22,
+      "index": 22,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "type_": "address"
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            false,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "userstate"
+                },
+                "name": "User",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "check_user": {
+      "source_index": 23,
+      "index": 23,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system_cfg",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "warlotsystem"
+                  },
+                  "name": "SystemConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "type_": "address"
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "extend_blob": {
+      "source_index": 24,
+      "index": 24,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "system",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system"
+                  },
+                  "name": "System",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "payment",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "coin"
+                  },
+                  "name": "Coin",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_epoch",
+          "type_": "u32"
+        }
+      ],
+      "return_": []
+    }
+  },
+  "structs": {
+    "SystemConfig": {
+      "index": 0,
+      "doc": " System configuration on-chain\n this holds the warlot system config and data",
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "users": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          },
+          "managed_blobs": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          },
+          "version": {
+            "index": 3,
+            "doc": null,
+            "type_": "u8"
+          },
+          "mint_cap": {
+            "index": 4,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "warlotsystem"
+                },
+                "name": "SystemMintCap",
+                "type_arguments": []
+              }
+            }
+          },
+          "user_modification_cfg": {
+            "index": 5,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "warlotsystem"
+                },
+                "name": "UserMdCfg",
+                "type_arguments": []
+              }
+            }
+          },
+          "balance": {
+            "index": 6,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "balance"
+                },
+                "name": "Balance",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "wal"
+                      },
+                      "name": "WAL",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "SystemMintCap": {
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "previous_system": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          },
+          "has_minted": {
+            "index": 1,
+            "doc": null,
+            "type_": "bool"
+          }
+        }
+      }
+    },
+    "AdminCap": {
+      "index": 2,
+      "doc": " Admin capability, carrying along a “state tag”",
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "system_config_id": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          },
+          "state": {
+            "index": 2,
+            "doc": null,
+            "type_": "u8"
+          },
+          "total_system": {
+            "index": 3,
+            "doc": null,
+            "type_": "u8"
+          }
+        }
+      }
+    },
+    "ProcessSync": {
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch_checkpoint": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          }
+        }
+      }
+    },
+    "UserMdCfg": {
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "cost_change_apikey_forms": {
+            "index": 0,
+            "doc": null,
+            "type_": "u64"
+          },
+          "cost_to_migrate_system": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          },
+          "cost_to_update_name": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          },
+          "cost_to_delete": {
+            "index": 3,
+            "doc": null,
+            "type_": "u64"
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

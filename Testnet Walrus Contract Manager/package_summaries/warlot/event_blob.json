@@ -1,0 +1,652 @@
+{
+  "doc": " Module to certify event blobs.",
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "option"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "vec_map"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "new_attestation": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "checkpoint_sequence_num",
+          "type_": "u64"
+        },
+        {
+          "name": "epoch",
+          "type_": "u32"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "event_blob"
+            },
+            "name": "EventBlobAttestation",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "last_attested_event_blob_checkpoint_seq_num": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobAttestation",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "last_attested_event_blob_epoch": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobAttestation",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u32"
+      ]
+    },
+    "new_event_blob": {
+      "source_index": 3,
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "ending_checkpoint_sequence_number",
+          "type_": "u64"
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "event_blob"
+            },
+            "name": "EventBlob",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "blob_id": {
+      "source_index": 4,
+      "index": 4,
+      "doc": " Returns the blob id of the event blob",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u256"
+      ]
+    },
+    "ending_checkpoint_sequence_number": {
+      "source_index": 5,
+      "index": 5,
+      "doc": " Returns the ending checkpoint sequence number of the event blob",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "create_with_empty_state": {
+      "source_index": 6,
+      "index": 6,
+      "doc": " Creates a blob state with no signers and no last checkpoint sequence number",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "event_blob"
+            },
+            "name": "EventBlobCertificationState",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "get_latest_certified_blob_id": {
+      "source_index": 7,
+      "index": 7,
+      "doc": " Returns the blob id of the latest certified event blob",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobCertificationState",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000001",
+              "name": "option"
+            },
+            "name": "Option",
+            "type_arguments": [
+              "u256"
+            ]
+          }
+        }
+      ]
+    },
+    "get_latest_certified_checkpoint_sequence_number": {
+      "source_index": 8,
+      "index": 8,
+      "doc": " Returns the checkpoint sequence number of the latest certified event\n blob",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobCertificationState",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000001",
+              "name": "option"
+            },
+            "name": "Option",
+            "type_arguments": [
+              "u64"
+            ]
+          }
+        }
+      ]
+    },
+    "get_num_tracked_blobs": {
+      "source_index": 9,
+      "index": 9,
+      "doc": " Returns the number of blobs being tracked",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobCertificationState",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "is_blob_already_certified": {
+      "source_index": 10,
+      "index": 10,
+      "doc": " Returns true if a blob is already certified or false otherwise",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobCertificationState",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ending_checkpoint_sequence_num",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "update_latest_certified_event_blob": {
+      "source_index": 11,
+      "index": 11,
+      "doc": " Updates the latest certified event blob",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobCertificationState",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "checkpoint_sequence_number",
+          "type_": "u64"
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        }
+      ],
+      "return_": []
+    },
+    "update_aggregate_weight": {
+      "source_index": 12,
+      "index": 12,
+      "doc": " Update the aggregate weight of an event blob",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobCertificationState",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        },
+        {
+          "name": "ending_checkpoint_sequence_number",
+          "type_": "u64"
+        },
+        {
+          "name": "weight",
+          "type_": "u16"
+        }
+      ],
+      "return_": [
+        "u16"
+      ]
+    },
+    "start_tracking_blob": {
+      "source_index": 13,
+      "index": 13,
+      "doc": " Start tracking which nodes are signing the event blob with given id for\n event blob certification",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobCertificationState",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        },
+        {
+          "name": "ending_checkpoint_sequence_number",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "reset": {
+      "source_index": 14,
+      "index": 14,
+      "doc": " Reset blob certification state upon epoch change",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "event_blob"
+                  },
+                  "name": "EventBlobCertificationState",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    }
+  },
+  "structs": {
+    "EventBlobAttestation": {
+      "index": 0,
+      "doc": " Event blob index which was attested by a storage node.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "checkpoint_sequence_num": {
+            "index": 0,
+            "doc": null,
+            "type_": "u64"
+          },
+          "epoch": {
+            "index": 1,
+            "doc": null,
+            "type_": "u32"
+          }
+        }
+      }
+    },
+    "EventBlob": {
+      "index": 1,
+      "doc": " State of a certified event blob.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "blob_id": {
+            "index": 0,
+            "doc": " Blob id of the certified event blob.",
+            "type_": "u256"
+          },
+          "ending_checkpoint_sequence_number": {
+            "index": 1,
+            "doc": " Ending sui checkpoint of the certified event blob.",
+            "type_": "u64"
+          }
+        }
+      }
+    },
+    "EventBlobCertificationState": {
+      "index": 2,
+      "doc": " State of event blob stream.",
+      "attributes": [],
+      "abilities": [
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "latest_certified_blob": {
+            "index": 0,
+            "doc": " Latest certified event blob.",
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000001",
+                  "name": "option"
+                },
+                "name": "Option",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "event_blob"
+                      },
+                      "name": "EventBlob",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "aggregate_weight_per_blob": {
+            "index": 1,
+            "doc": " Current event blob being attested.",
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "vec_map"
+                },
+                "name": "VecMap",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "event_blob"
+                      },
+                      "name": "EventBlob",
+                      "type_arguments": []
+                    }
+                  },
+                  "u16"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

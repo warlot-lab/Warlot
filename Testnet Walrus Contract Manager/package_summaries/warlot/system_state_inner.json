@@ -1,0 +1,1603 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "blob"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "bls_aggregate"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "encoding"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "epoch_parameters"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "event_blob"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "events"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "extended_field"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "messages"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "storage_accounting"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "storage_node"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "storage_resource"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "wal"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "option"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "u128"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "u64"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "vector"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "balance"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "coin"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "tx_context"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "vec_map"
+    }
+  ],
+  "attributes": [
+    {
+      "Parameterized": [
+        "allow",
+        [
+          {
+            "Name": "unused_field"
+          },
+          {
+            "Name": "unused_mut_parameter"
+          },
+          {
+            "Name": "unused_variable"
+          }
+        ]
+      ]
+    }
+  ],
+  "functions": {
+    "create_empty": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Creates an empty system state with a capacity of zero and an empty\n committee.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "max_epochs_ahead",
+          "type_": "u32"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "system_state_inner"
+            },
+            "name": "SystemStateInnerV1",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "advance_epoch": {
+      "source_index": 1,
+      "index": 1,
+      "doc": " Update epoch to next epoch, and update the committee, price and capacity.\n\n Called by the epoch change function that connects `Staking` and `System`.\n Returns the mapping of node IDs from the old committee to the rewards they\n received in the epoch.\n\n Note: VecMap must contain values only for the nodes from the previous\n committee, the `staking` part of the system relies on this assumption.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_committee",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "bls_aggregate"
+              },
+              "name": "BlsCommittee",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "new_epoch_params",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "epoch_parameters"
+                  },
+                  "name": "EpochParams",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "vec_map"
+            },
+            "name": "VecMap",
+            "type_arguments": [
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "object"
+                  },
+                  "name": "ID",
+                  "type_arguments": []
+                }
+              },
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "balance"
+                  },
+                  "name": "Balance",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "reserve_space": {
+      "source_index": 2,
+      "index": 2,
+      "doc": " Allow buying a storage reservation for a given period of epochs.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "storage_amount",
+          "type_": "u64"
+        },
+        {
+          "name": "epochs_ahead",
+          "type_": "u32"
+        },
+        {
+          "name": "payment",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "coin"
+                  },
+                  "name": "Coin",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "storage_resource"
+            },
+            "name": "Storage",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "reserve_space_without_payment": {
+      "source_index": 3,
+      "index": 3,
+      "doc": " Allow buying a storage reservation for a given period of epochs without\n payment.",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "storage_amount",
+          "type_": "u64"
+        },
+        {
+          "name": "epochs_ahead",
+          "type_": "u32"
+        },
+        {
+          "name": "check_capacity",
+          "type_": "bool"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "storage_resource"
+            },
+            "name": "Storage",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "invalidate_blob_id": {
+      "source_index": 4,
+      "index": 4,
+      "doc": " Processes invalid blob id message. Checks the certificate in the current\n committee and ensures that the epoch is correct before emitting an event.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signature",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "members_bitmap",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "message",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": [
+        "u256"
+      ]
+    },
+    "register_blob": {
+      "source_index": 5,
+      "index": 5,
+      "doc": " Registers a new blob in the system.\n - `size` is the size of the unencoded blob.\n - The reserved space in `storage` must be at least the size of the encoded blob.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "storage",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "storage_resource"
+              },
+              "name": "Storage",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        },
+        {
+          "name": "root_hash",
+          "type_": "u256"
+        },
+        {
+          "name": "size",
+          "type_": "u64"
+        },
+        {
+          "name": "encoding_type",
+          "type_": "u8"
+        },
+        {
+          "name": "deletable",
+          "type_": "bool"
+        },
+        {
+          "name": "write_payment_coin",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "coin"
+                  },
+                  "name": "Coin",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "blob"
+            },
+            "name": "Blob",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "certify_blob": {
+      "source_index": 6,
+      "index": 6,
+      "doc": " Certify that a blob will be available in the storage system until the end\n epoch of the\n storage associated with it.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signature",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "signers_bitmap",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "message",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": []
+    },
+    "delete_blob": {
+      "source_index": 7,
+      "index": 7,
+      "doc": " Deletes a deletable blob and returns the contained storage resource.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "blob"
+              },
+              "name": "Blob",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "storage_resource"
+            },
+            "name": "Storage",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "extend_blob_with_resource": {
+      "source_index": 8,
+      "index": 8,
+      "doc": " Extend the period of validity of a blob with a new storage resource.\n The new storage resource must be the same size as the storage resource\n used in the blob, and have a longer period of validity.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "extension",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "storage_resource"
+              },
+              "name": "Storage",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "extend_blob": {
+      "source_index": 9,
+      "index": 9,
+      "doc": " Extend the period of validity of a blob by extending its contained storage\n resource by `extended_epochs` epochs.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "blob"
+                  },
+                  "name": "Blob",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "extended_epochs",
+          "type_": "u32"
+        },
+        {
+          "name": "payment",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "coin"
+                  },
+                  "name": "Coin",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "process_storage_payments": {
+      "source_index": 10,
+      "index": 10,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "storage_size",
+          "type_": "u64"
+        },
+        {
+          "name": "start_offset",
+          "type_": "u32"
+        },
+        {
+          "name": "end_offset",
+          "type_": "u32"
+        },
+        {
+          "name": "payment",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "coin"
+                  },
+                  "name": "Coin",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                          "name": "wal"
+                        },
+                        "name": "WAL",
+                        "type_arguments": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "certify_event_blob": {
+      "source_index": 11,
+      "index": 11,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cap",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_node"
+                  },
+                  "name": "StorageNodeCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        },
+        {
+          "name": "root_hash",
+          "type_": "u256"
+        },
+        {
+          "name": "size",
+          "type_": "u64"
+        },
+        {
+          "name": "encoding_type",
+          "type_": "u8"
+        },
+        {
+          "name": "ending_checkpoint_sequence_num",
+          "type_": "u64"
+        },
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "add_subsidy": {
+      "source_index": 12,
+      "index": 12,
+      "doc": " Adds rewards to the system for the specified number of epochs ahead.\n The rewards are split equally across the future accounting ring buffer up to the\n specified epoch.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "subsidy",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "coin"
+              },
+              "name": "Coin",
+              "type_arguments": [
+                {
+                  "Datatype": {
+                    "module": {
+                      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                      "name": "wal"
+                    },
+                    "name": "WAL",
+                    "type_arguments": []
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "epochs_ahead",
+          "type_": "u32"
+        }
+      ],
+      "return_": []
+    },
+    "epoch": {
+      "source_index": 13,
+      "index": 13,
+      "doc": " Get epoch. Uses the committee to get the epoch.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u32"
+      ]
+    },
+    "total_capacity_size": {
+      "source_index": 14,
+      "index": 14,
+      "doc": " Accessor for total capacity size.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "used_capacity_size": {
+      "source_index": 15,
+      "index": 15,
+      "doc": " Accessor for used capacity size.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "committee": {
+      "source_index": 16,
+      "index": 16,
+      "doc": " An accessor for the current committee.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            false,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "bls_aggregate"
+                },
+                "name": "BlsCommittee",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "n_shards": {
+      "source_index": 17,
+      "index": 17,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u16"
+      ]
+    },
+    "write_price": {
+      "source_index": 18,
+      "index": 18,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "write_size",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "register_deny_list_update": {
+      "source_index": 20,
+      "index": 19,
+      "doc": " Announce a deny list update for a storage node.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_node"
+                  },
+                  "name": "StorageNodeCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "deny_list_root",
+          "type_": "u256"
+        },
+        {
+          "name": "deny_list_sequence",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "update_deny_list": {
+      "source_index": 21,
+      "index": 20,
+      "doc": " Perform the update of the deny list; register updated root and sequence in\n the `StorageNodeCap`.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cap",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_node"
+                  },
+                  "name": "StorageNodeCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signature",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "members_bitmap",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "message",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": []
+    },
+    "delete_deny_listed_blob": {
+      "source_index": 22,
+      "index": 21,
+      "doc": " Certify that a blob is on the deny list for at least one honest node. Emit\n an event to mark it for deletion.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "system_state_inner"
+                  },
+                  "name": "SystemStateInnerV1",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signature",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "members_bitmap",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "message",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": []
+    },
+    "storage_units_from_size": {
+      "source_index": 19,
+      "index": 18446744073709551615,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "macro_": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "$size",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    }
+  },
+  "structs": {
+    "SystemStateInnerV1": {
+      "index": 0,
+      "doc": " The inner object that is not present in signatures and can be versioned.",
+      "attributes": [
+        {
+          "Parameterized": [
+            "allow",
+            [
+              {
+                "Name": "unused_field"
+              }
+            ]
+          ]
+        }
+      ],
+      "abilities": [
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "committee": {
+            "index": 0,
+            "doc": " The current committee, with the current epoch.",
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "bls_aggregate"
+                },
+                "name": "BlsCommittee",
+                "type_arguments": []
+              }
+            }
+          },
+          "total_capacity_size": {
+            "index": 1,
+            "doc": " Maximum capacity size for the current and future epochs.\n Changed by voting on the epoch parameters.",
+            "type_": "u64"
+          },
+          "used_capacity_size": {
+            "index": 2,
+            "doc": " Contains the used capacity size for the current epoch.",
+            "type_": "u64"
+          },
+          "storage_price_per_unit_size": {
+            "index": 3,
+            "doc": " The price per unit size of storage.",
+            "type_": "u64"
+          },
+          "write_price_per_unit_size": {
+            "index": 4,
+            "doc": " The write price per unit size.",
+            "type_": "u64"
+          },
+          "future_accounting": {
+            "index": 5,
+            "doc": " Accounting ring buffer for future epochs.",
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "storage_accounting"
+                },
+                "name": "FutureAccountingRingBuffer",
+                "type_arguments": []
+              }
+            }
+          },
+          "event_blob_certification_state": {
+            "index": 6,
+            "doc": " Event blob certification state",
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "event_blob"
+                },
+                "name": "EventBlobCertificationState",
+                "type_arguments": []
+              }
+            }
+          },
+          "deny_list_sizes": {
+            "index": 7,
+            "doc": " Sizes of deny lists for storage nodes. Only current committee members\n can register their updates in this map. Hence, we don't expect it to bloat.\n\n Max number of stored entries is ~6500. If there's any concern about the\n performance of the map, it can be cleaned up as a side effect of the\n updates / registrations.",
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "extended_field"
+                },
+                "name": "ExtendedField",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                        "name": "vec_map"
+                      },
+                      "name": "VecMap",
+                      "type_arguments": [
+                        {
+                          "Datatype": {
+                            "module": {
+                              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                              "name": "object"
+                            },
+                            "name": "ID",
+                            "type_arguments": []
+                          }
+                        },
+                        "u64"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

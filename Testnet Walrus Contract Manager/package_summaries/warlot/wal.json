@@ -1,0 +1,370 @@
+{
+  "doc": " The WAL token is the native token for the Walrus Protocol.",
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "option"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "u64"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "coin"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "dynamic_object_field"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "transfer"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "tx_context"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "url"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "init": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Initializes the WAL token and mints the total supply to the publisher.\n This also wraps the `TreasuryCap` in a `ProtectedTreasury` analogous to the SuiNS token.\n\n After publishing this, the `UpgradeCap` must be burned to ensure that the supply\n of minted WAL cannot change.",
+      "attributes": [
+        {
+          "Parameterized": [
+            "allow",
+            [
+              {
+                "Parameterized": [
+                  "lint",
+                  [
+                    {
+                      "Name": "share_owned"
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      ],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "otw",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "wal"
+              },
+              "name": "WAL",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "total_supply": {
+      "source_index": 1,
+      "index": 1,
+      "doc": " Get the total supply of the WAL token.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "treasury",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "wal"
+                  },
+                  "name": "ProtectedTreasury",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "burn": {
+      "source_index": 2,
+      "index": 2,
+      "doc": " Burns a `Coin<WAL>` from the sender.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "treasury",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "wal"
+                  },
+                  "name": "ProtectedTreasury",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "coin",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "coin"
+              },
+              "name": "Coin",
+              "type_arguments": [
+                {
+                  "Datatype": {
+                    "module": {
+                      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                      "name": "wal"
+                    },
+                    "name": "WAL",
+                    "type_arguments": []
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "borrow_cap": {
+      "source_index": 3,
+      "index": 3,
+      "doc": " Borrows the `TreasuryCap` from the `ProtectedTreasury`.",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "treasury",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "wal"
+                  },
+                  "name": "ProtectedTreasury",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            false,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "coin"
+                },
+                "name": "TreasuryCap",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "wal"
+                      },
+                      "name": "WAL",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "borrow_cap_mut": {
+      "source_index": 4,
+      "index": 4,
+      "doc": " Borrows the `TreasuryCap` from the `ProtectedTreasury` as mutable.",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "treasury",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "wal"
+                  },
+                  "name": "ProtectedTreasury",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "coin"
+                },
+                "name": "TreasuryCap",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "wal"
+                      },
+                      "name": "WAL",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "structs": {
+    "WAL": {
+      "index": 0,
+      "doc": " The OTW for the `WAL` coin.",
+      "attributes": [],
+      "abilities": [
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "dummy_field": {
+            "index": 0,
+            "type_": "bool"
+          }
+        }
+      }
+    },
+    "ProtectedTreasury": {
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "TreasuryCapKey": {
+      "index": 2,
+      "doc": " The dynamic object field key for the `TreasuryCap`.\n Storing the `TreasuryCap` as a dynamic object field allows us to easily look-up the\n `TreasuryCap` from the `ProtectedTreasury` off-chain.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "dummy_field": {
+            "index": 0,
+            "type_": "bool"
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

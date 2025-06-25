@@ -45,3 +45,7 @@ The _Inner File_ creates a means to ✏️ **modify files** in the system while 
 ### 5️⃣ **Open Source Code Collaboration**
 
 💻 Developers can propose and apply code changes to Inner Files representing source code. The system protects 🏷 **file ownership** while enabling group contributions and ensuring the 🛡 **integrity** of the codebase.
+
+curl -X POST https://d328zr3eu47he6.cloudfront.net/upload -H "X-API-Key:ngDk5pOj3/AM6dEKRsvyVTYMv4Bc0JPf2nm6IWdtYlQ=" -H "X-Wallet-Address:0x5038de3e63c8b7b356e598d3c5b9d0efb905533141c11babcab5c59f34d05efb" -F 'file=@/mnt/c/warlot/Testnet Walrus Contract Manager/sources/wallet.move' -F epochs=5   -F cycle=6
+Testnet Walrus Contract Manager\sources\walrus modification\readme.md
+'file=@/mnt/c/warlot/Testnet Walrus Contract Manager/sources/wallet.move

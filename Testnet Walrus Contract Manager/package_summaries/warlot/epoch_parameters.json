@@ -1,0 +1,172 @@
+{
+  "doc": null,
+  "immediate_dependencies": [],
+  "attributes": [],
+  "functions": {
+    "new": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "total_capacity_size",
+          "type_": "u64"
+        },
+        {
+          "name": "storage_price_per_unit_size",
+          "type_": "u64"
+        },
+        {
+          "name": "write_price_per_unit_size",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "epoch_parameters"
+            },
+            "name": "EpochParams",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "capacity": {
+      "source_index": 1,
+      "index": 1,
+      "doc": " The storage capacity of the system.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "epoch_parameters"
+                  },
+                  "name": "EpochParams",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "storage_price": {
+      "source_index": 2,
+      "index": 2,
+      "doc": " The price per unit size of storage.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "epoch_parameters"
+                  },
+                  "name": "EpochParams",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "write_price": {
+      "source_index": 3,
+      "index": 3,
+      "doc": " The write price per unit size.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "epoch_parameters"
+                  },
+                  "name": "EpochParams",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    }
+  },
+  "structs": {
+    "EpochParams": {
+      "index": 0,
+      "doc": " The epoch parameters for the system.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "total_capacity_size": {
+            "index": 0,
+            "doc": " The storage capacity of the system.",
+            "type_": "u64"
+          },
+          "storage_price_per_unit_size": {
+            "index": 1,
+            "doc": " The price per unit size of storage.",
+            "type_": "u64"
+          },
+          "write_price_per_unit_size": {
+            "index": 2,
+            "doc": " The write price per unit size.",
+            "type_": "u64"
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

@@ -1,0 +1,971 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "messages"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "option"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "u64"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "vector"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "bls12381"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "group_ops"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "vec_map"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "new_bls_committee": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Constructor for committee.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "members",
+          "type_": {
+            "vector": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "bls_aggregate"
+                },
+                "name": "BlsCommitteeMember",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "bls_aggregate"
+            },
+            "name": "BlsCommittee",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "new_bls_committee_member": {
+      "source_index": 1,
+      "index": 1,
+      "doc": " Constructor for committee member.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "public_key",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "group_ops"
+              },
+              "name": "Element",
+              "type_arguments": [
+                {
+                  "Datatype": {
+                    "module": {
+                      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                      "name": "bls12381"
+                    },
+                    "name": "UncompressedG1",
+                    "type_arguments": []
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "weight",
+          "type_": "u16"
+        },
+        {
+          "name": "node_id",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "object"
+              },
+              "name": "ID",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "bls_aggregate"
+            },
+            "name": "BlsCommitteeMember",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "node_id": {
+      "source_index": 2,
+      "index": 2,
+      "doc": " Get the node id of the committee member.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommitteeMember",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "object"
+            },
+            "name": "ID",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "epoch": {
+      "source_index": 3,
+      "index": 3,
+      "doc": " Get the epoch of the committee.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u32"
+      ]
+    },
+    "n_shards": {
+      "source_index": 4,
+      "index": 4,
+      "doc": " Returns the number of shards held by the committee.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u16"
+      ]
+    },
+    "n_members": {
+      "source_index": 5,
+      "index": 5,
+      "doc": " Returns the number of members in the committee.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "get_idx": {
+      "source_index": 6,
+      "index": 6,
+      "doc": " Returns the member at given index",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "idx",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            false,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "bls_aggregate"
+                },
+                "name": "BlsCommitteeMember",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "contains": {
+      "source_index": 7,
+      "index": 7,
+      "doc": " Checks if the committee contains a given node.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_id",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "object"
+                  },
+                  "name": "ID",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "get_member_weight": {
+      "source_index": 8,
+      "index": 8,
+      "doc": " Returns the member weight if it is part of the committee or 0 otherwise",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_id",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "object"
+                  },
+                  "name": "ID",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u16"
+      ]
+    },
+    "find_index": {
+      "source_index": 9,
+      "index": 9,
+      "doc": " Finds the index of the member by node_id",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_id",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "object"
+                  },
+                  "name": "ID",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000001",
+              "name": "option"
+            },
+            "name": "Option",
+            "type_arguments": [
+              "u64"
+            ]
+          }
+        }
+      ]
+    },
+    "to_vec_map": {
+      "source_index": 10,
+      "index": 10,
+      "doc": " Returns the members of the committee with their weights.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "vec_map"
+            },
+            "name": "VecMap",
+            "type_arguments": [
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "object"
+                  },
+                  "name": "ID",
+                  "type_arguments": []
+                }
+              },
+              "u16"
+            ]
+          }
+        }
+      ]
+    },
+    "verify_quorum_in_epoch": {
+      "source_index": 11,
+      "index": 11,
+      "doc": " Verifies that a message is signed by a quorum of the members of a committee.\n\n The signers are given as a bitmap for the indices into the `members` vector of\n the committee.\n\n If the signers form a quorum and the signature is valid, the function returns\n a new `CertifiedMessage` with the message, the epoch, and the total stake of\n the signers. Otherwise, it aborts with an error.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signature",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "signers_bitmap",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "message",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "messages"
+            },
+            "name": "CertifiedMessage",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "is_quorum": {
+      "source_index": 12,
+      "index": 12,
+      "doc": " Returns true if the weight is more than the aggregate weight of quorum members of a committee.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "weight",
+          "type_": "u16"
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "verify_one_correct_node_in_epoch": {
+      "source_index": 13,
+      "index": 13,
+      "doc": " Verifies that a message is signed by at least one correct node of a committee.\n\n The signers are given as a bitmap for the indices into the `members` vector of\n the committee.\n If the signers include at least one correct node and the signature is valid,\n the function returns a new `CertifiedMessage` with the message, the epoch,\n and the total stake of the signers. Otherwise, it aborts with an error.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signature",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "signers_bitmap",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "message",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "messages"
+            },
+            "name": "CertifiedMessage",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "includes_one_correct_node": {
+      "source_index": 14,
+      "index": 14,
+      "doc": " Returns true if the weight is enough to ensure that at least one honest node contributed.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "weight",
+          "type_": "u16"
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "verify_certificate_and_weight": {
+      "source_index": 15,
+      "index": 15,
+      "doc": " Verify an aggregate BLS signature is a certificate in the epoch, and return\n the total stake of the signers.\n The `signers_bitmap` is a bitmap of the indices of the signers in the committee.\n The `weight_verification_type` is the type of weight verification to perform,\n either check that the signers forms a quorum or includes at least one correct node.\n If there is a certificate, the function returns the total stake. Otherwise, it aborts.",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommittee",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signature",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "vector": "u8"
+              }
+            ]
+          }
+        },
+        {
+          "name": "signers_bitmap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "vector": "u8"
+              }
+            ]
+          }
+        },
+        {
+          "name": "message",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "vector": "u8"
+              }
+            ]
+          }
+        },
+        {
+          "name": "required_weight",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "bls_aggregate"
+              },
+              "name": "RequiredWeight",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": [
+        "u16"
+      ]
+    }
+  },
+  "structs": {
+    "BlsCommitteeMember": {
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "public_key": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "group_ops"
+                },
+                "name": "Element",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                        "name": "bls12381"
+                      },
+                      "name": "UncompressedG1",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "weight": {
+            "index": 1,
+            "doc": null,
+            "type_": "u16"
+          },
+          "node_id": {
+            "index": 2,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "BlsCommittee": {
+      "index": 1,
+      "doc": " This represents a BLS signing committee for a given epoch.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "members": {
+            "index": 0,
+            "doc": " A vector of committee members",
+            "type_": {
+              "vector": {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "bls_aggregate"
+                  },
+                  "name": "BlsCommitteeMember",
+                  "type_arguments": []
+                }
+              }
+            }
+          },
+          "n_shards": {
+            "index": 1,
+            "doc": " The total number of shards held by the committee",
+            "type_": "u16"
+          },
+          "epoch": {
+            "index": 2,
+            "doc": " The epoch in which the committee is active.",
+            "type_": "u32"
+          },
+          "total_aggregated_key": {
+            "index": 3,
+            "doc": " The aggregation of public keys for all members of the committee",
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "group_ops"
+                },
+                "name": "Element",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                        "name": "bls12381"
+                      },
+                      "name": "G1",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {
+    "RequiredWeight": {
+      "index": 0,
+      "doc": " The type of weight verification to perform.",
+      "attributes": [],
+      "abilities": [],
+      "type_parameters": [],
+      "variants": {
+        "Quorum": {
+          "index": 0,
+          "doc": " Verify that the signers form a quorum.",
+          "fields": {
+            "positional_fields": false,
+            "fields": {}
+          }
+        },
+        "OneCorrectNode": {
+          "index": 1,
+          "doc": " Verify that the signers include at least one correct node.",
+          "fields": {
+            "positional_fields": false,
+            "fields": {}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,8 @@
-module warlot::setandrenew;
+module warlot::warlotsystem;
 
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, system::System};
-use std::string::String;
-use sui::{coin::{Self, Coin}, dynamic_object_field as ofields, clock::Clock, balance::{Self, Balance}};
+use sui::{coin::{Self, Coin}, dynamic_object_field as ofields, balance::{Self, Balance}};
 use warlot::{
     userstate::{Self, User},
     config::{Self, BlobSettings}, 
@@ -67,8 +66,25 @@ public struct UserMdCfg has store {
 }
 
 
+public(package) fun cost_change_apikey_forms(system_cfg: &SystemConfig): u64{
+     system_cfg
+        .user_modification_cfg
+        .cost_change_apikey_forms
+}
 
+public(package) fun system_balance(system_cfg: &SystemConfig): u64{
+    system_cfg.balance.value()
+}
 
+public(package) fun get_mut_system_balance(system_cfg: &mut SystemConfig): &mut Balance<WAL>{
+    &mut system_cfg.balance
+}
+
+public(package) fun cost_to_update_name(system_cfg: &SystemConfig): u64{
+    system_cfg
+        .user_modification_cfg
+        .cost_to_update_name
+}
 
 /// Initialize the system and mint the first AdminCap in the ORIGINAL state
 fun init(ctx: &mut TxContext){
@@ -199,69 +215,16 @@ public fun update_cost(
     system.user_modification_cfg.cost_to_update_name = cost_to_update_name;
 }
 
-// create user internal object and public registry
-public fun create_user(
-    system_cfg: &mut SystemConfig,
-    apikey: String,
-    encrypt_key: String,
-    warlot_sign_apikey: String,
-     public_username: String,
-    clock: &Clock,
-    ctx: &mut TxContext
-    ){
-    let new_user = userstate::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
 
-    add_user(system_cfg, new_user, ctx);
 
+// increase user count
+public(package) fun increase_user_count( system_cfg: &mut SystemConfig,){
     let old_user_count = system_cfg.users;
     system_cfg.users = old_user_count + 1;
 }
 
 
-// update your api keys with cost
-public fun update_api_key(
-    system_cfg: &mut SystemConfig,
-    registry: &mut Registry, 
-    new_hashed_apikey: String, 
-    new_warlot_sign_apikey: String,
-    clock: &Clock,
-    payment: &mut Coin<WAL>,
-    ctx: &mut TxContext
-){
-    assert!(object::id(system_cfg) == registry.get_system(), 9);
-    let funds = payment.split(
-                    system_cfg
-                    .user_modification_cfg
-                    .cost_change_apikey_forms, 
-                    ctx);
 
-    coin::put<WAL>(&mut system_cfg.balance, funds);
-    registry.update_api_key(
-    new_hashed_apikey, 
-    new_warlot_sign_apikey,
-    clock
-    )
-}
-
-
-// update name with cost
-public fun update_username(
-    system_cfg: &mut SystemConfig, 
-    registry: &mut Registry, 
-    new_username: String,
-    payment: &mut Coin<WAL>,
-    ctx: &mut TxContext,
-    ){
-    assert!(object::id(system_cfg) == registry.get_system(), 9);
-    let funds = payment.split(
-                    system_cfg
-                    .user_modification_cfg
-                    .cost_to_update_name, 
-                    ctx);
-
-    coin::put<WAL>(&mut system_cfg.balance, funds);
-    registry.update_username(new_username)
-}
 
 
 // this is used to store the blob in the contract
@@ -337,19 +300,6 @@ public fun store_blob(
 
 
 
-// add coin to your internal wallet
-public fun deposit_coin(
-     system_cfg: &mut SystemConfig,
-     coin: &mut Coin<WAL>,
-     amount: u64,
-     ctx: &mut TxContext
-): u64 {
-    let user = get_user_mut(system_cfg, ctx.sender());
-    let wallet_state = user.get_wallet();
-
-    wallet_state.deposit(coin, amount, ctx)
-
-}
 
 
 
@@ -624,7 +574,7 @@ public fun replace(
 
 
 
-fun add_user(system_cfg: &mut SystemConfig,  user: User, ctx: &TxContext){
+public(package) fun add_user(system_cfg: &mut SystemConfig,  user: User, ctx: &TxContext){
     let new_user = ctx.sender();
 
     assert!(!ofields::exists_(&system_cfg.id, new_user), EUserExist);
@@ -634,7 +584,7 @@ fun add_user(system_cfg: &mut SystemConfig,  user: User, ctx: &TxContext){
 }
 
 
-fun get_user_mut(system_cfg: &mut SystemConfig, user: address): &mut User{
+public(package) fun get_user_mut(system_cfg: &mut SystemConfig, user: address): &mut User{
     ofields::borrow_mut<address, User>(&mut system_cfg.id, user)
 }
 

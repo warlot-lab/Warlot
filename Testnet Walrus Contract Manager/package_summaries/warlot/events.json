@@ -1,0 +1,944 @@
+{
+  "doc": " Module to emit events. Used to allow filtering all events in the\n rust client (as work-around for the lack of composable event filters).",
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "event"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "emit_blob_registered": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        },
+        {
+          "name": "size",
+          "type_": "u64"
+        },
+        {
+          "name": "encoding_type",
+          "type_": "u8"
+        },
+        {
+          "name": "end_epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "deletable",
+          "type_": "bool"
+        },
+        {
+          "name": "object_id",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "object"
+              },
+              "name": "ID",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "emit_blob_certified": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        },
+        {
+          "name": "end_epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "deletable",
+          "type_": "bool"
+        },
+        {
+          "name": "object_id",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "object"
+              },
+              "name": "ID",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "is_extension",
+          "type_": "bool"
+        }
+      ],
+      "return_": []
+    },
+    "emit_invalid_blob_id": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        }
+      ],
+      "return_": []
+    },
+    "emit_blob_deleted": {
+      "source_index": 3,
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        },
+        {
+          "name": "end_epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "object_id",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "object"
+              },
+              "name": "ID",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "was_certified",
+          "type_": "bool"
+        }
+      ],
+      "return_": []
+    },
+    "emit_epoch_change_start": {
+      "source_index": 4,
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        }
+      ],
+      "return_": []
+    },
+    "emit_epoch_change_done": {
+      "source_index": 5,
+      "index": 5,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        }
+      ],
+      "return_": []
+    },
+    "emit_shards_received": {
+      "source_index": 6,
+      "index": 6,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "shards",
+          "type_": {
+            "vector": "u16"
+          }
+        }
+      ],
+      "return_": []
+    },
+    "emit_epoch_parameters_selected": {
+      "source_index": 7,
+      "index": 7,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "next_epoch",
+          "type_": "u32"
+        }
+      ],
+      "return_": []
+    },
+    "emit_shard_recovery_start": {
+      "source_index": 8,
+      "index": 8,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "shards",
+          "type_": {
+            "vector": "u16"
+          }
+        }
+      ],
+      "return_": []
+    },
+    "emit_contract_upgraded": {
+      "source_index": 9,
+      "index": 9,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "package_id",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "object"
+              },
+              "name": "ID",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "version",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "emit_register_deny_list_update": {
+      "source_index": 10,
+      "index": 10,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "root",
+          "type_": "u256"
+        },
+        {
+          "name": "sequence_number",
+          "type_": "u64"
+        },
+        {
+          "name": "node_id",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "object"
+              },
+              "name": "ID",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "emit_deny_list_update": {
+      "source_index": 11,
+      "index": 11,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "root",
+          "type_": "u256"
+        },
+        {
+          "name": "sequence_number",
+          "type_": "u64"
+        },
+        {
+          "name": "node_id",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "object"
+              },
+              "name": "ID",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "emit_deny_listed_blob_deleted": {
+      "source_index": 12,
+      "index": 12,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "blob_id",
+          "type_": "u256"
+        }
+      ],
+      "return_": []
+    },
+    "emit_contract_upgrade_proposed": {
+      "source_index": 13,
+      "index": 13,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "package_digest",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": []
+    },
+    "emit_contract_upgrade_quorum_reached": {
+      "source_index": 14,
+      "index": 14,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "package_digest",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": []
+    }
+  },
+  "structs": {
+    "BlobRegistered": {
+      "index": 0,
+      "doc": " Signals that a blob with meta-data has been registered.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "blob_id": {
+            "index": 1,
+            "doc": null,
+            "type_": "u256"
+          },
+          "size": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          },
+          "encoding_type": {
+            "index": 3,
+            "doc": null,
+            "type_": "u8"
+          },
+          "end_epoch": {
+            "index": 4,
+            "doc": null,
+            "type_": "u32"
+          },
+          "deletable": {
+            "index": 5,
+            "doc": null,
+            "type_": "bool"
+          },
+          "object_id": {
+            "index": 6,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "BlobCertified": {
+      "index": 1,
+      "doc": " Signals that a blob is certified.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "blob_id": {
+            "index": 1,
+            "doc": null,
+            "type_": "u256"
+          },
+          "end_epoch": {
+            "index": 2,
+            "doc": null,
+            "type_": "u32"
+          },
+          "deletable": {
+            "index": 3,
+            "doc": null,
+            "type_": "bool"
+          },
+          "object_id": {
+            "index": 4,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          },
+          "is_extension": {
+            "index": 5,
+            "doc": null,
+            "type_": "bool"
+          }
+        }
+      }
+    },
+    "BlobDeleted": {
+      "index": 2,
+      "doc": " Signals that a blob has been deleted.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "blob_id": {
+            "index": 1,
+            "doc": null,
+            "type_": "u256"
+          },
+          "end_epoch": {
+            "index": 2,
+            "doc": null,
+            "type_": "u32"
+          },
+          "object_id": {
+            "index": 3,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          },
+          "was_certified": {
+            "index": 4,
+            "doc": null,
+            "type_": "bool"
+          }
+        }
+      }
+    },
+    "InvalidBlobID": {
+      "index": 3,
+      "doc": " Signals that a BlobID is invalid.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "blob_id": {
+            "index": 1,
+            "doc": null,
+            "type_": "u256"
+          }
+        }
+      }
+    },
+    "EpochChangeStart": {
+      "index": 4,
+      "doc": " Signals that epoch `epoch` has started and the epoch change is in progress.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          }
+        }
+      }
+    },
+    "EpochChangeDone": {
+      "index": 5,
+      "doc": " Signals that a set of storage nodes holding at least 2f+1 shards have finished the epoch\n change, i.e., received all of their assigned shards.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          }
+        }
+      }
+    },
+    "ShardsReceived": {
+      "index": 6,
+      "doc": " Signals that a node has received the specified shards for the new epoch.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "shards": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "vector": "u16"
+            }
+          }
+        }
+      }
+    },
+    "EpochParametersSelected": {
+      "index": 7,
+      "doc": " Signals that the committee and the system parameters for `next_epoch` have been selected.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "next_epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          }
+        }
+      }
+    },
+    "ShardRecoveryStart": {
+      "index": 8,
+      "doc": " Signals that the given shards can be recovered using the shard recovery endpoint.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "shards": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "vector": "u16"
+            }
+          }
+        }
+      }
+    },
+    "ContractUpgraded": {
+      "index": 9,
+      "doc": " Signals that the contract has been upgraded and migrated.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "package_id": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          },
+          "version": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          }
+        }
+      }
+    },
+    "RegisterDenyListUpdate": {
+      "index": 10,
+      "doc": " Signals that a Denylist update has started.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "root": {
+            "index": 1,
+            "doc": null,
+            "type_": "u256"
+          },
+          "sequence_number": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          },
+          "node_id": {
+            "index": 3,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "DenyListUpdate": {
+      "index": 11,
+      "doc": " Signals that a Denylist update has been certified.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "root": {
+            "index": 1,
+            "doc": null,
+            "type_": "u256"
+          },
+          "sequence_number": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          },
+          "node_id": {
+            "index": 3,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "DenyListBlobDeleted": {
+      "index": 12,
+      "doc": " Signals that a blob was denylisted by f+1 nodes.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "blob_id": {
+            "index": 1,
+            "doc": null,
+            "type_": "u256"
+          }
+        }
+      }
+    },
+    "ContractUpgradeProposed": {
+      "index": 13,
+      "doc": " Signals that a new contract upgrade has been proposed.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "package_digest": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "vector": "u8"
+            }
+          }
+        }
+      }
+    },
+    "ContractUpgradeQuorumReached": {
+      "index": 14,
+      "doc": " Signals that a contract upgrade proposal has received a quorum of votes.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "package_digest": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "vector": "u8"
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

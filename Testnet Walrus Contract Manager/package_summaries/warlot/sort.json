@@ -1,0 +1,131 @@
+{
+  "doc": " Implements sorting macros for commonly used data structures.",
+  "immediate_dependencies": [],
+  "attributes": [],
+  "functions": {
+    "is_vec_map_sorted_by_node_id": {
+      "source_index": 1,
+      "index": 18446744073709551615,
+      "doc": " Check if the given `VecMap` is sorted by the node ID transformed into `u256`.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "macro_": true,
+      "type_parameters": [
+        {
+          "name": "$V",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "$self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "vec_map"
+                  },
+                  "name": "VecMap",
+                  "type_arguments": [
+                    {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                          "name": "object"
+                        },
+                        "name": "ID",
+                        "type_arguments": []
+                      }
+                    },
+                    {
+                      "NamedTypeParameter": "$V"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "sort_vec_map_by_node_id": {
+      "source_index": 0,
+      "index": 18446744073709551615,
+      "doc": " Sort the given `VecMap` by the node ID transformed into `u256`.\n\n Uses the insertion sort algorithm, given that the `VecMap` is already mostly sorted.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "macro_": true,
+      "type_parameters": [
+        {
+          "name": "$V",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "$self",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "vec_map"
+              },
+              "name": "VecMap",
+              "type_arguments": [
+                {
+                  "Datatype": {
+                    "module": {
+                      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                      "name": "object"
+                    },
+                    "name": "ID",
+                    "type_arguments": []
+                  }
+                },
+                {
+                  "NamedTypeParameter": "$V"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "vec_map"
+            },
+            "name": "VecMap",
+            "type_arguments": [
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "object"
+                  },
+                  "name": "ID",
+                  "type_arguments": []
+                }
+              },
+              {
+                "NamedTypeParameter": "$V"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "structs": {},
+  "enums": {}
+}

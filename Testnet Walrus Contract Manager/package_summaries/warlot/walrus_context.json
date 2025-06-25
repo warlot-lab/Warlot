@@ -1,0 +1,253 @@
+{
+  "doc": " Module: `walrus_context`\n\n Implements the `WalrusContext` struct which is used to store the current\n state of the system. Improves testing and readability of signatures by\n aggregating the parameters into a single struct. Context is used almost\n everywhere in the system, so it is important to have a single source of\n truth for the current state.",
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "vec_map"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "new": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Create a new `WalrusContext` object.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "committee_selected",
+          "type_": "bool"
+        },
+        {
+          "name": "committee",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "vec_map"
+              },
+              "name": "VecMap",
+              "type_arguments": [
+                {
+                  "Datatype": {
+                    "module": {
+                      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                      "name": "object"
+                    },
+                    "name": "ID",
+                    "type_arguments": []
+                  }
+                },
+                {
+                  "vector": "u16"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "walrus_context"
+            },
+            "name": "WalrusContext",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "epoch": {
+      "source_index": 1,
+      "index": 1,
+      "doc": " Read the current `epoch` from the context.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "walrus_context"
+                  },
+                  "name": "WalrusContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u32"
+      ]
+    },
+    "committee_selected": {
+      "source_index": 2,
+      "index": 2,
+      "doc": " Read the current `committee_selected` from the context.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "walrus_context"
+                  },
+                  "name": "WalrusContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "committee": {
+      "source_index": 3,
+      "index": 3,
+      "doc": " Read the current `committee` from the context.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "walrus_context"
+                  },
+                  "name": "WalrusContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            false,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "vec_map"
+                },
+                "name": "VecMap",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                        "name": "object"
+                      },
+                      "name": "ID",
+                      "type_arguments": []
+                    }
+                  },
+                  {
+                    "vector": "u16"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "structs": {
+    "WalrusContext": {
+      "index": 0,
+      "doc": " Represents the current values in the Walrus system. Helps avoid passing\n too many parameters to functions, and allows for easier testing.",
+      "attributes": [],
+      "abilities": [
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": " Current Walrus epoch",
+            "type_": "u32"
+          },
+          "committee_selected": {
+            "index": 1,
+            "doc": " Whether the committee has been selected for the next epoch.",
+            "type_": "bool"
+          },
+          "committee": {
+            "index": 2,
+            "doc": " The current committee in the system.",
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "vec_map"
+                },
+                "name": "VecMap",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                        "name": "object"
+                      },
+                      "name": "ID",
+                      "type_arguments": []
+                    }
+                  },
+                  {
+                    "vector": "u16"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

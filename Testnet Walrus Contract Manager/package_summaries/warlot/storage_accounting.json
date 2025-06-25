@@ -1,0 +1,546 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "wal"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000001",
+      "name": "vector"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "balance"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "new_future_accounting": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Constructor for FutureAccounting",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "epoch",
+          "type_": "u32"
+        },
+        {
+          "name": "used_capacity",
+          "type_": "u64"
+        },
+        {
+          "name": "rewards_to_distribute",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "balance"
+              },
+              "name": "Balance",
+              "type_arguments": [
+                {
+                  "Datatype": {
+                    "module": {
+                      "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                      "name": "wal"
+                    },
+                    "name": "WAL",
+                    "type_arguments": []
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "storage_accounting"
+            },
+            "name": "FutureAccounting",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "epoch": {
+      "source_index": 1,
+      "index": 1,
+      "doc": " Accessor for epoch, read-only",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "accounting",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_accounting"
+                  },
+                  "name": "FutureAccounting",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u32"
+      ]
+    },
+    "used_capacity": {
+      "source_index": 2,
+      "index": 2,
+      "doc": " Accessor for used_capacity, read-only.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "accounting",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_accounting"
+                  },
+                  "name": "FutureAccounting",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "increase_used_capacity": {
+      "source_index": 3,
+      "index": 3,
+      "doc": " Increase `used_capacity` by `amount`.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "accounting",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_accounting"
+                  },
+                  "name": "FutureAccounting",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "rewards_balance": {
+      "source_index": 4,
+      "index": 4,
+      "doc": " Accessor for rewards_to_distribute, mutable.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "accounting",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_accounting"
+                  },
+                  "name": "FutureAccounting",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "balance"
+                },
+                "name": "Balance",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "wal"
+                      },
+                      "name": "WAL",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete_empty_future_accounting": {
+      "source_index": 5,
+      "index": 5,
+      "doc": " Destructor for FutureAccounting, when empty.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "storage_accounting"
+              },
+              "name": "FutureAccounting",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "unwrap_balance": {
+      "source_index": 6,
+      "index": 6,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                "name": "storage_accounting"
+              },
+              "name": "FutureAccounting",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "balance"
+            },
+            "name": "Balance",
+            "type_arguments": [
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "wal"
+                  },
+                  "name": "WAL",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "ring_new": {
+      "source_index": 7,
+      "index": 7,
+      "doc": " Constructor for FutureAccountingRingBuffer",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "length",
+          "type_": "u32"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "storage_accounting"
+            },
+            "name": "FutureAccountingRingBuffer",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "ring_lookup_mut": {
+      "source_index": 8,
+      "index": 8,
+      "doc": " Lookup an entry a number of epochs in the future.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_accounting"
+                  },
+                  "name": "FutureAccountingRingBuffer",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "epochs_in_future",
+          "type_": "u32"
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "name": "storage_accounting"
+                },
+                "name": "FutureAccounting",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ring_pop_expand": {
+      "source_index": 9,
+      "index": 9,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_accounting"
+                  },
+                  "name": "FutureAccountingRingBuffer",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "storage_accounting"
+            },
+            "name": "FutureAccounting",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "max_epochs_ahead": {
+      "source_index": 10,
+      "index": 10,
+      "doc": " The maximum number of epochs for which we can use `self`.",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "self",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_accounting"
+                  },
+                  "name": "FutureAccountingRingBuffer",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u32"
+      ]
+    }
+  },
+  "structs": {
+    "FutureAccounting": {
+      "index": 0,
+      "doc": " Holds information about a future epoch, namely how much\n storage needs to be reclaimed and the rewards to be distributed.",
+      "attributes": [],
+      "abilities": [
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "epoch": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "used_capacity": {
+            "index": 1,
+            "doc": " This field stores `used_capacity` for the epoch.\n Currently, impossible to rename due to package upgrade limitations.",
+            "type_": "u64"
+          },
+          "rewards_to_distribute": {
+            "index": 2,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "balance"
+                },
+                "name": "Balance",
+                "type_arguments": [
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "name": "wal"
+                      },
+                      "name": "WAL",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "FutureAccountingRingBuffer": {
+      "index": 1,
+      "doc": " A ring buffer holding future accounts for a continuous range of epochs.",
+      "attributes": [],
+      "abilities": [
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "current_index": {
+            "index": 0,
+            "doc": null,
+            "type_": "u32"
+          },
+          "length": {
+            "index": 1,
+            "doc": null,
+            "type_": "u32"
+          },
+          "ring_buffer": {
+            "index": 2,
+            "doc": null,
+            "type_": {
+              "vector": {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "name": "storage_accounting"
+                  },
+                  "name": "FutureAccounting",
+                  "type_arguments": []
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

@@ -78,8 +78,7 @@ public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32
             epoch,
             blob_index,
             );
-
-      
+            
         return
     };
 
