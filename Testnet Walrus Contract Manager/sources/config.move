@@ -9,8 +9,38 @@ public struct BlobSettings has store{
     epoch_set: u32, //this is the numbers of epoch that the blob will be renewed by
     cycle_at: u64, // this is the current cycle the blob is at
     cycle_end: u64,
-    //  _marker:    K, 
 
+    /*
+    sponsored blobsettings are blobs that are owned by an individual but the cost for renewing the object is carried out by this address
+    this is usually nft platfroms 
+    */
+    sponsor: Option<address>,
+
+    share_payment: SharedPayment
+
+
+}
+
+/*
+this feature allows for cross payment storage. 
+allowing for platforms to built on this.
+1) sharing blob to others 
+2) paltforms paying for the object and not have ownership of the data
+||||||||
+\/\/\/\/
+in this case if the user that the platform wants to give ownership of the blob does not exist on the platform.
+then a short signed user accout will be created on behalf of that user 
+
+todo note 
+even during transfer of ownership of the blob, only the owner of the blob can transfer it 
+therefore. in this case the platform will have to integrate this transfer functionality with their nft
+
+todo note 
+if internal transfer of the nft occurs. the user is responsible to ask the seller to transfer the nft blob as well
+
+*/
+public struct SharedPayment has store, drop{
+    assist: vector<address>
 }
 
 
@@ -18,7 +48,9 @@ public struct BlobSettings has store{
 
 // internal config creation
 public(package) fun new_config_blob(blob: Blob, epoch_set: u32, cycle_end: u64): BlobSettings{
-    BlobSettings { blob, epoch_set, cycle_at: 0, cycle_end }
+    BlobSettings { blob, epoch_set, cycle_at: 0, cycle_end,  sponsor: option::none(),  share_payment: SharedPayment{assist: vector::empty()}
+
+ }
 }
 
 // get a mutable reference to the internal blob
@@ -114,7 +146,7 @@ public fun sync_epoch_count(blob_cfg: &BlobSettings, epoch_checkpoint: u32, syst
 
 // safe return the internal blob and delete the blob config object
 public(package) fun withdraw_and_burn(blob_cfg: BlobSettings): Blob{
-   let BlobSettings { blob, epoch_set: _, cycle_at: _, cycle_end: _ } = blob_cfg;
+   let BlobSettings { blob, epoch_set: _, cycle_at: _, cycle_end: _, sponsor: _, share_payment: _} = blob_cfg;
     blob
 }
 

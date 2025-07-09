@@ -55,6 +55,16 @@ public fun create(
 }
 
 
+// public fun modify_name(
+//     project_holder: &mut ProjectHolder,
+//     project_name: String,
+//     bucket_old_name: String, 
+//     bucket_new_name: String,
+// ){
+
+// }
+
+
 
 // get name of the bucket
 public fun get_name(bucket: &Bucket): String{
@@ -75,3 +85,8 @@ public fun check_file_name_created(bucket: &Bucket, file_name: String): bool{
 }
 
 
+
+//get bucket mut 
+public fun get_bucket(project_holder: &mut ProjectHolder, project_name: String, bucket_name: String): &mut Bucket{
+    ofields::borrow_mut<String, Bucket>( projectmain::bucket_holder(project_holder, project_name), bucket_name)
+}
