@@ -176,7 +176,7 @@ public fun create_file(
     };
 
     /*
-     give writter pass to the file creator 
+     give writter pass to the   file creator 
      this will give the system that created the file the permission to perform restricted operations on the file 
 
 
@@ -288,7 +288,7 @@ public fun write_(
     let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, object::id_from_address(walrus_blob_object_id));
 
 
-    if (to_draft){
+    if (!to_draft){
         // confirm if the user have the permission to make this changes
         assert!(option::is_some(&writer_pass.admin_privilege), ACCESSDENIED);
         // make the chages and return

@@ -16,8 +16,10 @@ const MAX: u32 = 53;
 // time period in ms it takes for the api to be no longer acceptable
 const  API_DECAY: u64 = 10000000000;
 
-
+// maximum epoch ahead a blob can have
 const MAX_SYNC_EPOCHS: u32 = 53;
+
+
 
 
 
