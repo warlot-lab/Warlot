@@ -1,7 +1,19 @@
 module warlot::userstate;
 use std::string::String;
-use warlot::{wallet::{Self, Wallet}, config::{Self, BlobSettings}, registry::{Self}, constants::{Self}};
-use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields, table::{Self, Table}};
+use warlot::{
+    wallet::{Self, Wallet}, 
+    config::{Self, BlobSettings}, 
+    registry::{Self}, 
+    constants::{Self}
+    };
+
+use sui::{
+    dynamic_field as dfield, 
+    clock::Clock, 
+    dynamic_object_field as ofields, 
+    table::{Self, Table},
+    table_vec::{Self, TableVec},
+    };
 
 
 
@@ -67,10 +79,10 @@ public(package) fun create_user( public_username: String, system_id: ID, apikey:
 }
 
 
-public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32){
+public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32, ctx: &mut TxContext){
     let blob_obj_id = config::get_blob_obj_id(&blob_cfg);
     if (dfield::exists_(&user.id, epoch)){
-        let blob_cfg_set: &mut vector<BlobSettings> = get_mut_obj_list_blob_cfg(user, epoch);
+        let blob_cfg_set: &mut TableVec<BlobSettings> = get_mut_obj_list_blob_cfg(user, epoch);
         // add the data to the indexer
         // since the lenght of the vector is equal to the index of the new data 
         blob_cfg_set.push_back(blob_cfg);
@@ -85,7 +97,7 @@ public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32
     };
 
     
-    let mut new_blob_cfg_list : vector<BlobSettings>  = vector::empty<BlobSettings>();
+    let mut new_blob_cfg_list : TableVec<BlobSettings>  = table_vec::empty<BlobSettings>(ctx);
     new_blob_cfg_list.push_back(blob_cfg);
     user.add_to_indexer(
             blob_obj_id,
@@ -93,12 +105,12 @@ public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32
             0,
             );
 
-    dfield::add<u32, vector<BlobSettings>>(&mut user.id, epoch, new_blob_cfg_list)
+    dfield::add<u32, TableVec<BlobSettings>>(&mut user.id, epoch, new_blob_cfg_list)
 }
 
-public(package) fun get_mut_obj_list_blob_cfg(user: &mut User, epoch: u32): &mut vector<BlobSettings>{
+public(package) fun get_mut_obj_list_blob_cfg(user: &mut User, epoch: u32): &mut TableVec<BlobSettings>{
     assert!(dfield::exists_(&user.id, epoch), 1);
-    dfield::borrow_mut<u32, vector<BlobSettings>>(&mut user.id, epoch)
+    dfield::borrow_mut<u32, TableVec<BlobSettings>>(&mut user.id, epoch)
 }
 
 public(package) fun get_wallet(user: &mut User): &mut Wallet{
@@ -156,7 +168,7 @@ public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): Blo
     // get ref to the data tied to the blob_obj_id of that particular blob
     let blob_index_data = indexed_table.borrow(blob_obj_id);
     //get the vector set that the blob exist in 
-    let blob_cfg_set: &vector<BlobSettings> = dfield::borrow<u32, vector<BlobSettings>>(&user.id, blob_index_data.epoch);
+    let blob_cfg_set: &TableVec<BlobSettings> = dfield::borrow<u32, TableVec<BlobSettings>>(&user.id, blob_index_data.epoch);
     
     //// we confirm if the blob is deletable or not
     
@@ -187,7 +199,7 @@ public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): Blo
     let d_vector_index = blob_index_data.vector_index;
 
     // get the mut ref to the vector that holds the blobs for that epoch
-    let blob_cfg_set_mut: &mut vector<BlobSettings> = get_mut_obj_list_blob_cfg(user, d_epoch);
+    let blob_cfg_set_mut: &mut TableVec<BlobSettings> = get_mut_obj_list_blob_cfg(user, d_epoch);
 
     // remove the blob_config from the system
     let deletable_blob_cfg = blob_cfg_set_mut.swap_remove(d_vector_index);
