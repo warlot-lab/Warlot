@@ -2,7 +2,13 @@ module warlot::warlotsystem;
 
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, system::System};
-use sui::{coin::{Self, Coin}, dynamic_object_field as ofields, balance::{Self, Balance}};
+use sui::{
+    coin::{Self, Coin}, 
+    dynamic_object_field as ofields, 
+    dynamic_field as dfield,
+    balance::{Self, Balance},
+    table_vec::{Self, TableVec}
+    };
 use warlot::{
     userstate::{Self, User},
     config::{Self, BlobSettings}, 
@@ -19,6 +25,11 @@ use warlot::{
 //======== Error ======= //
 #[error]
 const EUserExist: vector<u8> = b"user already exists";
+
+
+//==========keys ================//
+const USERINDEX: vector<u8> = b"user indexer";
+
 
 /// System configuration on-chain
 /// this holds the warlot system config and data
@@ -51,13 +62,15 @@ public struct ProcessSync has copy, drop{
     epoch_checkpoint: u32,
 }
 
-// this struct holds bound for modifing your user registry
-// todo
-// to be use to show whwn you can leave the system
-// to show when you can migrate to another system storage 
-// to modify the system state 
-// to became a validator on the next system mint 
+/*
+ this struct holds bound for modifing your user registry
+ todo
+ to be use to show when you can leave the system
+ to show when you can migrate to another system storage 
+ to modify the system state 
+ to became a validator on the next system mint 
 
+*/
 public struct UserMdCfg has store {
     cost_change_apikey_forms : u64,
     cost_to_migrate_system: u64,
@@ -88,7 +101,7 @@ public(package) fun cost_to_update_name(system_cfg: &SystemConfig): u64{
 
 /// Initialize the system and mint the first AdminCap in the ORIGINAL state
 fun init(ctx: &mut TxContext){
-    let system_cfg = SystemConfig {
+    let mut system_cfg = SystemConfig {
         id: object::new(ctx),
         users: 0,
         managed_blobs: 0,
@@ -113,6 +126,9 @@ fun init(ctx: &mut TxContext){
         state:     constants::state_original(),
         total_system: 0,
     };
+
+    // add the onchain indexer to the system object 
+    dfield::add<vector<u8>, TableVec<address>>(&mut system_cfg.id, USERINDEX, table_vec::empty<address>(ctx));
 
     // share the system config so others can reference it
     transfer::public_share_object(system_cfg);
@@ -579,6 +595,10 @@ public(package) fun add_user(system_cfg: &mut SystemConfig,  user: User, ctx: &T
 
     assert!(!ofields::exists_(&system_cfg.id, new_user), EUserExist);
 
+    // add user to the indexer
+    let  user_indexer = dfield::borrow_mut<vector<u8>, TableVec<address>>(&mut system_cfg.id, USERINDEX);
+    user_indexer.push_back(new_user);
+
     ofields::add<address, User>(&mut system_cfg.id, new_user, user);
      
 }
@@ -587,6 +607,7 @@ public(package) fun add_user(system_cfg: &mut SystemConfig,  user: User, ctx: &T
 public(package) fun get_user_mut(system_cfg: &mut SystemConfig, user: address): &mut User{
     ofields::borrow_mut<address, User>(&mut system_cfg.id, user)
 }
+
 
 public fun get_user(system_cfg: &SystemConfig,  user: address): &User{
     assert!(check_user(system_cfg, user), 1);
