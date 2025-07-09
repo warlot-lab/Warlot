@@ -250,6 +250,7 @@ public(package) fun raw_store_blob(
     epoch_set: u32,
     cycle_end: u64,
     user: address,
+    ctx: &mut TxContext,
 
 ){
     let set = if (epoch_set > constants::half_set()) {
@@ -269,7 +270,7 @@ public(package) fun raw_store_blob(
 
 
     let user = get_user_mut(system_cfg, user);
-    userstate::add_blob(user, blob_setting, set);
+    userstate::add_blob(user, blob_setting, set, ctx);
     userstate::update_dash_data(user, 1, file_size);
     let old_m_blob = system_cfg.managed_blobs;
     system_cfg.managed_blobs = old_m_blob + 1;
@@ -284,7 +285,8 @@ public fun store_blob(
     raw_blob: Blob,
     epoch_set: u32,
     cycle_end: u64,
-    user: address
+    user: address,
+    ctx: &mut TxContext,
 ){
 
     let set = if (epoch_set > constants::half_set()) {
@@ -310,7 +312,8 @@ public fun store_blob(
             raw_blob,
             epoch_set,
             cycle_end,
-            user
+            user,
+            ctx
         );
 }
 
@@ -426,12 +429,12 @@ fun process_blob(
             //get the blob_cfg objects for that epoch
             let blob_list     = user_ref2.get_mut_obj_list_blob_cfg(epoch_set);
             let mut y = 0;
-            while (y < vector::length(blob_list)) {
+            while (y < table_vec::length(blob_list)) {
                 // store the current value of the token before the sync
                 // this is for the event to be able to emit the actual cost of renewal of the data 
                 let  funds_current_balance = funds.value();
                 // this holds the mut ref to that particular blob in that index
-                let blob_cfg_ref = vector::borrow_mut(blob_list, y);
+                let blob_cfg_ref = table_vec::borrow_mut(blob_list, y);
                
             
             
@@ -480,6 +483,7 @@ public fun foreign_blob_add(
     cycle_end: u64,
     epoch_set: u32,
     blobs:  vector<Blob>,
+    ctx: &mut TxContext,
 ){
     let set = if (epoch_set > constants::half_set()) {
         constants::max()
@@ -510,7 +514,8 @@ public fun foreign_blob_add(
             raw_blob,
             epoch_set,
             cycle_end,
-            registry.get_user()
+            registry.get_user(),
+            ctx
         )
 
          
@@ -564,7 +569,8 @@ public fun replace(
     blob: Blob,
     epoch_set: u32,
     cycle_end: u64,
-    user: address){
+    user: address,
+    ctx: &mut TxContext){
 
     withdraw_blob(system_cfg, old_blob_id, user);
 
@@ -577,6 +583,7 @@ public fun replace(
     epoch_set,
     cycle_end,
     user,
+    ctx, 
     )
 
    
