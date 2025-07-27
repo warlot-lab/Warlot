@@ -1,11 +1,14 @@
 module warlot::userstate;
 use std::string::String;
+
+
 use warlot::{
     wallet::{Self, Wallet}, 
     config::{Self, BlobSettings}, 
     registry::{Self}, 
     constants::{Self}
     };
+
 
 use sui::{
     dynamic_field as dfield, 
@@ -14,8 +17,6 @@ use sui::{
     table::{Self, Table},
     table_vec::{Self, TableVec},
     };
-
-
 
 
 public struct User has key, store{
@@ -38,10 +39,19 @@ public struct DashData has store {
     storage_size: u128,
 }
 
+public struct SubPermission has store{
+    add_blob_to_address: bool,
+    create_inner_file: bool,
+    create_writer_pass: bool,
+}
 
 
+//  =============== errors ====================//
+#[error]
+const INVALIDACCESS: vector<u8> = b"permission denied";
 
-public(package) fun create_user( public_username: String, system_id: ID, apikey: String, encrypt_key: String, warlot_sign_apikey: String, clock: &Clock, ctx: &mut TxContext): User{
+
+public(package) fun create_user( public_username: String, system_id: ID, apikey: String, encrypt_key: String, warlot_sign_apikey: String, clock: &Clock, add_walot_permission: Option<address>,   ctx: &mut TxContext): User{
     let safe_vault: Wallet = wallet::create_wallet(clock, ctx);
 
    
@@ -69,16 +79,103 @@ public(package) fun create_user( public_username: String, system_id: ID, apikey:
      i.e all functionalites on this smart contract will be blocked from the remote server if this is done
      giving the user full control over their data set
     */
-    ofields::add<vector<u8>, Table<address, ID>>(&mut new_user.id, constants::Acceptance_Key(), table::new(ctx));
 
-    // ofields::add<vector<u8>, >
-    
+
+   /*
+   a genneral ban will be the ban where the user does not have an alienpermission on the system 
+    */
+
+    let mut sub_permission: Table<address, SubPermission> =   table::new(ctx);
+
+    if (option::is_some<address>(&add_walot_permission)){
+        table::add<address, SubPermission>( &mut sub_permission,
+        option::destroy_some<address>(add_walot_permission), 
+            SubPermission{
+                add_blob_to_address: true,
+                create_inner_file: true,
+                create_writer_pass: true,
+            })
+    } else{ option::destroy_none<address>(add_walot_permission)};
+
+    ofields::add<vector<u8>, Table<address, SubPermission>>(&mut new_user.id, constants::Acceptance_Key(), sub_permission);
+
     registry::create_registry( public_username, object::id(&new_user), system_id, apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
 
     new_user
 }
 
 
+
+// ==================  permission setting ====================//
+fun get_permission_obj(
+    user_obj: &User,
+    // request_address: address,  
+    ctx: &TxContext
+): &SubPermission{
+    
+    let sub_permission = ofields::borrow<vector<u8>, Table<address, SubPermission>>(&user_obj.id, constants::Acceptance_Key());
+    assert!(sub_permission.contains(ctx.sender()), INVALIDACCESS);
+
+    // check the permission object of the requester
+    sub_permission.borrow(ctx.sender())
+}
+
+public fun check_permission_add_blob(
+    user_obj: &User,
+    // request_address: address,  
+    ctx: &TxContext){
+
+    assert!(get_permission_obj(user_obj, ctx).add_blob_to_address, INVALIDACCESS);
+}
+
+public fun check_permission_inner_file(
+    user_obj: &User,
+    // request_address: address,  
+    ctx: &TxContext){
+
+    assert!(get_permission_obj(user_obj, ctx).create_inner_file, INVALIDACCESS);
+}
+
+public fun check_permission_writer_pass(
+    user_obj: &User,
+    // request_address: address,  
+    ctx: &TxContext){
+
+    assert!(get_permission_obj(user_obj, ctx).create_writer_pass, INVALIDACCESS);
+}
+
+
+public(package) fun create_permission_state(
+    user_obj: &mut User,
+    privilege_address: address,  
+    add_blob_to_address: bool,
+    create_inner_file: bool,
+    create_writer_pass: bool,
+    ){
+        let sub_permission = ofields::borrow_mut<vector<u8>, Table<address, SubPermission>>(&mut user_obj.id, constants::Acceptance_Key());
+        if (sub_permission.contains(privilege_address)){
+            let privilege_permission = sub_permission.borrow_mut<address, SubPermission>(privilege_address);
+            privilege_permission.add_blob_to_address = add_blob_to_address;
+            privilege_permission.create_inner_file = create_inner_file;
+            privilege_permission.create_writer_pass = create_writer_pass;
+
+        }else{
+            sub_permission.add(
+                privilege_address,
+                SubPermission{
+                    add_blob_to_address,
+                    create_inner_file,
+                    create_writer_pass,
+                }
+            );
+        };
+}
+
+
+
+
+
+//   ====================================== blob ========================================//
 public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32, ctx: &mut TxContext){
     let blob_obj_id = config::get_blob_obj_id(&blob_cfg);
     if (dfield::exists_(&user.id, epoch)){
@@ -113,9 +210,12 @@ public(package) fun get_mut_obj_list_blob_cfg(user: &mut User, epoch: u32): &mut
     dfield::borrow_mut<u32, TableVec<BlobSettings>>(&mut user.id, epoch)
 }
 
+
+
 public(package) fun get_wallet(user: &mut User): &mut Wallet{
     &mut user.wallet
 }
+
 
 
 public(package) fun update_dash_data(user: &mut User, files: u128, storage_size: u128): bool{
@@ -126,6 +226,8 @@ public(package) fun update_dash_data(user: &mut User, files: u128, storage_size:
     user.meta_data.storage_size = storage_size + old_storage_size;
     true
 }
+
+
 
 public(package) fun reduce_dash_data(user: &mut User, storage_size: u128): bool{
     let old_files =  user.meta_data.files;
@@ -216,8 +318,8 @@ public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): Blo
  
 /*
  todo create a acceptance list; so that only those address can create files on thier behalf
- todo create a deny list; so that even the if the address have the permission to create fiales on their behalf they can not create the writer pass for them self 
-todo permission for the creator to hv a writer pass; and the duration it should exist
+ todo create a deny list; so that even  if the address have the permission to create files on their behalf they can not create the writer pass for them self 
+ todo permission for the creator to hv a writer pass; and the duration it should exist
  todo create a general ban or deny list that will ban address from all files that belongs to an address 
  todo create the project as a sub of the user <i.e as a dynamic object field of the user object>
 */
