@@ -35,6 +35,7 @@ const USERINDEX: vector<u8> = b"user indexer";
 /// this holds the warlot system config and data
 public struct SystemConfig has key, store {
     id: UID,
+    warlot_allowed_address: address, 
     users: u64,
     managed_blobs: u64,
     version: u8,
@@ -99,10 +100,18 @@ public(package) fun cost_to_update_name(system_cfg: &SystemConfig): u64{
         .cost_to_update_name
 }
 
+public(package) fun get_warlot_address(system_cfg: &SystemConfig): address{
+    system_cfg.
+        warlot_allowed_address
+
+}
+
+
 /// Initialize the system and mint the first AdminCap in the ORIGINAL state
 fun init(ctx: &mut TxContext){
     let mut system_cfg = SystemConfig {
         id: object::new(ctx),
+        warlot_allowed_address: ctx.sender(),
         users: 0,
         managed_blobs: 0,
         version: 1,
@@ -164,6 +173,7 @@ public fun withdraw_system(system_cfg: &mut SystemConfig, admin_cap : &mut Admin
     // only allow once, from the “original” cap
     assert!(admin_cap.state == constants::state_original(), 1);
     
+    
     transfer::public_transfer(
         coin::take<WAL>(
             &mut system_cfg.balance, 
@@ -193,6 +203,7 @@ public fun mint_system(
 
     let new_system = SystemConfig {
         id: object::new(ctx),
+        warlot_allowed_address: ctx.sender(),
         users: 0,
         managed_blobs: 0,
         version: 1 + old_system.version,

@@ -9,6 +9,10 @@ public struct BlobSettings has store{
     epoch_set: u32, //this is the numbers of epoch that the blob will be renewed by
     cycle_at: u64, // this is the current cycle the blob is at
     cycle_end: u64,
+    // todo ^^ to be replaced with this 
+
+    // cycle: Option<RenewCycle>,
+
 
     /*
     sponsored blobsettings are blobs that are owned by an individual but the cost for renewing the object is carried out by this address
@@ -18,8 +22,16 @@ public struct BlobSettings has store{
 
     share_payment: SharedPayment
 
-
 }
+
+/*
+this is the option for user to set the data to exist in the system for just a duration of cycles 
+*/
+
+// public struct RenewCycle has store {
+//     cycle_at: u64, // this is the current cycle the blob is at
+//     cycle_end: u64,
+// }
 
 /*
 this feature allows for cross payment storage. 
@@ -50,7 +62,7 @@ public struct SharedPayment has store, drop{
 public(package) fun new_config_blob(blob: Blob, epoch_set: u32, cycle_end: u64): BlobSettings{
     BlobSettings { blob, epoch_set, cycle_at: 0, cycle_end,  sponsor: option::none(),  share_payment: SharedPayment{assist: vector::empty()}
 
- }
+ } 
 }
 
 // get a mutable reference to the internal blob

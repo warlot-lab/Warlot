@@ -9,23 +9,37 @@ use warlot::{
     registry::Registry,
 };
 
-// create user internal object and public registry
-
-public fun create_user(
+// create user internal object and public registry without warlot system permission
+public fun register_user_publicly(
     system_cfg: &mut SystemConfig,
     apikey: String,
     encrypt_key: String,
     warlot_sign_apikey: String,
-     public_username: String,
+    public_username: String,
     clock: &Clock,
     ctx: &mut TxContext
     ){
-    let new_user = userstate::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
-
+    let new_user = userstate::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, option::none(), ctx);
     system_cfg.add_user(new_user, ctx);
-    system_cfg.increase_user_count();
-       
+    system_cfg.increase_user_count();   
 }
+
+// create user with system permission 
+public fun register_user_with_system_permission(
+    system_cfg: &mut SystemConfig,
+    apikey: String,
+    encrypt_key: String,
+    warlot_sign_apikey: String,
+    public_username: String,
+    clock: &Clock,
+    ctx: &mut TxContext
+    ){
+    let new_user = userstate::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, option::some(system_cfg.get_warlot_address()), ctx);
+    system_cfg.add_user(new_user, ctx);
+    system_cfg.increase_user_count();   
+}
+
+
 
 // add coin to your internal wallet
 public fun deposit_coin(
