@@ -9,19 +9,19 @@ public struct FileMeta has key, store {
     description: String,
     file_type: String, // e.g .txt, .pdf, .mp4 e.t.c
     uploader: address,
-    blod_id: String,
-    blob_object_id: address,
+    blod_id: u256,
+    blob_object_id: ID,
     bucket: String, 
     time_created: u64,
- }
+}
 
 // create a fileMeta
 public fun create(
     name: String,
     description: String,
     file_type: String,
-    blod_id: String,
-    blob_object_id: address,
+    blod_id: u256,
+    blob_object_id: ID,
     bucket: String,
     clock: &Clock,
     ctx: &mut TxContext

@@ -49,11 +49,21 @@ public fun create(
         projectmain::bucket_holder(
             project_holder, project_name), 
             bucket_name, 
-            bucket);
-
-
+            bucket);            
 }
 
+
+// public fun add_file(
+//     project_holder: &mut ProjectHolder,
+//     project_name: String,
+//     bucket_name: String, 
+//     blob: Blob,
+//     user: address,
+//     ctx: &mut TxContext,
+// ){
+//     //3t6
+    
+// }
 
 // public fun modify_name(
 //     project_holder: &mut ProjectHolder,
@@ -71,13 +81,14 @@ public fun get_name(bucket: &Bucket): String{
     bucket.name
 }
 
-// add file type to your bucket collection
-public fun add_file(bucket: &mut Bucket, file: FileMeta){
-    let name = file.get_name();
-    assert!(!check_file_name_created(bucket, name), InvalidName);
-    ofields::add<String, FileMeta>(&mut bucket.id, name, file)
 
-}
+// add file type to your bucket collection
+// public fun add_file(bucket: &mut Bucket, file: FileMeta){
+//     let name = file.get_name();
+//     assert!(!check_file_name_created(bucket, name), InvalidName);
+//     ofields::add<String, FileMeta>(&mut bucket.id, name, file)
+
+// }
 
 // chek if the bucket with the name has been created 
 public fun check_file_name_created(bucket: &Bucket, file_name: String): bool{

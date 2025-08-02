@@ -11,8 +11,7 @@ also an indexer for the tables and the sql
 */
 public struct ProjectHolder has key, store{
     id: UID,
-    admin: address
-    
+    admin: address,
 }
 
 
