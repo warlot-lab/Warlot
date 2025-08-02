@@ -1,8 +1,9 @@
 module warlot::bucketmain;
 use sui::clock::Clock;
 use sui::dynamic_object_field as ofields;
-use warlot::{filemain::FileMeta, projectmain::{ProjectHolder, Self}};
+use warlot::{filemain::{Self, FileMeta}, projectmain::{ProjectHolder, Self},   warlotsystem::SystemConfig};
 use std::string::{String};
+use walrus::{blob::Blob};
 
 
 
@@ -53,6 +54,53 @@ public fun create(
 }
 
 
+
+
+
+
+public fun upload_file(
+    system_cfg: &mut SystemConfig,
+    project_holder: &mut ProjectHolder,
+    project_name: String,
+    bucket_name: String,
+    name: String,
+    description: String,
+    file_type: String,
+    raw_blob: Blob,
+    clock: &Clock,
+    epoch_set: u32,
+    cycle_end: u64,
+    user: address,
+    ctx: &mut TxContext
+){
+    let file: FileMeta = filemain::create(
+    system_cfg,
+    name,
+    description,
+    file_type,
+    raw_blob,
+    bucket_name,
+    clock,
+    epoch_set,
+    cycle_end,
+    user,
+    ctx,);
+
+    let ref_bucket: &mut Bucket = ofields::borrow_mut<String, Bucket>(
+        projectmain::bucket_holder(
+            project_holder, project_name), 
+            bucket_name);  
+
+ 
+    ref_bucket.add_file(file);
+    // file name + file type
+    // event::emit_warlot_attribute(ctx.sender(), object::id_from_address(blob_object_id), project.name, bucket_name, file_name, file_type)
+
+}
+
+
+
+
 // public fun add_file(
 //     project_holder: &mut ProjectHolder,
 //     project_name: String,
@@ -83,12 +131,12 @@ public fun get_name(bucket: &Bucket): String{
 
 
 // add file type to your bucket collection
-// public fun add_file(bucket: &mut Bucket, file: FileMeta){
-//     let name = file.get_name();
-//     assert!(!check_file_name_created(bucket, name), InvalidName);
-//     ofields::add<String, FileMeta>(&mut bucket.id, name, file)
+public fun add_file(bucket: &mut Bucket, file: FileMeta){
+    let name = file.get_name();
+    assert!(!check_file_name_created(bucket, name), InvalidName);
+    ofields::add<String, FileMeta>(&mut bucket.id, name, file)
 
-// }
+}
 
 // chek if the bucket with the name has been created 
 public fun check_file_name_created(bucket: &Bucket, file_name: String): bool{
