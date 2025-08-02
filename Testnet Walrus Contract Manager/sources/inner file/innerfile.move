@@ -1,6 +1,9 @@
 module warlot::innerfile;
 use std::string::String;
 use warlot::{
+    // add attributes of warlot system 
+    warlotsystem::{Self, SystemConfig},
+    userstate::Self,
     innerfiledata::{Self, FileData},
     draft::{Self, FileDraftHolder},
     issue::{Self, FileIssueMeta},
@@ -121,6 +124,7 @@ public fun track_back(inner_file: &InnerFile): &vector<FileData>{
 
 // using 
 public fun create_file(
+    system_cfg: &SystemConfig,
     owner: address, 
     writers_length: u8,
     track_back_length: u8,
@@ -129,10 +133,27 @@ public fun create_file(
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
-    ctx: &mut TxContext
+
+    // this tells the contract to create a writer pass for the ctx.sender if the owner != ctx.sender
+    should_include_pass: bool,
+    ctx: &mut TxContext,
+
     ){
     // make sure that the trackbcak_length is > 0
     assert!(track_back_length > 0 , INVALIDTRACKBACKLENGTH);
+
+    let owners_obj = warlotsystem::get_user(system_cfg, owner);  //get the &User object
+
+    // confrim that the ctx.sender have the permission to create inner file for the owner
+    userstate::check_permission_inner_file( 
+        owners_obj,
+        ctx
+        );
+
+    
+
+
+
 
     let mut new_file  = InnerFile{
         id : object::new(ctx),
@@ -184,7 +205,11 @@ public fun create_file(
      todo to integrate this with the user setting. 
      so that the user can give the person the permission to do so 
     */
-    if (owner != ctx.sender()){
+
+    if (should_include_pass && owner != ctx.sender()){
+
+       userstate::check_permission_writer_pass(owners_obj, ctx);
+       
         let temp_pass =  WriterPass{
             id: object::new(ctx),
             file_id: object::id(&new_file),
@@ -197,7 +222,11 @@ public fun create_file(
         };
 
         transfer::transfer(temp_pass, ctx.sender());
+   
+
+
     };
+   
 
 
 

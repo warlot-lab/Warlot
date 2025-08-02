@@ -9,6 +9,7 @@ use warlot::{
     registry::Registry,
 };
 
+
 // create user internal object and public registry without warlot system permission
 public fun register_user_publicly(
     system_cfg: &mut SystemConfig,
@@ -23,6 +24,8 @@ public fun register_user_publicly(
     system_cfg.add_user(new_user, ctx);
     system_cfg.increase_user_count();   
 }
+
+
 
 // create user with system permission 
 public fun register_user_with_system_permission(

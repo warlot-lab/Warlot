@@ -82,7 +82,7 @@ public(package) fun create_user( public_username: String, system_id: ID, apikey:
 
 
    /*
-   a genneral ban will be the ban where the user does not have an alienpermission on the system 
+    a genneral ban will be the ban where the user does not have an alienpermission on the system 
     */
 
     let mut sub_permission: Table<address, SubPermission> =   table::new(ctx);
@@ -114,6 +114,7 @@ fun get_permission_obj(
 ): &SubPermission{
     
     let sub_permission = ofields::borrow<vector<u8>, Table<address, SubPermission>>(&user_obj.id, constants::Acceptance_Key());
+    
     assert!(sub_permission.contains(ctx.sender()), INVALIDACCESS);
 
     // check the permission object of the requester
@@ -177,6 +178,11 @@ public(package) fun create_permission_state(
 
 //   ====================================== blob ========================================//
 public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32, ctx: &mut TxContext){
+    //this confirms that the person making this request has permission to make this request
+    if (ctx.sender() != user.owner){
+        check_permission_add_blob(user, ctx);
+    };
+
     let blob_obj_id = config::get_blob_obj_id(&blob_cfg);
     if (dfield::exists_(&user.id, epoch)){
         let blob_cfg_set: &mut TableVec<BlobSettings> = get_mut_obj_list_blob_cfg(user, epoch);
@@ -211,11 +217,9 @@ public(package) fun get_mut_obj_list_blob_cfg(user: &mut User, epoch: u32): &mut
 }
 
 
-
 public(package) fun get_wallet(user: &mut User): &mut Wallet{
     &mut user.wallet
 }
-
 
 
 public(package) fun update_dash_data(user: &mut User, files: u128, storage_size: u128): bool{
@@ -237,6 +241,7 @@ public(package) fun reduce_dash_data(user: &mut User, storage_size: u128): bool{
     user.meta_data.storage_size =  old_storage_size - storage_size;
     true
 }
+
 
 
 public(package) fun add_to_indexer(user: &mut User, blob_obj_id: ID, epoch: u32, vector_index: u64){

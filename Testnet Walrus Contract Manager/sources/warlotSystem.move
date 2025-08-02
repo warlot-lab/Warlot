@@ -264,13 +264,9 @@ public(package) fun raw_store_blob(
     ctx: &mut TxContext,
 
 ){
-    let set = if (epoch_set > constants::half_set()) {
-        constants::max()
-    } else if (epoch_set > constants::first_set()) {
-        constants::half_set()
-    } else {
-        constants::first_set()
-    };
+    
+
+    let set = epoch_set;
 
     let file_size: u128 = {
         blob.size() as u128
@@ -281,51 +277,12 @@ public(package) fun raw_store_blob(
 
 
     let user = get_user_mut(system_cfg, user);
+
     userstate::add_blob(user, blob_setting, set, ctx);
     userstate::update_dash_data(user, 1, file_size);
     let old_m_blob = system_cfg.managed_blobs;
     system_cfg.managed_blobs = old_m_blob + 1;
 
-}
-
-
-// only an admin can use this funtion to store blobs
-public fun store_blob(
-    _: &mut AdminCap,
-    system_cfg: &mut SystemConfig,
-    raw_blob: Blob,
-    epoch_set: u32,
-    cycle_end: u64,
-    user: address,
-    ctx: &mut TxContext,
-){
-
-    let set = if (epoch_set > constants::half_set()) {
-            constants::max()
-        } else if (epoch_set > constants::first_set()) {
-            constants::half_set()
-        } else {
-            constants::first_set()
-        };
-
-        event::emit_warlot_file_store(
-        user, 
-        blob::object_id(&raw_blob), 
-        blob::size(&raw_blob), 
-        blob::storage(&raw_blob).size(),
-        blob::end_epoch(&raw_blob), 
-        set, 
-        cycle_end
-        );
-
-        raw_store_blob(
-            system_cfg,
-            raw_blob,
-            epoch_set,
-            cycle_end,
-            user,
-            ctx
-        );
 }
 
 
@@ -347,7 +304,7 @@ public fun renew(
     walrus_system: &mut System,
     users: vector<address>,
     epoch_set: u32,
-    // estimate: vector<u64>,
+  // estimate: vector<u64>,
     ctx: &mut TxContext
 ): vector<address> {
     let insufficient = vector::empty<address>();
@@ -420,7 +377,6 @@ public fun sync_blob(
         i = i + 1;
     };
 
-
 }
 
 
@@ -487,55 +443,7 @@ fun process_blob(
 
 }
 
-// add external blobs to system to renew
-public fun foreign_blob_add(
-    registry: &mut Registry,
-    system_cfg: &mut SystemConfig,
-    cycle_end: u64,
-    epoch_set: u32,
-    blobs:  vector<Blob>,
-    ctx: &mut TxContext,
-){
-    let set = if (epoch_set > constants::half_set()) {
-        constants::max()
-    } else if (epoch_set > constants::first_set()) {
-        constants::half_set()
-    } else {
-        constants::first_set()
-    };
 
-    let mut temp_list = vector::empty<Blob>();
-    temp_list.append(blobs);
-
-    while(!temp_list.is_empty()){
-        let raw_blob = temp_list.pop_back();
-
-
-        event::emit_managed_blobs(
-            registry.get_user(), 
-            blob::object_id(&raw_blob), 
-            blob::size(&raw_blob), 
-            blob::storage(&raw_blob).size(),
-            blob::end_epoch(&raw_blob), 
-            set, 
-            cycle_end);
-
-        raw_store_blob(
-            system_cfg,
-            raw_blob,
-            epoch_set,
-            cycle_end,
-            registry.get_user(),
-            ctx
-        )
-
-         
-
-        
-    };
-
-    temp_list.destroy_empty()
-}
 
 // withdraw_blob for the internal system
 public(package) fun withdraw_blob(
@@ -573,32 +481,6 @@ public fun self_withdraw_blob(
 }
 
 
-public fun replace(
-    admin_cap: &mut AdminCap,
-    system_cfg: &mut SystemConfig,
-    old_blob_id: address,
-    blob: Blob,
-    epoch_set: u32,
-    cycle_end: u64,
-    user: address,
-    ctx: &mut TxContext){
-
-    withdraw_blob(system_cfg, old_blob_id, user);
-
-
-
-    store_blob(
-    admin_cap,
-    system_cfg,
-    blob,
-    epoch_set,
-    cycle_end,
-    user,
-    ctx, 
-    )
-
-   
-}
 
 
 
