@@ -1,6 +1,14 @@
 module warlot::filemain;
 use sui::clock::Clock;
+use walrus::{blob::Blob};
 use std::string::{String};
+use warlot::{
+    warlotsystem::SystemConfig,
+    store::Self,
+};
+
+
+
 
 // this is an object that contains onchain atribut of blobs 
 public struct FileMeta has key, store {
@@ -9,7 +17,7 @@ public struct FileMeta has key, store {
     description: String,
     file_type: String, // e.g .txt, .pdf, .mp4 e.t.c
     uploader: address,
-    blod_id: u256,
+    blob_id: u256,
     blob_object_id: ID,
     bucket: String, 
     time_created: u64,
@@ -17,13 +25,16 @@ public struct FileMeta has key, store {
 
 // create a fileMeta
 public fun create(
+    system_cfg: &mut SystemConfig,
     name: String,
     description: String,
     file_type: String,
-    blod_id: u256,
-    blob_object_id: ID,
+    raw_blob: Blob,
     bucket: String,
     clock: &Clock,
+    epoch_set: u32,
+    cycle_end: u64,
+    user: address,
     ctx: &mut TxContext
 ): FileMeta{
     let file = FileMeta{
@@ -32,14 +43,14 @@ public fun create(
         description,
         file_type,
         uploader: ctx.sender(),
-        blod_id,
-        blob_object_id,
+        blob_id: raw_blob.blob_id(),
+        blob_object_id:  raw_blob.object_id(),
         bucket,
         time_created: clock.timestamp_ms(),
 
     };
 
-
+    store::store_blob_internal(system_cfg, raw_blob, epoch_set, cycle_end, user, ctx);
     file 
     // let bucket_object_x = project.get_bucket(bucket);
 

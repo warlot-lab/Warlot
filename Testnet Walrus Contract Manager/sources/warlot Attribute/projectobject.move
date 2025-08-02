@@ -1,9 +1,9 @@
 module warlot::projectmain;
 use sui::clock::Clock;
 use sui::dynamic_object_field as ofields;
+
 // use warlot::event;
 use std::string::String;
-
 
 /*
 project is just an indexer for the buckets and the files
@@ -139,61 +139,6 @@ public fun modify_name(project_holder: &mut ProjectHolder, old_name: String, new
 
 
 
-// // create table
-// public fun create_table(
-//     project: &mut Project,
-//     name: String,
-//     cache_obj: address,
-//     cache_file: String,
-//     clock: &Clock,
-//     ctx: &mut TxContext){
-//     let table: Table = tablemain::create(name, cache_obj, cache_file, clock, ctx);
-//     project.add_table(table);
-// }
-
-
-
-// public fun update_table(
-//     project: &mut Project,
-//     table_name: String, 
-//     cache_obj: address,
-//     cache_file: String,
-//     clock: &Clock
-// ){
-//     let table = get_table(project, table_name);
-//     tablemain::update( table, cache_obj, cache_file, clock);
-// }
-
-
-
-// public fun create_file_attribute(
-//     project: &mut Project,
-//     file_name: String,
-//     description: String,
-//     file_type: String,
-//     blod_id: String,
-//     blob_object_id: address,
-//     bucket_name: String, 
-//     clock: &Clock,
-//     ctx: &mut TxContext
-// ){
-//     let file: FileMeta = filemain::create(
-//         file_name, 
-//         description, 
-//         file_type, 
-//         blod_id, 
-//         blob_object_id, 
-//         bucket_name, 
-//         clock, 
-//         ctx
-//         );
-
-//     let ref_bucket: &mut Bucket = project.get_bucket(bucket_name);
-//     ref_bucket.add_file(file);
-//     // file name + file type
-//     event::emit_warlot_attribute(ctx.sender(), object::id_from_address(blob_object_id), project.name, bucket_name, file_name, file_type)
-
-// }
 
 
 

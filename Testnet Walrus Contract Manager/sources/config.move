@@ -1,6 +1,12 @@
 module warlot::config;
 use walrus::{blob::Blob, system::System};
 use warlot::constants::Self;
+/*
+todo move optional meta to this part of the smart contract
+1]thereby removing the file object from the warlot attribute. making indexing of the epoch a lot more efficent 
+2] set up the warlot dev to be able to put files under users address but only the dev will pay for the data; this will bypass
+the allow to store blob permission set for the user. {to be concluded} here we are choose to see if we should make the user have to allow the dev to do this, or if we can just do this and make th edev responsible
+*/
 
 // in the application each blob ctored with us is wraped in a blobsetting config; telling the renew system the 
 // the renew system uses this to as a guide on how to renew the blob
