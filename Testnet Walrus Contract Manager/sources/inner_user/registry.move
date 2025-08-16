@@ -4,7 +4,7 @@ use sui::clock::Clock;
 use warlot::{
     constants::Self, 
     event::Self, 
-    projectmain::Self};
+};
 
 // this is the warlot user identifier
 public struct Registry has key{
@@ -37,13 +37,13 @@ public(package) fun create_registry(
     public_username: String, 
     user_object_id: ID, 
     system_id: ID, 
+    user_project_holder : ID,
     hashed_apikey: String, 
     hashed_encrypt_key: String, 
     warlot_sign_apikey: String,  
     clock: &Clock, 
     ctx: &mut TxContext
     ){
-   let user_project_holder = projectmain::create_project_holder(ctx); 
 
    let registry_state =  Registry{
         id: object::new(ctx),
@@ -52,7 +52,7 @@ public(package) fun create_registry(
         system_details: SystemDetail{
             user_object_id,
             system_id,
-            project_holder: object::id(&user_project_holder),
+            project_holder: user_project_holder,
         },
         api_properties: Api{
             hashed_apikey,
@@ -66,7 +66,6 @@ public(package) fun create_registry(
     
 
     event::emit_new_user(user_object_id, object::id(&registry_state), ctx.sender());
-    transfer::public_share_object(user_project_holder);
     transfer::transfer(registry_state, ctx.sender());
 }
 

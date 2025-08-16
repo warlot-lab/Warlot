@@ -10,7 +10,9 @@ the allow to store blob permission set for the user. {to be concluded} here we a
 
 // in the application each blob ctored with us is wraped in a blobsetting config; telling the renew system the 
 // the renew system uses this to as a guide on how to renew the blob
-public struct BlobSettings has store{
+public struct BlobSettings has key, store{
+    id: UID,
+
     blob: Blob,
     epoch_set: u32, //this is the numbers of epoch that the blob will be renewed by
     cycle_at: u64, // this is the current cycle the blob is at
@@ -62,11 +64,13 @@ public struct SharedPayment has store, drop{
 }
 
 
-
+public(package) fun config_id(blob_cfg: &BlobSettings): ID{
+    object::id(blob_cfg)
+}
 
 // internal config creation
-public(package) fun new_config_blob(blob: Blob, epoch_set: u32, cycle_end: u64): BlobSettings{
-    BlobSettings { blob, epoch_set, cycle_at: 0, cycle_end,  sponsor: option::none(),  share_payment: SharedPayment{assist: vector::empty()}
+public(package) fun new_config_blob(blob: Blob, epoch_set: u32, cycle_end: u64, ctx: &mut TxContext): BlobSettings{
+    BlobSettings { id: object::new(ctx), blob, epoch_set, cycle_at: 0, cycle_end,  sponsor: option::none(),  share_payment: SharedPayment{assist: vector::empty()}
 
  } 
 }
@@ -164,7 +168,8 @@ public fun sync_epoch_count(blob_cfg: &BlobSettings, epoch_checkpoint: u32, syst
 
 // safe return the internal blob and delete the blob config object
 public(package) fun withdraw_and_burn(blob_cfg: BlobSettings): Blob{
-   let BlobSettings { blob, epoch_set: _, cycle_at: _, cycle_end: _, sponsor: _, share_payment: _} = blob_cfg;
+   let BlobSettings {id,  blob, epoch_set: _, cycle_at: _, cycle_end: _, sponsor: _, share_payment: _} = blob_cfg;
+   id.delete();
     blob
 }
 

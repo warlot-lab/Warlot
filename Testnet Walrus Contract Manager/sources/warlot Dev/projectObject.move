@@ -12,6 +12,7 @@ also an indexer for the tables and the sql
 public struct ProjectHolder has key, store{
     id: UID,
     admin: address,
+    total_projects: u64,
 }
 
 
@@ -49,7 +50,9 @@ public(package) fun create_project_holder(ctx: &mut TxContext): ProjectHolder{
     ProjectHolder{
         id: object::new(ctx),
         admin: ctx.sender(),
+        total_projects: 0,
     }
+
 }
 
 
@@ -91,6 +94,8 @@ public fun create_project(
     ctx: &mut TxContext){
     // making sure that only the owner of the project holder can create this project 
     assert!(ctx.sender() == project_holder.admin ,INVALIDACCESS);
+
+    project_holder.total_projects = project_holder.total_projects + 1;
 
     let mut project =  Project{
         id: object::new(ctx),

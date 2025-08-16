@@ -17,11 +17,11 @@ public fun store_blob_internal(
     cycle_end: u64,
     user: address,
     ctx: &mut TxContext,
-){
+): ID{
    
     let set = get_set(epoch_set);
 
-        event::emit_warlot_file_store(
+    event::emit_warlot_file_store(
         user, 
         blob::object_id(&raw_blob), 
         blob::size(&raw_blob), 
@@ -29,16 +29,16 @@ public fun store_blob_internal(
         blob::end_epoch(&raw_blob), 
         set, 
         cycle_end
-        );
+    );
 
-        warlotsystem::raw_store_blob(
-            system_cfg,
-            raw_blob,
-            set,
-            cycle_end,
-            user,
-            ctx
-        );
+    warlotsystem::raw_store_blob(
+        system_cfg,
+        raw_blob,
+        set,
+        cycle_end,
+        user,
+        ctx
+    )
 }
 
 
@@ -77,7 +77,7 @@ public fun foreign_blob_add(
             cycle_end,
             registry.get_user(),
             ctx
-        )
+        );
 
          
 
@@ -111,9 +111,10 @@ public fun replace(
     user: address,
     ctx: &mut TxContext){
 
-    warlotsystem::withdraw_blob(system_cfg, old_blob_id, user);
-
-
+    
+    transfer::public_transfer(
+         warlotsystem::withdraw_blob(system_cfg, old_blob_id, user),
+          user);
 
     store_blob_internal(
     system_cfg,
@@ -122,7 +123,5 @@ public fun replace(
     cycle_end,
     user,
     ctx, 
-    )
-
-   
+    );  
 }

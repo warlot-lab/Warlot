@@ -14,6 +14,7 @@ use warlot::{
     config::{Self, BlobSettings}, 
     constants::{Self},
     registry::Registry,
+    blob_config_vec::{Self},
     event::Self
 };
 
@@ -263,7 +264,7 @@ public(package) fun raw_store_blob(
     user: address,
     ctx: &mut TxContext,
 
-){
+): ID{
     
 
     let set = epoch_set;
@@ -273,15 +274,17 @@ public(package) fun raw_store_blob(
         };
 
 
-    let blob_setting: BlobSettings = config::new_config_blob(blob, set, cycle_end);
+    let blob_setting: BlobSettings = config::new_config_blob(blob, set, cycle_end, ctx);
 
 
     let user = get_user_mut(system_cfg, user);
 
-    userstate::add_blob(user, blob_setting, set, ctx);
+    let config_obj_id  = userstate::add_blob(user, blob_setting, set, ctx);
     userstate::update_dash_data(user, 1, file_size);
     let old_m_blob = system_cfg.managed_blobs;
     system_cfg.managed_blobs = old_m_blob + 1;
+
+    config_obj_id
 
 }
 
@@ -396,12 +399,12 @@ fun process_blob(
             //get the blob_cfg objects for that epoch
             let blob_list     = user_ref2.get_mut_obj_list_blob_cfg(epoch_set);
             let mut y = 0;
-            while (y < table_vec::length(blob_list)) {
+            while (y < blob_config_vec::length(blob_list)) {
                 // store the current value of the token before the sync
                 // this is for the event to be able to emit the actual cost of renewal of the data 
                 let  funds_current_balance = funds.value();
                 // this holds the mut ref to that particular blob in that index
-                let blob_cfg_ref = table_vec::borrow_mut(blob_list, y);
+                let blob_cfg_ref = blob_config_vec::borrow_mut(blob_list, y);
                
             
             
@@ -450,7 +453,7 @@ public(package) fun withdraw_blob(
     system_cfg: &mut SystemConfig,
     blob_obj_id: address,
     user: address,
-){
+): Blob{
     let user_ref = get_user_mut(system_cfg, user);
     let raw_blob = user_ref.
         remove_blob_from_user(object::id_from_address(blob_obj_id))
@@ -465,7 +468,9 @@ public(package) fun withdraw_blob(
         object::id_from_address(blob_obj_id)
     );
 
-    transfer::public_transfer(raw_blob, user);
+    raw_blob
+
+   
 }
 
 public fun self_withdraw_blob(
@@ -476,7 +481,10 @@ public fun self_withdraw_blob(
 ){
     let user: address = registry.get_user();
     assert!(ctx.sender() == user, 3);
-    withdraw_blob(system_cfg, blob_obj_id, user);
+   
+    transfer::public_transfer(
+         withdraw_blob(system_cfg, blob_obj_id, user),
+          user);
     
 }
 
