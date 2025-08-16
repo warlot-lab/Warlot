@@ -1,5 +1,5 @@
 module warlot::innerfile;
-use std::string::String;
+use walrus::{blob::Blob};
 use warlot::{
     // add attributes of warlot system 
     warlotsystem::{Self, SystemConfig},
@@ -7,8 +7,10 @@ use warlot::{
     innerfiledata::{Self, FileData},
     draft::{Self, FileDraftHolder},
     issue::{Self, FileIssueMeta},
+    store::Self,
     };
 use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields};
+
 
 
 public struct InnerFile has key, store{
@@ -29,14 +31,30 @@ public struct FileTrack has store{
     this will give the user a safe state of the file to fall back to
     this gives the power of collaboration while still keeping the integrity of the file state 
     */
+    
 
     root_change: Option<FileData>, 
     track_back_length: u8, //this is the max cache of file change of this file can exist on chain; it is needed so that users that want to revert changes can find it possible 
+    warlot_state: WarlotState,
     track_back: vector<FileData>, // holds file history
     last_modified : u64,
   
 }
 
+
+
+/*
+this shows the state of the file in the warlot system 
+inidcating the cycle and the epoch set of the innerfile 
+todo make innerfile recycle the same blobsetting object and also store the same blob setting object id in the innerfile, for easy reference for the user
+*/
+
+public struct WarlotState has store{
+    epoch_set: u32,
+    cycle_end: u64,
+    // blobCOnfig_id: ID
+    // blobConfig_index: u64,
+}
 
 
 // public struct PublicMod has store{
@@ -106,6 +124,14 @@ const ACCESSDENIED: vector<u8> =  b"invalid writer pass";
 const INVALIDTRACKBACKLENGTH: vector<u8> = b"provide a valid track back len data";
 #[error]
 const INVALIDACCESS: vector<u8> = b"Invalid access";
+#[error]
+const INVALIDBLOBTYPE : vector<u8> = b"enter a deletable blob, only deletable blobs are allowed";
+
+
+
+
+
+
 // file track data
 public fun root_change(inner_file: &InnerFile): &FileData{
     inner_file.file_history.root_change.borrow()
@@ -119,17 +145,39 @@ public fun track_back(inner_file: &InnerFile): &vector<FileData>{
     &inner_file.file_history.track_back
 }
 
+public fun warlot_state(inner_file: &InnerFile): &WarlotState{
+      &inner_file.
+        file_history.
+        warlot_state
+}
+public fun epoch_set(inner_file: &InnerFile): u32{
+    inner_file.
+        file_history.
+        warlot_state.
+        epoch_set
+}
+
+public fun cycle_end(inner_file: &InnerFile): u64{
+    inner_file.
+        file_history.
+        warlot_state.
+        cycle_end
+}
+
+
 
 
 
 // using 
 public fun create_file(
-    system_cfg: &SystemConfig,
+    system_cfg: &mut SystemConfig,
     owner: address, 
     writers_length: u8,
     track_back_length: u8,
-    walrus_blob_id: String,
-    walrus_blob_object_id: address,
+    blob: Blob,
+
+    epoch_set: u32,
+    cycle_end: u64,
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
@@ -142,6 +190,26 @@ public fun create_file(
     // make sure that the trackbcak_length is > 0
     assert!(track_back_length > 0 , INVALIDTRACKBACKLENGTH);
 
+    let warlot_state = WarlotState{
+                epoch_set,
+                cycle_end,
+            };
+
+    let track_back: vector<FileData> = vector::singleton(
+                process_blob(
+                    system_cfg,
+                    blob,
+                    &warlot_state,
+                    owner,
+                    commit,
+                    ctx.sender(),
+                    ctx
+                )
+            );
+
+
+
+
     let owners_obj = warlotsystem::get_user(system_cfg, owner);  //get the &User object
 
     // confrim that the ctx.sender have the permission to create inner file for the owner
@@ -150,10 +218,8 @@ public fun create_file(
         ctx
         );
 
+  
     
-
-
-
 
     let mut new_file  = InnerFile{
         id : object::new(ctx),
@@ -164,16 +230,8 @@ public fun create_file(
 
             root_change : option::none(),
             track_back_length,
-            track_back: vector::singleton(
-
-                innerfiledata::create_file_data(
-                    commit,
-                    ctx.sender(),
-                    walrus_blob_id,
-                    object::id_from_address(walrus_blob_object_id),
-                )
-
-            ),
+            warlot_state,
+            track_back,
             last_modified: clock.timestamp_ms(),
         },
         created_at_ms: clock.timestamp_ms(),
@@ -209,7 +267,7 @@ public fun create_file(
     if (should_include_pass && owner != ctx.sender()){
 
        userstate::check_permission_writer_pass(owners_obj, ctx);
-       
+
         let temp_pass =  WriterPass{
             id: object::new(ctx),
             file_id: object::id(&new_file),
@@ -282,9 +340,9 @@ warning: using this fuction will make unreversable changes to the inner file obj
 public fun force_write_innerfile(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
-    walrus_blob_id: String,
-    walrus_blob_object_id: address,
     clock: &Clock,
+    system_cfg: &mut SystemConfig,
+    blob: Blob,
     commit: vector<u8>,
     ctx: &mut TxContext,
 ){
@@ -292,7 +350,16 @@ public fun force_write_innerfile(
     verify_pass(inner_file, ctx.sender(), writer_pass, clock);
     assert!(inner_file.owner == ctx.sender(), INVALIDACCESS);
 
-    let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, object::id_from_address(walrus_blob_object_id));
+     let file_data: FileData = process_blob(
+            system_cfg,
+            blob,
+            warlot_state(inner_file),
+            inner_file.owner,
+            commit,
+            ctx.sender(),  
+            ctx, 
+    );
+
     override_file_add(inner_file, file_data, clock);
 
 }
@@ -305,16 +372,35 @@ public fun write_(
     file_issue: u64, //acts like an option for the frontend
     should_include_issue: bool,
     // fileData info
-    commit: vector<u8>,
-    walrus_blob_id: String,
-    walrus_blob_object_id: address,
+    
     clock: &Clock,
-    ctx: &mut TxContext
+
+    system_cfg: &mut SystemConfig,
+    blob: Blob,
+    commit: vector<u8>,
+    
+    ctx: &mut TxContext,
 ){
     verify_pass(inner_file, ctx.sender(), writer_pass, clock);
 
+    let store_to: address = {
+        if (to_draft){
+            ctx.sender()
+        }else{
+            inner_file.owner
+        }
+    };
+
     //  build the fileData object
-    let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, object::id_from_address(walrus_blob_object_id));
+    let file_data: FileData = process_blob(
+            system_cfg,
+            blob,
+            warlot_state(inner_file),
+            store_to,
+            commit,
+            ctx.sender(),  
+            ctx, 
+    );
 
 
     if (!to_draft){
@@ -359,7 +445,7 @@ public fun set_root_change(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
     commit: vector<u8>,
-    walrus_blob_id: String,
+    walrus_blob_id: u256,
     walrus_blob_object_id: ID,
     clock: &Clock,
     ctx: &mut TxContext
@@ -373,6 +459,7 @@ public fun set_root_change(
     let _ = option::swap(&mut inner_file.file_history.root_change, file_data);
 
 }
+
 
 
 /*
@@ -436,6 +523,9 @@ public fun merge_draft_into_file(
 }
 
 
+
+
+
 public fun delete_draft(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
@@ -456,6 +546,9 @@ public fun delete_draft(
     );
 
 }
+
+
+
 
 
 // deletes all the draft associated with the inner_file and resets it's fields
@@ -620,7 +713,26 @@ fun get_issue_meta(inner_file: &InnerFile): &FileIssueMeta{
 
 
 
-
+//===== helper function ========//
+fun process_blob(
+    system_cfg: &mut SystemConfig,
+    blob: Blob,
+    warlot_state: &WarlotState, 
+    store_to: address,
+    commit: vector<u8>,
+    commit_by: address,  
+    ctx: &mut TxContext, 
+): FileData{
+    assert!(blob.is_deletable(), INVALIDBLOBTYPE);
+    let file_data = innerfiledata::create_file_data(
+        commit,
+        commit_by,
+        blob.blob_id(),
+        blob.object_id(),
+    );
+    store::store_blob_internal(system_cfg, blob, warlot_state.epoch_set, warlot_state.cycle_end, store_to , ctx);
+    file_data
+}
 
 
 
