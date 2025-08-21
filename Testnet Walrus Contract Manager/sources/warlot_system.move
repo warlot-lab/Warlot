@@ -1,4 +1,4 @@
-module warlot::warlotsystem;
+module warlot::warlot_system;
 
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, system::System};
@@ -10,7 +10,7 @@ use sui::{
     table_vec::{Self, TableVec}
     };
 use warlot::{
-    userstate::{Self, User},
+    user_state::{Self, User},
     config::{Self, BlobSettings}, 
     constants::{Self},
     registry::Registry,
@@ -279,8 +279,8 @@ public(package) fun raw_store_blob(
 
     let user = get_user_mut(system_cfg, user);
 
-    let config_obj_id  = userstate::add_blob(user, blob_setting, set, ctx);
-    userstate::update_dash_data(user, 1, file_size);
+    let config_obj_id  = user_state::add_blob(user, blob_setting, set, ctx);
+    user_state::update_dash_data(user, 1, file_size);
     let old_m_blob = system_cfg.managed_blobs;
     system_cfg.managed_blobs = old_m_blob + 1;
 

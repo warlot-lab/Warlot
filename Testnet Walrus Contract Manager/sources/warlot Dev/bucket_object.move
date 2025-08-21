@@ -1,7 +1,7 @@
-module warlot::bucketmain;
+module warlot::bucket_main;
 use sui::clock::Clock;
 use sui::dynamic_object_field as ofields;
-use warlot::{filemain::{Self, FileMeta}, projectmain::{ProjectHolder, Self},   warlotsystem::SystemConfig};
+use warlot::{file_main::{Self, FileMeta}, project_main::{ProjectHolder, Self},   warlot_system::SystemConfig};
 use std::string::{String};
 use walrus::{blob::Blob};
 
@@ -47,7 +47,7 @@ public fun create(
 
     // add bucket  to the bucket holder
     ofields::add<String, Bucket>(
-        projectmain::bucket_holder(
+        project_main::bucket_holder(
             project_holder, project_name), 
             bucket_name, 
             bucket);            
@@ -73,7 +73,7 @@ public fun upload_file(
     user: address,
     ctx: &mut TxContext
 ){
-    let file: FileMeta = filemain::create(
+    let file: FileMeta = file_main::create(
     system_cfg,
     name,
     description,
@@ -87,7 +87,7 @@ public fun upload_file(
     ctx,);
 
     let ref_bucket: &mut Bucket = ofields::borrow_mut<String, Bucket>(
-        projectmain::bucket_holder(
+        project_main::bucket_holder(
             project_holder, project_name), 
             bucket_name);  
 
@@ -147,5 +147,5 @@ public fun check_file_name_created(bucket: &Bucket, file_name: String): bool{
 
 //get bucket mut 
 public fun get_bucket(project_holder: &mut ProjectHolder, project_name: String, bucket_name: String): &mut Bucket{
-    ofields::borrow_mut<String, Bucket>( projectmain::bucket_holder(project_holder, project_name), bucket_name)
+    ofields::borrow_mut<String, Bucket>( project_main::bucket_holder(project_holder, project_name), bucket_name)
 }

@@ -2,9 +2,9 @@ module warlot::innerfile;
 use walrus::{blob::Blob};
 use warlot::{
     // add attributes of warlot system 
-    warlotsystem::{Self, SystemConfig},
-    userstate::Self,
-    innerfiledata::{Self, FileData},
+    warlot_system::{Self, SystemConfig},
+    user_state::Self,
+    inner_file_data::{Self, FileData},
     draft::{Self, FileDraftHolder},
     issue::{Self, FileIssueMeta},
     store::Self,
@@ -210,10 +210,10 @@ public fun create_file(
 
 
 
-    let owners_obj = warlotsystem::get_user(system_cfg, owner);  //get the &User object
+    let owners_obj = warlot_system::get_user(system_cfg, owner);  //get the &User object
 
     // confrim that the ctx.sender have the permission to create inner file for the owner
-    userstate::check_permission_inner_file( 
+    user_state::check_permission_inner_file( 
         owners_obj,
         ctx
         );
@@ -266,7 +266,7 @@ public fun create_file(
 
     if (should_include_pass && owner != ctx.sender()){
 
-       userstate::check_permission_writer_pass(owners_obj, ctx);
+       user_state::check_permission_writer_pass(owners_obj, ctx);
 
         let temp_pass =  WriterPass{
             id: object::new(ctx),
@@ -454,7 +454,7 @@ public fun set_root_change(
     verify_pass(inner_file, ctx.sender(), writer_pass, clock);
 
       //  build the fileData object
-    let file_data: FileData = innerfiledata::create_file_data(commit, ctx.sender(), walrus_blob_id, walrus_blob_object_id);
+    let file_data: FileData = inner_file_data::create_file_data(commit, ctx.sender(), walrus_blob_id, walrus_blob_object_id);
 
     let _ = option::swap(&mut inner_file.file_history.root_change, file_data);
 
@@ -724,7 +724,7 @@ fun process_blob(
     ctx: &mut TxContext, 
 ): FileData{
     assert!(blob.is_deletable(), INVALIDBLOBTYPE);
-    let file_data = innerfiledata::create_file_data(
+    let file_data = inner_file_data::create_file_data(
         commit,
         commit_by,
         blob.blob_id(),

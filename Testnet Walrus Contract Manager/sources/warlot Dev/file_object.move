@@ -1,9 +1,9 @@
-module warlot::filemain;
+module warlot::file_main;
 use sui::clock::Clock;
 use walrus::{blob::Blob};
 use std::string::{String};
 use warlot::{
-    warlotsystem::SystemConfig,
+    warlot_system::SystemConfig,
     store::Self,
 };
 
