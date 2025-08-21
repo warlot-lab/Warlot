@@ -1,4 +1,4 @@
-module warlot::userstate;
+module warlot::user_state;
 use std::string::String;
 
 
@@ -7,7 +7,7 @@ use warlot::{
     config::{Self, BlobSettings}, 
     registry::{Self}, 
     constants::{Self},
-    projectmain::{Self, ProjectHolder},
+    project_main::{Self, ProjectHolder},
     blob_config_vec::{Self, BlobConfigVec},
     };
 
@@ -80,7 +80,7 @@ public(package) fun create_user(
 
     ofields::add<String, Table<ID, EpochState>>(&mut new_user.id, constants::indexer_key(), table::new(ctx));
     // create project holder
-    let project_holder: ProjectHolder = projectmain::create_project_holder(ctx);
+    let project_holder: ProjectHolder = project_main::create_project_holder(ctx);
     
 
   

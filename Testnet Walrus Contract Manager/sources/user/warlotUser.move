@@ -1,11 +1,11 @@
-module warlot::warlotUser;
+module warlot::warlot_user;
 
 use std::string::String;
 use wal::wal::WAL;
 use sui::{coin::{Self, Coin}, clock::Clock};
 use warlot::{
-    userstate::Self,
-    warlotsystem::SystemConfig,
+    user_state::Self,
+    warlot_system::SystemConfig,
     registry::Registry,
 };
 
@@ -20,7 +20,7 @@ public fun register_user_publicly(
     clock: &Clock,
     ctx: &mut TxContext
     ){
-    let new_user = userstate::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, option::none(), ctx);
+    let new_user = user_state::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, option::none(), ctx);
     system_cfg.add_user(new_user, ctx);
     system_cfg.increase_user_count();   
 }
@@ -37,7 +37,7 @@ public fun register_user_with_system_permission(
     clock: &Clock,
     ctx: &mut TxContext
     ){
-    let new_user = userstate::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, option::some(system_cfg.get_warlot_address()), ctx);
+    let new_user = user_state::create_user( public_username, object::id(system_cfg), apikey, encrypt_key, warlot_sign_apikey, clock, option::some(system_cfg.get_warlot_address()), ctx);
     system_cfg.add_user(new_user, ctx);
     system_cfg.increase_user_count();   
 }

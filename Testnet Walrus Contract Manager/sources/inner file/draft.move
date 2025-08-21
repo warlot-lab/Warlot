@@ -1,5 +1,5 @@
 module warlot::draft;
-use warlot::innerfiledata::FileData;
+use warlot::inner_file_data::FileData;
 use sui::{clock::Clock, dynamic_object_field as ofields};
 
 

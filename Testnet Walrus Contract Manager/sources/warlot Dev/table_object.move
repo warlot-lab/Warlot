@@ -1,4 +1,4 @@
-module warlot::tablemain;
+module warlot::table_main;
 use sui::clock::Clock;
 use std::string::{String};
 

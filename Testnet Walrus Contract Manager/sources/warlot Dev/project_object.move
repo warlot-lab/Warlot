@@ -1,4 +1,4 @@
-module warlot::projectmain;
+module warlot::project_main;
 use sui::clock::Clock;
 use sui::dynamic_object_field as ofields;
 

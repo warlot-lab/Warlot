@@ -1,4 +1,4 @@
-module warlot::innerfiledata;
+module warlot::inner_file_data;
 
 
 // holds the blob address and idnetifer of that file change

@@ -1,7 +1,7 @@
 module warlot::store;
 use walrus::{blob::{Self, Blob}};
 use warlot::{
-    warlotsystem::{Self, SystemConfig},
+    warlot_system::{Self, SystemConfig},
     registry::Registry,
     constants::{Self},
     event::Self,
@@ -31,7 +31,7 @@ public fun store_blob_internal(
         cycle_end
     );
 
-    warlotsystem::raw_store_blob(
+    warlot_system::raw_store_blob(
         system_cfg,
         raw_blob,
         set,
@@ -70,7 +70,7 @@ public fun foreign_blob_add(
             set, 
             cycle_end);
 
-        warlotsystem::raw_store_blob(
+        warlot_system::raw_store_blob(
             system_cfg,
             raw_blob,
             set,
@@ -113,7 +113,7 @@ public fun replace(
 
     
     transfer::public_transfer(
-         warlotsystem::withdraw_blob(system_cfg, old_blob_id, user),
+         warlot_system::withdraw_blob(system_cfg, old_blob_id, user),
           user);
 
     store_blob_internal(
