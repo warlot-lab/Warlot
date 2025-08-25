@@ -9,6 +9,7 @@ use warlot::{
     constants::{Self},
     project_main::{Self, ProjectHolder},
     blob_config_vec::{Self, BlobConfigVec},
+    foreign_meta::{Self},
     };
 
 
@@ -31,6 +32,7 @@ public struct User has key, store{
 
 
 
+
 public struct EpochState has store, drop{
     epoch: u32,
     vector_index: u64,
@@ -46,6 +48,7 @@ public struct SubPermission has store{
     add_blob_to_address: bool,
     create_inner_file: bool,
     create_writer_pass: bool,
+    can_init_db: bool,
 }
 
 
@@ -83,8 +86,9 @@ public(package) fun create_user(
     let project_holder: ProjectHolder = project_main::create_project_holder(ctx);
     
 
-  
     
+
+
 
     /*
      this will be the state at which the user can deny the warlot system or any other syem the access to modify their data
@@ -110,6 +114,7 @@ public(package) fun create_user(
                 add_blob_to_address: true,
                 create_inner_file: true,
                 create_writer_pass: true,
+                can_init_db: true,
             })
     } else{ option::destroy_none<address>(add_walot_permission)};
 
@@ -117,8 +122,15 @@ public(package) fun create_user(
 
     registry::create_registry( public_username, object::id(&new_user), system_id, object::id(&project_holder), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
     
+    // create foreign_meta
+    /*
+    this is just a micro indexer in the warlot system, it is used to keep track of the blob config that is foreign to the system 
+    */ 
+    foreign_meta::create_meta(ctx);
+
     // todo to convert to party share 
     transfer::public_share_object(project_holder);
+ 
     new_user
 }
 
@@ -173,12 +185,21 @@ public fun check_permission_writer_pass(
 
 
 
+public fun check_permission_can_init_db(
+    user_obj: &User,
+    // request_address: address,  
+    ctx: &TxContext){
+    assert!(get_permission_obj(user_obj, ctx).can_init_db, INVALIDACCESS);
+}
+
+
 public(package) fun create_permission_state(
     user_obj: &mut User,
     privilege_address: address,  
     add_blob_to_address: bool,
     create_inner_file: bool,
     create_writer_pass: bool,
+    can_init_db: bool,
     ){
         let sub_permission = ofields::borrow_mut<vector<u8>, Table<address, SubPermission>>(&mut user_obj.id, constants::Acceptance_Key());
         if (sub_permission.contains(privilege_address)){
@@ -186,6 +207,7 @@ public(package) fun create_permission_state(
             privilege_permission.add_blob_to_address = add_blob_to_address;
             privilege_permission.create_inner_file = create_inner_file;
             privilege_permission.create_writer_pass = create_writer_pass;
+            privilege_permission.can_init_db = can_init_db;
 
         }else{
             sub_permission.add(
@@ -194,6 +216,7 @@ public(package) fun create_permission_state(
                     add_blob_to_address,
                     create_inner_file,
                     create_writer_pass,
+                    can_init_db,
                 }
             );
         };

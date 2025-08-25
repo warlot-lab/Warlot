@@ -5,6 +5,8 @@ use sui::dynamic_object_field as ofields;
 // use warlot::event;
 use std::string::String;
 
+
+
 /*
 project is just an indexer for the buckets and the files
 also an indexer for the tables and the sql 
@@ -40,7 +42,7 @@ public struct Project has key, store{
     description: vector<u8>,
     time_created: u64,
     last_modified: u64,
-    tables_created: u64,
+    db_inner_file: Option<ID>,
     buckets_created: u64,
     total_storage: u64,
 }
@@ -63,8 +65,8 @@ const INVALIDACCESS: vector<u8> = b"INVALID PROJECT HOLDER";
 const NAMEINUSE: vector<u8> = b"ENTER UNUSED NAME";
 #[error]
 const INVALIDNAME: vector<u8> = b"Enter valid name";
-
-
+#[error]
+const DBEXIST: vector<u8> = b"db has been initialized";
 
 
 // ============ tree key vales ===========//
@@ -103,7 +105,7 @@ public fun create_project(
         description,
         time_created: clock.timestamp_ms(),
         last_modified: clock.timestamp_ms(),
-        tables_created: 0,
+        db_inner_file: option::none(),
         buckets_created: 0,
         total_storage: 0,
     };
@@ -139,6 +141,23 @@ public fun modify_name(project_holder: &mut ProjectHolder, old_name: String, new
 }
 
 
+/*
+    v1 warlot, has single state inner file per project
+*/
+
+public(package) fun init_db(
+    project_holder: &mut ProjectHolder,
+    project_name: String,
+    inner_file_id: ID,
+    user: address,
+    ){
+    // make sure that the owner is the only data that is been modified
+    assert!(project_holder.admin == user, INVALIDACCESS);
+    let project = ofields::borrow_mut<String, Project>(&mut project_holder.id, project_name);
+    assert!(project.db_inner_file.is_none(), DBEXIST);
+    
+    project.db_inner_file.fill(inner_file_id);
+}
 
 
 
@@ -150,27 +169,4 @@ public fun modify_name(project_holder: &mut ProjectHolder, old_name: String, new
 
 
 
-
-
-
-// // ====== table editor ======== // 
-// //===== Table to project =======//
-
-// public fun add_table(project: &mut Project,  table: Table ){
-//     let name =  table.get_name();
-//     // assert!(!project.check_name_created(name), InvalidName);
-
-//     ofields::add<String, Table>(&mut project.id, name,  table);
-// }
-
-// public fun check_name_created(project: &Project, name: String): bool{
-//     ofields::exists_(&project.id, name)
-// }
-
-// public fun get_table(
-//     project: &mut Project, 
-//     name: String,
-// ): &mut Table{
-//     ofields::borrow_mut<String, Table>(&mut project.id, name)
-// }
 
