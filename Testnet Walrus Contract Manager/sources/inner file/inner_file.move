@@ -1,5 +1,6 @@
-module warlot::innerfile;
+module warlot::inner_file;
 use walrus::{blob::Blob};
+use std::string::String;
 use warlot::{
     // add attributes of warlot system 
     warlot_system::{Self, SystemConfig},
@@ -7,7 +8,8 @@ use warlot::{
     inner_file_data::{Self, FileData},
     draft::{Self, FileDraftHolder},
     issue::{Self, FileIssueMeta},
-    store::Self,
+    store::{Self},
+    project_main::{Self, ProjectHolder},
     };
 use sui::{dynamic_field as dfield, clock::Clock, dynamic_object_field as ofields};
 
@@ -186,7 +188,7 @@ public fun create_file(
     should_include_pass: bool,
     ctx: &mut TxContext,
 
-    ){
+    ): ID{
     // make sure that the trackbcak_length is > 0
     assert!(track_back_length > 0 , INVALIDTRACKBACKLENGTH);
 
@@ -221,7 +223,7 @@ public fun create_file(
   
     
 
-    let mut new_file  = InnerFile{
+    let mut new_inner_file  = InnerFile{
         id : object::new(ctx),
         
         owner,
@@ -237,6 +239,8 @@ public fun create_file(
         created_at_ms: clock.timestamp_ms(),
     };
 
+    let new_inner_file_id = object::id(&new_inner_file);
+
     let default_deny_list = DenyList{
         id: object::new(ctx),
         numbers_of_deny: 0
@@ -245,7 +249,7 @@ public fun create_file(
     // give the author or owner of the file an immortal pass
     let immortal_pass = WriterPass{
         id: object::new(ctx),
-        file_id: object::id(&new_file),
+        file_id: new_inner_file_id ,
         duration: ImmortalPASS,
         admin_privilege: option::some(
             AdminPass{
@@ -270,7 +274,7 @@ public fun create_file(
 
         let temp_pass =  WriterPass{
             id: object::new(ctx),
-            file_id: object::id(&new_file),
+            file_id: new_inner_file_id,
             duration: ImmortalPASS, //todo to be changed to the user set default duration
             admin_privilege: option::some(
                 AdminPass{
@@ -288,14 +292,62 @@ public fun create_file(
 
 
 
-    ofields::add<vector<u8>, DenyList>(&mut new_file.id, DENYLISTKEY, default_deny_list);
+    ofields::add<vector<u8>, DenyList>(&mut new_inner_file.id, DENYLISTKEY, default_deny_list);
     // add draftholder object to the file 
-    ofields::add<vector<u8>, FileDraftHolder>(&mut new_file.id, FILEDRAFTKEY, draft::create_draft_holder(draft_epoch_duration, ctx));
+    ofields::add<vector<u8>, FileDraftHolder>(&mut new_inner_file.id, FILEDRAFTKEY, draft::create_draft_holder(draft_epoch_duration, ctx));
     //add the issue object to the file
-    ofields::add<vector<u8>, FileIssueMeta>(&mut new_file.id, ISSUEKEY, issue::create_file_issue_meta(clock, ctx));
+    ofields::add<vector<u8>, FileIssueMeta>(&mut new_inner_file.id, ISSUEKEY, issue::create_file_issue_meta(clock, ctx));
     // todo to be updated to party share, to allow more secure group modification of the file
-    transfer::public_share_object(new_file);
+    transfer::public_share_object(new_inner_file);
     transfer::transfer(immortal_pass, owner);
+
+    new_inner_file_id
+
+    
+}
+
+
+//create inner_file with warlot project
+public fun initialize_project_file(
+    project_holder: &mut ProjectHolder,
+    project_name: String,
+    system_cfg: &mut SystemConfig,
+    owner: address, 
+    writers_length: u8,
+    track_back_length: u8,
+    blob: Blob,
+
+    epoch_set: u32,
+    cycle_end: u64,
+    clock: &Clock,
+    commit: vector<u8>,
+    draft_epoch_duration: u32,
+
+    // this tells the contract to create a writer pass for the ctx.sender if the owner != ctx.sender
+    should_include_pass: bool,
+    ctx: &mut TxContext,
+){
+    let new_inner_file_id = create_file(
+        system_cfg,
+        owner, 
+        writers_length,
+        track_back_length,
+        blob,
+        epoch_set,
+        cycle_end,
+        clock,
+        commit,
+        draft_epoch_duration,
+        should_include_pass,
+        ctx,
+    );
+
+    
+    let owners_obj = warlot_system::get_user(system_cfg, owner); 
+    user_state::check_permission_can_init_db(owners_obj, ctx);
+
+
+    project_main::init_db(project_holder, project_name, new_inner_file_id, owner);
 }
 
 

@@ -12,8 +12,9 @@ the allow to store blob permission set for the user. {to be concluded} here we a
 // the renew system uses this to as a guide on how to renew the blob
 public struct BlobSettings has key, store{
     id: UID,
-
     blob: Blob,
+
+    // blobs: Option<vector<Blob>>, //todo make this the main state of the blob identity in the blob config object
     epoch_set: u32, //this is the numbers of epoch that the blob will be renewed by
     cycle_at: u64, // this is the current cycle the blob is at
     cycle_end: u64,
@@ -69,11 +70,25 @@ public(package) fun config_id(blob_cfg: &BlobSettings): ID{
 }
 
 // internal config creation
+//todo depreciate this function 
 public(package) fun new_config_blob(blob: Blob, epoch_set: u32, cycle_end: u64, ctx: &mut TxContext): BlobSettings{
     BlobSettings { id: object::new(ctx), blob, epoch_set, cycle_at: 0, cycle_end,  sponsor: option::none(),  share_payment: SharedPayment{assist: vector::empty()}
 
  } 
 }
+
+// main function to create blob_config
+// public(package) fun create_config_blob(): BlobSettings{
+//     BlobSettings { 
+//         id: object::new(ctx), 
+//         blob, 
+//         epoch_set, 
+//         cycle_at: 0, 
+//         cycle_end,  
+//         sponsor: option::none(),  
+//         share_payment: SharedPayment{assist: vector::empty()},
+//     }
+// }
 
 // get a mutable reference to the internal blob
 public(package) fun blob(blob_cfg: &mut BlobSettings): &mut Blob{
