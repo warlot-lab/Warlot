@@ -5,6 +5,7 @@ use warlot::{
     registry::Registry,
     constants::{Self},
     event::Self,
+    foreign_meta::{Self, ForeignMeta},
 };
 
 
@@ -45,8 +46,9 @@ public fun store_blob_internal(
 
 // add external blobs to system to renew
 public fun foreign_blob_add(
-    registry: &mut Registry,
+    registry: &Registry,
     system_cfg: &mut SystemConfig,
+    user_foreign_meta: &mut ForeignMeta,
     cycle_end: u64,
     epoch_set: u32,
     blobs:  vector<Blob>,
@@ -56,6 +58,14 @@ public fun foreign_blob_add(
 
     let mut temp_list = vector::empty<Blob>();
     temp_list.append(blobs);
+
+    let mut meta_peak = foreign_meta::verify_peak(user_foreign_meta);
+    let avg_len = foreign_meta::avg_len();
+
+    let mut config_list: vector<ID> = vector::empty<ID>();
+
+    
+
 
     while(!temp_list.is_empty()){
         let raw_blob = temp_list.pop_back();
@@ -70,19 +80,29 @@ public fun foreign_blob_add(
             set, 
             cycle_end);
 
-        warlot_system::raw_store_blob(
-            system_cfg,
-            raw_blob,
-            set,
-            cycle_end,
-            registry.get_user(),
-            ctx
+        vector::push_back(
+            &mut config_list,
+
+            warlot_system::raw_store_blob(
+                system_cfg,
+                raw_blob,
+                set,
+                cycle_end,
+                registry.get_user(),
+                ctx
+            )
         );
 
-         
+        meta_peak = meta_peak + 1;
 
-        
+        if (meta_peak == avg_len){
+            foreign_meta::add_foreign_blob(user_foreign_meta, config_list);
+            config_list = vector::empty<ID>();
+            meta_peak = 0;
+        }
+
     };
+    foreign_meta::add_foreign_blob(user_foreign_meta, config_list);
 
     temp_list.destroy_empty()
 }
