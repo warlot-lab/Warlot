@@ -21,6 +21,8 @@ const MAX_SYNC_EPOCHS: u32 = 53;
 
 
 
+
+
 // =======User Indexer value   =========//
 const USER_INDEXER: vector<u8> = b"INDEXER";
 
@@ -47,3 +49,4 @@ public(package) fun max_sync_epochs():u32{MAX_SYNC_EPOCHS}
 
 
 public(package) fun Acceptance_Key():vector<u8>{AcceptanceKey}
+
