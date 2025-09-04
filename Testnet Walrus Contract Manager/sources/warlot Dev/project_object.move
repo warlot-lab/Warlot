@@ -59,6 +59,30 @@ public(package) fun create_project_holder(ctx: &mut TxContext): ProjectHolder{
 }
 
 
+public(package) fun update_bucket_count(
+    project_holder: &mut ProjectHolder,
+    project_name: String
+){
+    let project = ofields::borrow_mut<String, Project>(&mut project_holder.id, project_name);
+    project.buckets_created = project.buckets_created + 1;
+
+}
+
+
+
+public(package) fun update_storage_count(
+    project_holder: &mut ProjectHolder,
+    project_name: String,
+    storage_size: u64,
+){
+    let project = ofields::borrow_mut<String, Project>(&mut project_holder.id, project_name);
+    project.total_storage = project.total_storage  + storage_size;
+
+}
+
+
+
+
 //======errors ======//
 #[error]
 const INVALIDACCESS: vector<u8> = b"INVALID PROJECT HOLDER";

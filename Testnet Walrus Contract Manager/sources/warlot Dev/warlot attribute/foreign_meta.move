@@ -11,7 +11,7 @@ use sui::{
 public struct ForeignMeta has key {
     id : UID,
     current_index: u64,
-
+    total_blob_config: u64,
 }
 
 
@@ -21,18 +21,23 @@ public struct ForeignMeta has key {
 // in order for the gas fee to not be high 
 const AVG_LEN: u64 = 300;
 
+
 public(package) fun avg_len():u64{AVG_LEN}
 
 
 
 public(package) fun create_meta(ctx: &mut TxContext){
     let current_index = 0;
+    let total_blob_config = 0;
     let mut new_meta = ForeignMeta{
         id: object::new(ctx),
         current_index,
+        total_blob_config,
     };
 
+
     dfield::add<u64, vector<ID>>(&mut new_meta.id, current_index, vector::empty<ID>());
+
 
     transfer::transfer(
         new_meta,
@@ -55,6 +60,7 @@ so here the collection of the warlot config_blob, that have been
 public(package) fun add_foreign_blob(foreign_meta: &mut ForeignMeta, config_blob_list: vector<ID>){
     let vec_len = vector::length(dfield::borrow<u64, vector<ID>>(&foreign_meta.id, foreign_meta.current_index));
     let config_len = vector::length(&config_blob_list);
+    foreign_meta.total_blob_config =  foreign_meta.total_blob_config  +  config_len;
     
    
     // if the incoming config alone is larger than AVG_LEN,

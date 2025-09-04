@@ -3,7 +3,8 @@ module warlot::warlot_system;
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, system::System};
 use sui::{
-    coin::{Self, Coin}, 
+    coin::{Self, Coin},
+    clock::Clock, 
     dynamic_object_field as ofields, 
     dynamic_field as dfield,
     balance::{Self, Balance},
@@ -261,7 +262,9 @@ public(package) fun raw_store_blob(
     blob: Blob,
     epoch_set: u32,
     cycle_end: u64,
+    fileMeta_id: Option<ID>, 
     user: address,
+    clock: &Clock,
     ctx: &mut TxContext,
 
 ): ID{
@@ -274,7 +277,7 @@ public(package) fun raw_store_blob(
         };
 
 
-    let blob_setting: BlobSettings = config::new_config_blob(blob, set, cycle_end, ctx);
+    let blob_setting: BlobSettings = config::new_config_blob(blob, set, cycle_end,  fileMeta_id, clock, ctx);
 
 
     let user = get_user_mut(system_cfg, user);

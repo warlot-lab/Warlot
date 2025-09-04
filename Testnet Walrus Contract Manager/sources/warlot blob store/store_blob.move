@@ -8,15 +8,19 @@ use warlot::{
     foreign_meta::{Self, ForeignMeta},
 };
 
+use sui::clock::Clock;
+
 
 
 // only an admin can use this funtion to store blobs
-public fun store_blob_internal(
+public(package) fun store_blob_internal(
     system_cfg: &mut SystemConfig,
     raw_blob: Blob,
     epoch_set: u32,
     cycle_end: u64,
+    fileMeta_id: Option<ID>, 
     user: address,
+    clock: &Clock,
     ctx: &mut TxContext,
 ): ID{
    
@@ -37,7 +41,9 @@ public fun store_blob_internal(
         raw_blob,
         set,
         cycle_end,
+        fileMeta_id,
         user,
+        clock,
         ctx
     )
 }
@@ -52,6 +58,7 @@ public fun foreign_blob_add(
     cycle_end: u64,
     epoch_set: u32,
     blobs:  vector<Blob>,
+    clock: &Clock, 
     ctx: &mut TxContext,
 ){
     let set = get_set(epoch_set);
@@ -88,7 +95,9 @@ public fun foreign_blob_add(
                 raw_blob,
                 set,
                 cycle_end,
+                option::none(), 
                 registry.get_user(),
+                clock,
                 ctx
             )
         );
@@ -129,6 +138,7 @@ public fun replace(
     epoch_set: u32,
     cycle_end: u64,
     user: address,
+    clock: &Clock,
     ctx: &mut TxContext){
 
     
@@ -141,7 +151,9 @@ public fun replace(
     blob,
     epoch_set,
     cycle_end,
+    option::none(),
     user,
+    clock,
     ctx, 
     );  
 }

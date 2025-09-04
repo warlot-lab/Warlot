@@ -12,6 +12,7 @@ public struct Bucket has key, store{
     id: UID,
     name: String,
     description: String,
+    storage_size: u64,
     time_created: u64,
     last_modified: u64,
 }
@@ -41,6 +42,7 @@ public fun create(
         id: object::new(ctx),
         name: bucket_name,
         description,
+        storage_size: 0,
        time_created: clock.timestamp_ms(),
        last_modified: clock.timestamp_ms(),
     };
@@ -50,7 +52,9 @@ public fun create(
         project_main::bucket_holder(
             project_holder, project_name), 
             bucket_name, 
-            bucket);            
+            bucket);         
+
+    project_holder.update_bucket_count(project_name);   
 }
 
 
@@ -63,22 +67,25 @@ public fun upload_file(
     project_holder: &mut ProjectHolder,
     project_name: String,
     bucket_name: String,
-    name: String,
+    file_name: String,
     description: String,
     file_type: String,
-    raw_blob: Blob,
+    blob: Blob,
     clock: &Clock,
     epoch_set: u32,
     cycle_end: u64,
     user: address,
     ctx: &mut TxContext
 ){
+
+    let file_size = blob.size();
     let file: FileMeta = file_main::create(
     system_cfg,
-    name,
+    file_name,
     description,
     file_type,
-    raw_blob,
+    blob,
+    project_name,
     bucket_name,
     clock,
     epoch_set,
@@ -93,9 +100,10 @@ public fun upload_file(
 
  
     ref_bucket.add_file(file);
+    ref_bucket.storage_size = ref_bucket.storage_size + file_size;
+    project_holder.update_storage_count(project_name, file_size);
     // file name + file type
     // event::emit_warlot_attribute(ctx.sender(), object::id_from_address(blob_object_id), project.name, bucket_name, file_name, file_type)
-
 }
 
 
