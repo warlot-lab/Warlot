@@ -1,5 +1,6 @@
 module warlot::config;
 use walrus::{blob::Blob, system::System};
+use sui::clock::Clock;
 use warlot::constants::Self;
 /*
 todo move optional meta to this part of the smart contract
@@ -18,9 +19,10 @@ public struct BlobSettings has key, store{
     epoch_set: u32, //this is the numbers of epoch that the blob will be renewed by
     cycle_at: u64, // this is the current cycle the blob is at
     cycle_end: u64,
-    // todo ^^ to be replaced with this 
-
-    // cycle: Option<RenewCycle>,
+    // todo ^^ to be replaced with this  {cycle: Option<RenewCycle>}
+    
+    // index the fileMeta id if there is any 
+    fileMeta_id: Option<ID>, 
 
 
     /*
@@ -29,7 +31,8 @@ public struct BlobSettings has key, store{
     */
     sponsor: Option<address>,
 
-    share_payment: SharedPayment
+    share_payment: SharedPayment,
+    uploaded_on: u64,
 
 }
 
@@ -71,8 +74,23 @@ public(package) fun config_id(blob_cfg: &BlobSettings): ID{
 
 // internal config creation
 //todo depreciate this function 
-public(package) fun new_config_blob(blob: Blob, epoch_set: u32, cycle_end: u64, ctx: &mut TxContext): BlobSettings{
-    BlobSettings { id: object::new(ctx), blob, epoch_set, cycle_at: 0, cycle_end,  sponsor: option::none(),  share_payment: SharedPayment{assist: vector::empty()}
+public(package) fun new_config_blob(
+    blob: Blob, 
+    epoch_set: u32, 
+    cycle_end: u64,  
+    fileMeta_id: Option<ID>, 
+    clock: &Clock,
+    ctx: &mut TxContext): BlobSettings{
+    BlobSettings { 
+        id: object::new(ctx), 
+        blob, 
+        epoch_set, 
+        cycle_at: 0, 
+        cycle_end,  
+        fileMeta_id,  
+        sponsor: option::none(),  
+        share_payment: SharedPayment{assist: vector::empty()},
+        uploaded_on: clock.timestamp_ms(),
 
  } 
 }
@@ -183,11 +201,11 @@ public fun sync_epoch_count(blob_cfg: &BlobSettings, epoch_checkpoint: u32, syst
 
 // safe return the internal blob and delete the blob config object
 public(package) fun withdraw_and_burn(blob_cfg: BlobSettings): Blob{
-   let BlobSettings {id,  blob, epoch_set: _, cycle_at: _, cycle_end: _, sponsor: _, share_payment: _} = blob_cfg;
+   let BlobSettings {id,  blob, epoch_set: _, cycle_at: _, cycle_end: _, fileMeta_id: _, sponsor: _, share_payment: _,   uploaded_on: _,} = blob_cfg;
    id.delete();
     blob
 }
-
+  
 // todo
 // burn blob
 // withdraw blob

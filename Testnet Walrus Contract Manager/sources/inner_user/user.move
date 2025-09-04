@@ -44,6 +44,8 @@ public struct DashData has store {
     storage_size: u128,
 }
 
+
+
 public struct SubPermission has store{
     add_blob_to_address: bool,
     create_inner_file: bool,
@@ -233,7 +235,7 @@ public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32
         check_permission_add_blob(user, ctx);
     };
 
-    let blob_obj_id = config::get_blob_obj_id(&blob_cfg);
+
     /* 
     todo change this so that the system will only get the blob by the blob setting config and not the blob id,
     making sure that we can account for files larger than 13gb and light files that are predded into a single blob
@@ -241,32 +243,27 @@ public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32
     */ 
     let config_obj_id = config::config_id(&blob_cfg);
 
-    if (ofields::exists_(&user.id, epoch)){
-        let blob_cfg_set: &mut BlobConfigVec = get_mut_obj_list_blob_cfg(user, epoch);
-        // add the data to the indexer
-        // since the lenght of the vector is equal to the index of the new data 
-        blob_cfg_set.push_back(blob_cfg);
-        let blob_index = blob_cfg_set.length() - 1;
-        user.add_to_indexer(
-            blob_obj_id,
-            epoch,
-            blob_index,
-            );
-            
+    let blob_index: u64 =  {
+        if (ofields::exists_(&user.id, epoch)){
+            let blob_cfg_set: &mut BlobConfigVec = get_mut_obj_list_blob_cfg(user, epoch);
+            // add the data to the indexer
+            // since the lenght of the vector is equal to the index of the new data 
+            blob_cfg_set.push_back(blob_cfg);
+            blob_cfg_set.length() - 1
+                    
 
-    } else{
-
-        
-        let new_blob_cfg_list : BlobConfigVec  = blob_config_vec::singleton(blob_cfg, ctx);
-
-        user.add_to_indexer(
-                blob_obj_id,
-                epoch,
-                0,
-                );
-
-        ofields::add<u32, BlobConfigVec>(&mut user.id, epoch, new_blob_cfg_list);
+        } else{
+            let new_blob_cfg_list : BlobConfigVec  = blob_config_vec::singleton(blob_cfg, ctx);
+            ofields::add<u32, BlobConfigVec>(&mut user.id, epoch, new_blob_cfg_list);
+            0
+        }
     };
+
+     user.add_to_indexer(
+                config_obj_id,
+                epoch,
+                blob_index,
+                );
 
     config_obj_id
 }

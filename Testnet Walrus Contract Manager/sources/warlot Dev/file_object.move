@@ -18,6 +18,7 @@ public struct FileMeta has key, store {
     file_type: String, // e.g .txt, .pdf, .mp4 e.t.c
     uploader: address,
     config_obj_id: ID,
+    project: String,
     bucket: String, 
     time_created: u64,
 }
@@ -25,10 +26,11 @@ public struct FileMeta has key, store {
 // create a fileMeta
 public fun create(
     system_cfg: &mut SystemConfig,
-    name: String,
+    file_name: String,
     description: String,
     file_type: String,
     raw_blob: Blob,
+    project: String,
     bucket: String,
     clock: &Clock,
     epoch_set: u32,
@@ -37,15 +39,27 @@ public fun create(
     ctx: &mut TxContext
 ): FileMeta{
 
-
-    let config_obj_id =     store::store_blob_internal(system_cfg, raw_blob, epoch_set, cycle_end, user, ctx);
+    let file_meta_UID = object::new(ctx);
+    let config_obj_id =   store::store_blob_internal(
+        system_cfg, 
+        raw_blob, 
+        epoch_set, 
+        cycle_end, 
+        option::some(
+            object::uid_to_inner(&file_meta_UID)
+            ),
+        user, 
+        clock,
+        ctx
+        );
     let file = FileMeta{
-        id : object::new(ctx),
-        name,
+        id : file_meta_UID,
+        name: file_name,
         description,
         file_type,
         uploader: ctx.sender(),
         config_obj_id,
+        project,
         bucket,
         time_created: clock.timestamp_ms(),
 

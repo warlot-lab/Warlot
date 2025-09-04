@@ -205,6 +205,7 @@ public fun create_file(
                     owner,
                     commit,
                     ctx.sender(),
+                    clock,
                     ctx
                 )
             );
@@ -409,6 +410,7 @@ public fun force_write_innerfile(
             inner_file.owner,
             commit,
             ctx.sender(),  
+            clock,
             ctx, 
     );
 
@@ -450,7 +452,8 @@ public fun write_(
             warlot_state(inner_file),
             store_to,
             commit,
-            ctx.sender(),  
+            ctx.sender(), 
+            clock, 
             ctx, 
     );
 
@@ -497,8 +500,7 @@ public fun set_root_change(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
     commit: vector<u8>,
-    walrus_blob_id: u256,
-    walrus_blob_object_id: ID,
+    blob_config_id: ID,
     clock: &Clock,
     ctx: &mut TxContext
 ){
@@ -506,7 +508,7 @@ public fun set_root_change(
     verify_pass(inner_file, ctx.sender(), writer_pass, clock);
 
       //  build the fileData object
-    let file_data: FileData = inner_file_data::create_file_data(commit, ctx.sender(), walrus_blob_id, walrus_blob_object_id);
+    let file_data: FileData = inner_file_data::create_file_data(commit, ctx.sender(), blob_config_id);
 
     let _ = option::swap(&mut inner_file.file_history.root_change, file_data);
 
@@ -773,16 +775,17 @@ fun process_blob(
     store_to: address,
     commit: vector<u8>,
     commit_by: address,  
+    clock: &Clock,
     ctx: &mut TxContext, 
 ): FileData{
     assert!(blob.is_deletable(), INVALIDBLOBTYPE);
+    let blob_config_id =  store::store_blob_internal(system_cfg, blob, warlot_state.epoch_set, warlot_state.cycle_end, option::none(), store_to, clock, ctx);
     let file_data = inner_file_data::create_file_data(
         commit,
         commit_by,
-        blob.blob_id(),
-        blob.object_id(),
+        blob_config_id,
     );
-    store::store_blob_internal(system_cfg, blob, warlot_state.epoch_set, warlot_state.cycle_end, store_to , ctx);
+    
     file_data
 }
 
