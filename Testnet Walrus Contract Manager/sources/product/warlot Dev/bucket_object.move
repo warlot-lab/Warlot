@@ -17,6 +17,13 @@ public struct Bucket has key, store{
     last_modified: u64,
 }
 
+// file meta type for the dev object
+public struct Dev has store{
+    project_name: String,
+    bucket_name: String, 
+}
+
+
 
 //======errors ======//
 #[error]
@@ -79,15 +86,17 @@ public fun upload_file(
 ){
 
     let file_size = blob.size();
-    let file: FileMeta = file_main::create(
+
+
+    
+    let file: FileMeta<Dev> = file_main::create<Dev>(
     system_cfg,
     file_name,
     description,
     file_type,
     blob,
-    project_name,
-    bucket_name,
     clock,
+    option::some(Dev{project_name, bucket_name}),
     epoch_set,
     cycle_end,
     user,
@@ -139,10 +148,10 @@ public fun get_name(bucket: &Bucket): String{
 
 
 // add file type to your bucket collection
-public fun add_file(bucket: &mut Bucket, file: FileMeta){
+fun add_file(bucket: &mut Bucket, file: FileMeta<Dev>){
     let name = file.get_name();
     assert!(!check_file_name_created(bucket, name), InvalidName);
-    ofields::add<String, FileMeta>(&mut bucket.id, name, file)
+    ofields::add<String, FileMeta<Dev>>(&mut bucket.id, name, file)
 
 }
 
