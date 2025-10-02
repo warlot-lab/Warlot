@@ -21,8 +21,9 @@ The **Warlot Waitlist NFT** implements a shared **mint template** with optional 
 ## High-Level Architecture 🧱
 
 ```mermaid
+ flowchart TD
   A[Publish Package (init)] --> B[Mint 1 AdminCap to publisher]
-  A --> C[Share CloneWaitCard<WAIT> with Genesis template]
+  A --> C[Share CloneWaitCard&lt;WAIT&gt; with Genesis template]
   C -->|Admin| D[modify_clone]
   C -->|Admin| E[suspend_clone]
   C --> F[mint] --> G[WaitCard NFT]
@@ -30,6 +31,7 @@ The **Warlot Waitlist NFT** implements a shared **mint template** with optional 
   G --> I[(Holder Wallet)]
   D --> C
   E -->|entry=None| X[Mint blocked (ESuspendedClone)]
+
 ```
 
 ---
