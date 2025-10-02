@@ -21,7 +21,6 @@ The **Warlot Waitlist NFT** implements a shared **mint template** with optional 
 ## High-Level Architecture 🧱
 
 ```mermaid
-flowchart TD
   A[Publish Package (init)] --> B[Mint 1 AdminCap to publisher]
   A --> C[Share CloneWaitCard<WAIT> with Genesis template]
   C -->|Admin| D[modify_clone]
