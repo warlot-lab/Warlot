@@ -35,19 +35,21 @@ const CAT_OTHER: u8 = 5;
 public(package) fun create(
     clock: &Clock,
     ctx: &mut TxContext
-): Drive {
+) {
     let drive_meta_UID = object::new(ctx);
-    Drive {
-        id: drive_meta_UID,
-        owner: ctx.sender(),
-        docs: 0,
-        images: 0,
-        videos: 0,
-        audios: 0,
-        others: 0,
-        storage_size: 0,
-        last_modified: clock.timestamp_ms(),
+    transfer::public_share_object(
+        Drive {
+            id: drive_meta_UID,
+            owner: ctx.sender(),
+            docs: 0,
+            images: 0,
+            videos: 0,
+            audios: 0,
+            others: 0,
+            storage_size: 0,
+            last_modified: clock.timestamp_ms(),
     }
+    )
 }
 
 

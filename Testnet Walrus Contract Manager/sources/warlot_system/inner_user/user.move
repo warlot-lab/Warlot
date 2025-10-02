@@ -122,7 +122,7 @@ public(package) fun create_user(
 
     ofields::add<vector<u8>, Table<address, SubPermission>>(&mut new_user.id, constants::Acceptance_Key(), sub_permission);
 
-    registry::create_registry( public_username, object::id(&new_user), system_id, object::id(&project_holder), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
+    registry::create_registry( public_username, object::id(&new_user), system_id, option::some(object::id(&project_holder)), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
     
     // create foreign_meta
     /*
@@ -162,8 +162,6 @@ public fun check_permission_add_blob(
 
     assert!(get_permission_obj(user_obj, ctx).add_blob_to_address, INVALIDACCESS);
 }
-
-
 
 
 public fun check_permission_inner_file(

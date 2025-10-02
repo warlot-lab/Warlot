@@ -1,2 +1,0 @@
-module waitlist::waitlist;
-// create

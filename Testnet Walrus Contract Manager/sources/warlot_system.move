@@ -1,5 +1,6 @@
 module warlot::warlot_system;
 
+// =========== imports ============= //
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, system::System};
 use sui::{
@@ -10,6 +11,7 @@ use sui::{
     balance::{Self, Balance},
     table_vec::{Self, TableVec}
     };
+
 use warlot::{
     user_state::{Self, User},
     config::{Self, BlobSettings}, 
@@ -21,6 +23,12 @@ use warlot::{
 
 
 
+//===========constants =============//
+// decalrs the original of the admin key
+const STATE_ORIGINAL: u8 = 0;
+// duplicate of the admin_key
+const STATE_DUPLICATE: u8 = 1;
+
 
 
 
@@ -29,7 +37,7 @@ use warlot::{
 const EUserExist: vector<u8> = b"user already exists";
 
 
-//==========keys ================//
+//========== Dynamic field keys ================//
 const USERINDEX: vector<u8> = b"user indexer";
 
 
@@ -49,7 +57,7 @@ public struct SystemConfig has key, store {
 // this is a key to make sure that system are minted linearly 
 public struct SystemMintCap has store{
         previous_system: ID,
-        has_minted: bool
+        next_system: Option<ID>
 }
 
 /// Admin capability, carrying along a “state tag”
@@ -65,14 +73,14 @@ public struct ProcessSync has copy, drop{
     epoch_checkpoint: u32,
 }
 
+
 /*
  this struct holds bound for modifing your user registry
  todo
- to be use to show when you can leave the system
+ to be used to show when you can leave the system
  to show when you can migrate to another system storage 
  to modify the system state 
  to became a validator on the next system mint 
-
 */
 public struct UserMdCfg has store {
     cost_change_apikey_forms : u64,
@@ -81,8 +89,8 @@ public struct UserMdCfg has store {
     cost_to_delete: u64,
 }
 
-
-public(package) fun cost_change_apikey_forms(system_cfg: &SystemConfig): u64{
+///  ============ view functions ============= ///
+public fun cost_change_apikey_forms(system_cfg: &SystemConfig): u64{
      system_cfg
         .user_modification_cfg
         .cost_change_apikey_forms
@@ -96,7 +104,7 @@ public(package) fun get_mut_system_balance(system_cfg: &mut SystemConfig): &mut 
     &mut system_cfg.balance
 }
 
-public(package) fun cost_to_update_name(system_cfg: &SystemConfig): u64{
+public fun cost_to_update_name(system_cfg: &SystemConfig): u64{
     system_cfg
         .user_modification_cfg
         .cost_to_update_name
@@ -109,6 +117,9 @@ public(package) fun get_warlot_address(system_cfg: &SystemConfig): address{
 }
 
 
+
+
+
 /// Initialize the system and mint the first AdminCap in the ORIGINAL state
 fun init(ctx: &mut TxContext){
     let mut system_cfg = SystemConfig {
@@ -119,7 +130,7 @@ fun init(ctx: &mut TxContext){
         version: 1,
         mint_cap: SystemMintCap{
             previous_system: object::id_from_address(@0x0),
-            has_minted: false
+            next_system: option::none(),
         },
         user_modification_cfg: UserMdCfg{
             cost_change_apikey_forms : 100,
@@ -134,7 +145,7 @@ fun init(ctx: &mut TxContext){
     let admin_cap = AdminCap {
         id:        object::new(ctx),
         system_config_id: object::id(&system_cfg),
-        state:     constants::state_original(),
+        state:     STATE_ORIGINAL,
         total_system: 0,
     };
 
@@ -149,20 +160,24 @@ fun init(ctx: &mut TxContext){
 
 
 
+
+/// ===========    system management ============= ///
+
 /// Mint a new admin cap only if the caller holds an ORIGINAL one
 public fun mint_admin(
+    system_cfg: &SystemConfig,
     receiver: address,
     admin_cap: &AdminCap,
     ctx: &mut TxContext,
 ) {
-    // only allow once, from the “original” cap
-    assert!(admin_cap.state == constants::state_original(), 1);
+    // only allow one, from the “original” cap
+    assert!(admin_cap.state == STATE_ORIGINAL, 1);
 
     // create a duplicate cap and send it to the receiver
     let new_cap = AdminCap {
         id:        object::new(ctx),
-        system_config_id: admin_cap.system_config_id,
-        state:     constants::state_duplicate(),
+        system_config_id: object::id(system_cfg), //mint to a new system
+        state:     STATE_DUPLICATE,
         total_system: 0,
     };
 
@@ -187,6 +202,7 @@ public fun withdraw_system(system_cfg: &mut SystemConfig, admin_cap : &mut Admin
 
 }
 
+
 // create a new system
 public fun mint_system(
     admin_cap: &mut AdminCap,
@@ -198,10 +214,10 @@ public fun mint_system(
     ctx: &mut TxContext
 ){
     //makes sure the minting of system is linear 
-    assert!(!old_system.mint_cap.has_minted, 0);
+    assert!(option::is_none(old_system.mint_cap.next_system), 0);
 
     // makes sure that only the original admin can create a new system
-    assert!(admin_cap.state == constants::state_original(), 3);
+    assert!(admin_cap.state == STATE_ORIGINAL, 3);
 
     let new_system = SystemConfig {
         id: object::new(ctx),
@@ -211,7 +227,7 @@ public fun mint_system(
         version: 1 + old_system.version,
         mint_cap: SystemMintCap{
             previous_system: object::id(old_system),
-            has_minted: false
+            next_system: option::none(),
         },
         user_modification_cfg: UserMdCfg{
         cost_change_apikey_forms,
@@ -222,14 +238,19 @@ public fun mint_system(
         balance: balance::zero<WAL>()
     };
 
-    event::emit_system_mint(object::id(&new_system), object::id(old_system), ctx.sender());
+    let new_system_id = object::id(&new_system);
+
+    event::emit_system_mint(new_system_id, object::id(old_system), ctx.sender());
     
-    transfer::public_share_object(new_system);
+
 
     let old_count = admin_cap.total_system;
     admin_cap.total_system = old_count + 1;
-    old_system.mint_cap.has_minted = true;
+    option::fill(old_system.mint_cap.next_system, object::id(new_system_id));
+
+    transfer::public_share_object(new_system);
 }
+
 
 // update the cost of the system
 public fun update_cost(
@@ -238,7 +259,7 @@ public fun update_cost(
     cost_change_apikey_forms : u64,
     cost_to_migrate_system: u64,
     cost_to_update_name: u64,){
-    assert!(admin_cap.state == constants::state_original(), 3);
+    assert!(admin_cap.state == STATE_ORIGINAL, 3);
     system.user_modification_cfg.cost_change_apikey_forms = cost_change_apikey_forms;
     system.user_modification_cfg.cost_to_migrate_system = cost_to_migrate_system;
     system.user_modification_cfg.cost_to_update_name = cost_to_update_name;
@@ -302,6 +323,7 @@ public(package) fun raw_store_blob(
 //  confirm work list
 //  return unrenewd list
 
+
 // system renew list of blobs
 
 public fun renew(
@@ -345,6 +367,10 @@ public fun renew(
 }
 
 
+
+
+
+
 // system sync_blob
 public fun sync_blob( 
     _: &mut AdminCap,
@@ -384,6 +410,8 @@ public fun sync_blob(
     };
 
 }
+
+
 
 
 fun process_blob(

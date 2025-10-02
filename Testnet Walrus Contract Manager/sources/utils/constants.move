@@ -1,10 +1,6 @@
 module warlot::constants;
 use std::string::String;
-// ===== setandrenew.move
-// decalrs the original of the admin key
-const STATE_ORIGINAL: u8 = 0;
-// duplicate of the admin_key
-const STATE_DUPLICATE: u8 = 1;
+
 
 // lowest amount of epoch set the system currently account for
 const FIRST_SET: u32 = 13;
@@ -30,8 +26,6 @@ const AcceptanceKey: vector<u8> = b"acceptance key";
 
 
 // ==== exposed constants ======= //
-public(package) fun state_original(): u8{STATE_ORIGINAL}
-public(package) fun state_duplicate(): u8{STATE_DUPLICATE}
 
 
 public(package) fun first_set(): u32{FIRST_SET}

@@ -11,6 +11,19 @@ use warlot::{
 use sui::clock::Clock;
 
 
+fun get_set(epoch_set: u32): u32{
+     let set = if (epoch_set > constants::half_set()) {
+        constants::max()
+    } else if (epoch_set > constants::first_set()) {
+        constants::half_set()
+    } else {
+        constants::first_set()
+    };
+
+    set
+}
+
+
 
 // only an admin can use this funtion to store blobs
 public(package) fun store_blob_internal(
@@ -116,19 +129,6 @@ public fun foreign_blob_add(
     temp_list.destroy_empty()
 }
 
-
-
-fun get_set(epoch_set: u32): u32{
-     let set = if (epoch_set > constants::half_set()) {
-        constants::max()
-    } else if (epoch_set > constants::first_set()) {
-        constants::half_set()
-    } else {
-        constants::first_set()
-    };
-
-    set
-}
 
 
 public fun replace(
