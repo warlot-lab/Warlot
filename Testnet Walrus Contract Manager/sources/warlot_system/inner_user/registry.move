@@ -4,6 +4,7 @@ use sui::clock::Clock;
 use warlot::{
     constants::Self, 
     event::Self, 
+    drive_meta::Drive,
 };
 
 // this is the warlot user identifier
@@ -27,7 +28,8 @@ public struct Api has store{
 public struct SystemDetail has store{
     user_object_id: ID,
     system_id: ID,
-    project_holder: ID,
+    project_holder: Option<ID>,
+    drive_id: Option<ID>
 }
 
 
@@ -37,7 +39,7 @@ public(package) fun create_registry(
     public_username: String, 
     user_object_id: ID, 
     system_id: ID, 
-    user_project_holder : ID,
+    user_project_holder : Option<ID>,
     hashed_apikey: String, 
     hashed_encrypt_key: String, 
     warlot_sign_apikey: String,  
@@ -53,6 +55,7 @@ public(package) fun create_registry(
             user_object_id,
             system_id,
             project_holder: user_project_holder,
+            drive_id,
         },
         api_properties: Api{
             hashed_apikey,

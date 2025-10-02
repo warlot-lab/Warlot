@@ -174,7 +174,7 @@ public(package) fun get_renew_epoch_count(blob_cfg: &BlobSettings, system: &Syst
 
 
 // get the amount or relative amount the is reqired for the blob to be synced with a walrus ahead epoch
-public fun sync_epoch_count(blob_cfg: &BlobSettings, epoch_checkpoint: u32, system: &System): u32 {
+public fun sync_epoch_count(blob_cfg: &BlobSettings, system: &System, epoch_checkpoint: u32): u32 {
 
     let current_epoch = system.epoch();
 
