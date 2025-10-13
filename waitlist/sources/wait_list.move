@@ -3,7 +3,7 @@ module wait_list::wait;
 
 use std::string::String;
 use sui::{
-    display::Self,
+    display::{Self, Display},
     package::Self,
     url::{Self, Url},
     event,
@@ -24,7 +24,7 @@ public struct WaitCard has key, store{
     id: UID,
     name: String,
     description: String,
-    image_url: Url,
+    image_url: String,
     warlot: Url,
 }
 
@@ -70,11 +70,24 @@ const ECapLimit: vector<u8> = b"Admin cap exceeded";
 const EActiveClone: vector<u8> = b"Clone Not Yet Suspended";
 #[error]
 const EInvalidAccess: vector<u8> = b"Already Minted to self";
+#[error]
+const EInvalidUser: vector<u8> = b"Admin has minted for this user";
 
 // ==================== ENV constants ======================//
 const ADMINCAP_MAX: u8  = 4;
 
-//============  Public View Functions  ===========//
+
+
+// ===================== Nft meta ======================//
+const FULL_DESCRIPTION: vector<u8> = b"The genesis piece of the Warlot ecosystem. This NFT embodies the rallying cry that unites builders, creators, and visionaries to join the on-chain movement. The warthog, a symbol of resilience and grit, wears the call proudly across its shades: JOIN US. The patterned circles reflect fragments of on-chain storage coming together; a reminder of how Warlot unites diverse data and use cases into one ecosystem. Owning 'The Warlot Call' marks you as one of the first to answer; a pioneer in shaping the future of transparent, persistent, and community-driven storage."; 
+const OVERVIEW_DESCRIPTION: vector<u8> = b"With shades that speak louder than words, The Warlot Call welcomes you to Warlot ecosystem.";
+const NAME: vector<u8> = b"The Warlot Call";
+const IMAGE_URL: vector<u8> = b"https://waitlist.warlot.xyz/warlot,%20image.png";
+const THUMBNAIL_URL: vector<u8> = b"https://waitlist.warlot.xyz/warlot,%20image.png";
+const WARLOT_URL: vector<u8> = b"https://www.warlot.xyz";
+const CREATOR: vector<u8> = b"WARLOT TEAM";
+
+// ====================  Public Functions  ======================//
 // get user name
 public fun name(wait_card: &WaitCard): &String {
     &wait_card.name
@@ -86,7 +99,7 @@ public fun description(wait_card: &WaitCard): &String {
 }
 
 // get user url
-public fun image_url(wait_card: &WaitCard): &Url {
+public fun image_url(wait_card: &WaitCard): &String {
     &wait_card.image_url
 }
 
@@ -117,24 +130,42 @@ public fun borrow_contribution_mut(_: &mut AdminCap, wait: &mut WaitCard): &mut 
 //============  Internal Functions  ===========//
 fun init(otw: WAIT, ctx: &mut TxContext) {
     let pub = package::claim(otw, ctx);
-    let display = display::new_with_fields<WaitCard>(
+     let keys = vector[
+            b"name".to_string(), 
+            b"description".to_string(), 
+            b"media_url".to_string(), 
+            b"thumbnail_url".to_string(), 
+            b"image_url".to_string(),
+            b"project_url".to_string(),
+            b"creator".to_string(),
+            ];
+    let values = vector[
+            NAME.to_string(), 
+            FULL_DESCRIPTION.to_string(), 
+            IMAGE_URL.to_string(), 
+            THUMBNAIL_URL.to_string(), 
+            IMAGE_URL.to_string(),
+            WARLOT_URL.to_string(),
+            CREATOR.to_string(),
+            ];
+    let mut display = display::new_with_fields<WaitCard>(
         &pub,
-        vector[b"name".to_string(), b"description".to_string(), b"media_url".to_string()],
-        vector[b"{name}".to_string(), b"{description}".to_string(), b"https://cdn.galxe.com/galaxy/walrus/415ae051-b583-4654-872a-b676c51d94b7.jpeg".to_string()],
+        keys, 
+        values, 
         ctx
     );
 
 
     let mut admin_cap = AdminCap{id: object::new(ctx)};
     
-    let warlot = url::new_unsafe_from_bytes(b"");
+    let warlot = url::new_unsafe_from_bytes(WARLOT_URL);
 
 
     let clone: WaitCard = WaitCard{
         id: object::new(ctx),
-        name: b"Genesis NFT".to_string(),
-        description: b"url point".to_string(),
-        image_url: url::new_unsafe_from_bytes(b"https://cdn.galxe.com/galaxy/walrus/415ae051-b583-4654-872a-b676c51d94b7.jpeg"),
+        name: NAME.to_string(),
+        description: OVERVIEW_DESCRIPTION.to_string(),
+        image_url: IMAGE_URL.to_string(),
         warlot
     };
 
@@ -144,12 +175,15 @@ fun init(otw: WAIT, ctx: &mut TxContext) {
             entry: option::some(clone),
         };
 
-    mint_to_request(&mut admin_cap, &clone_card, @0xb694df4db79bca01d90e6d523d0efb3ff494a12dc5cf4396eeb553f7ed7a7f44, ctx);
+
+    display.update_version();
+
+    mint_to_request(&mut admin_cap, &clone_card, @0x043a388f2849fecfc38e57cc0928b71d90067dece08564c1215c12d712489d7a, ctx);
 
     transfer::public_share_object(clone_card);
 
     transfer::transfer(admin_cap, ctx.sender());
-    transfer::public_transfer(display, @0xb694df4db79bca01d90e6d523d0efb3ff494a12dc5cf4396eeb553f7ed7a7f44);
+    transfer::public_transfer(display, ctx.sender());
     transfer::public_transfer(pub, ctx.sender());
 
 }
@@ -195,6 +229,45 @@ public fun burn_admin(
 
 }
 
+
+// ===================== modify display ========================//
+public fun add_display(
+    _: &mut AdminCap,
+    display_ob: &mut Display<WaitCard>, 
+    name: String, 
+    value: String
+){
+    display::add(display_ob, name, value);
+}
+
+public  fun add_multiple_display(
+    _ : &mut AdminCap,
+    display_ob: &mut Display<WaitCard>,
+    names: vector<String>,
+    values: vector<String>,
+) {
+    display::add_multiple(display_ob, names, values);
+}
+
+public fun  edit_display(
+    _: &mut AdminCap,
+    display_ob:  &mut Display<WaitCard>, 
+    name: String, 
+    value: String
+) {
+    display::edit(display_ob, name, value);
+}
+
+public fun remove_display(
+    _: &mut AdminCap,
+    display_ob: &mut Display<WaitCard>, 
+    name: String
+) {
+    display::remove(display_ob, name);
+}
+
+
+
 // ===================== admin functions ====================== //
 public fun modify_clone(
     _: &mut AdminCap, 
@@ -228,7 +301,7 @@ public fun create_mod(
         id: object::new(ctx),
         name,
         description,
-        image_url: url::new_unsafe_from_bytes(image_url),
+        image_url: image_url.to_string(),
         warlot: url::new_unsafe_from_bytes(warlot),
     }
 
@@ -245,7 +318,7 @@ public fun suspend_clone(
 
 
 // =========== mint  =================  // 
-public fun mint(clone_card: &CloneWaitCard<WAIT>, ctx: &mut TxContext): WaitCard{
+fun mint(clone_card: &CloneWaitCard<WAIT>, ctx: &mut TxContext): WaitCard{
     assert!(clone_card.entry.is_some(),  ESuspendedClone);
     let state_card = clone_card.entry.borrow();
     let mut wait_card = WaitCard{
@@ -262,7 +335,9 @@ public fun mint(clone_card: &CloneWaitCard<WAIT>, ctx: &mut TxContext): WaitCard
 
 }
 
-public fun mint_to_request(_: &mut AdminCap, clone_card: &CloneWaitCard<WAIT>, user: address, ctx: &mut TxContext){
+public fun mint_to_request(admin_cap: &mut AdminCap, clone_card: &CloneWaitCard<WAIT>, user: address, ctx: &mut TxContext){
+    let seen = dfield::exists_<address>(&admin_cap.id, user);
+    assert!(!seen, EInvalidUser);
     
     let wait_card = mint(clone_card, ctx);
 
@@ -277,6 +352,8 @@ public fun mint_to_request(_: &mut AdminCap, clone_card: &CloneWaitCard<WAIT>, u
     transfer::transfer(
         wait_card,
         user);
+    
+    dfield::add<address, bool>(&mut admin_cap.id, user, true); //limit SelfMint to 1 per person 
 }
 
 #[allow(lint(self_transfer))]
@@ -323,3 +400,45 @@ fun destroy_dfield(wait_card: &mut UID){
             };
 }
 
+
+
+#[test]
+fun test_wait() {
+    let mut ctx = tx_context::dummy();
+    let otw = WAIT{};
+    mock_init(otw, &mut ctx);
+
+
+}
+
+#[test_only]
+fun mock_init(){
+
+}
+
+#[test]
+fun create_clone(){
+    let mut ctx = tx_context::dummy();
+    let otw = WAIT{};
+    let pub = package::mock_claim(otw, &mut ctx);
+    let mut admin_cap = AdminCap{id: object::mock_new(&mut ctx)};
+    let warlot = url::new_unsafe_from_bytes(b"");  
+}
+
+#[test]
+fun create_admin(){
+    let mut ctx = tx_context::dummy();
+    let otw = WAIT{};
+    let pub = package::mock_claim(otw, &mut ctx);
+    let mut admin_cap = AdminCap{id: object::mock_new(&mut ctx)};
+    let warlot = url::new_unsafe_from_bytes(b"");
+}
+
+#[test]
+fun create_card(){
+    let mut ctx = tx_context::dummy();
+    let otw = WAIT{};
+    let pub = package::mock_claim(otw, &mut ctx);
+    let mut admin_cap = AdminCap{id: object::mock_new(&mut ctx)};
+    let warlot = url::new_unsafe_from_bytes(b"");
+}
