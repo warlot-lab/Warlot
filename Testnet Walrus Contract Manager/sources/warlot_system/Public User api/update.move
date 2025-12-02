@@ -2,9 +2,8 @@ module warlot::warlot_user;
 
 use std::string::String;
 use wal::wal::WAL;
-use sui::{coin::{Self, Coin}, clock::Clock};
+use sui::{coin::{Self, Coin}};
 use warlot::{
-    user_state::Self,
     warlot_system::SystemConfig,
     registry::Registry,
 };
@@ -26,28 +25,6 @@ public fun deposit_coin(
 
 
 
-// update your api keys with cost
-public fun update_api_key(
-    system_cfg: &mut SystemConfig,
-    registry: &mut Registry, 
-    new_hashed_apikey: String, 
-    new_warlot_sign_apikey: String,
-    clock: &Clock,
-    payment: &mut Coin<WAL>,
-    ctx: &mut TxContext
-){
-    assert!(object::id(system_cfg) == registry.get_system(), 9);
-    let funds = payment.split(
-                    system_cfg.cost_change_apikey_forms(), 
-                    ctx);
-
-    coin::put<WAL>(system_cfg.get_mut_system_balance(), funds);
-    registry.update_api_key(
-    new_hashed_apikey, 
-    new_warlot_sign_apikey,
-    clock
-    )
-}
 
 
 // update name with cost

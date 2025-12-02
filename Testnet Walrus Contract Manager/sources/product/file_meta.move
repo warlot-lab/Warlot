@@ -16,6 +16,7 @@ public struct FileMeta<T:  store>  has key, store {
     name: String,
     description: String,
     file_type: String, // e.g .txt, .pdf, .mp4 e.t.c
+    size: u64,
     uploader: address,
     config_obj_id: ID,
     type_meta: Option<T>, // this is a generic type that can be used to store additional information about the file
@@ -23,6 +24,13 @@ public struct FileMeta<T:  store>  has key, store {
 }
 
 
+public(package) fun id<T: store>(file_meta: &FileMeta<T>): ID{
+    object::id(file_meta)
+}
+
+public(package) fun size<T: store>(file_meta: &FileMeta<T>): u64{
+    file_meta.size
+}
 
 
 
@@ -32,19 +40,19 @@ public fun create<T: store>(
     file_name: String,
     description: String,
     file_type: String,
-    raw_blob: Blob,
+    raw_blobs: vector<Blob>,
     clock: &Clock,
     type_meta: Option<T>,
     epoch_set: u32,
     cycle_end: u64,
     user: address,
     ctx: &mut TxContext
-): FileMeta<T>{
+): (FileMeta<T>, u64){
 
     let file_meta_UID = object::new(ctx);
-    let config_obj_id =   store::store_blob_internal(
+    let (config_obj_id, file_size) =   store::store_blob_internal(
         system_cfg, 
-        raw_blob, 
+        raw_blobs, 
         epoch_set, 
         cycle_end, 
         option::some(
@@ -56,22 +64,29 @@ public fun create<T: store>(
         );
 
 
-    FileMeta<T>{
+    (FileMeta<T>{
         id : file_meta_UID,
         name: file_name,
         description,
         file_type,
+        size: file_size,
         uploader: ctx.sender(),
         config_obj_id,
         type_meta,
         time_created: clock.timestamp_ms(),
-    }
+    }, file_size)
 
 
-    // let bucket_object_x = project.get_bucket(bucket);
+}
 
-    // bucket_object_x.add_file(file)
 
+
+public fun destroy<T: store>(
+    file_meta: FileMeta<T>
+    ): Option<T>{
+        let FileMeta<T>{id, name: _, description: _, file_type: _, size: _, uploader: _, config_obj_id: _, type_meta, time_created: _}= file_meta;
+        id.delete();
+       type_meta
 }
 
 
@@ -79,14 +94,3 @@ public fun create<T: store>(
 public fun get_name<T: store>(file: &FileMeta<T>): String{
     file.name
 }
-
-
-
-
-
-
-
-
-
-
-
