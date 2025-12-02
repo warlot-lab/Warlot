@@ -126,9 +126,6 @@ const ACCESSDENIED: vector<u8> =  b"invalid writer pass";
 const INVALIDTRACKBACKLENGTH: vector<u8> = b"provide a valid track back len data";
 #[error]
 const INVALIDACCESS: vector<u8> = b"Invalid access";
-#[error]
-const INVALIDBLOBTYPE : vector<u8> = b"enter a deletable blob, only deletable blobs are allowed";
-
 
 
 
@@ -176,7 +173,7 @@ public fun create_file(
     owner: address, 
     writers_length: u8,
     track_back_length: u8,
-    blob: Blob,
+    blobs: vector<Blob>,
 
     epoch_set: u32,
     cycle_end: u64,
@@ -200,7 +197,7 @@ public fun create_file(
     let track_back: vector<FileData> = vector::singleton(
                 process_blob(
                     system_cfg,
-                    blob,
+                    blobs,
                     &warlot_state,
                     owner,
                     commit,
@@ -316,7 +313,7 @@ public fun initialize_project_file(
     owner: address, 
     writers_length: u8,
     track_back_length: u8,
-    blob: Blob,
+    blobs: vector<Blob>,
 
     epoch_set: u32,
     cycle_end: u64,
@@ -333,7 +330,7 @@ public fun initialize_project_file(
         owner, 
         writers_length,
         track_back_length,
-        blob,
+        blobs,
         epoch_set,
         cycle_end,
         clock,
@@ -395,7 +392,7 @@ public fun force_write_innerfile(
     writer_pass: &mut WriterPass,
     clock: &Clock,
     system_cfg: &mut SystemConfig,
-    blob: Blob,
+    blobs: vector<Blob>,
     commit: vector<u8>,
     ctx: &mut TxContext,
 ){
@@ -405,7 +402,7 @@ public fun force_write_innerfile(
 
      let file_data: FileData = process_blob(
             system_cfg,
-            blob,
+            blobs,
             warlot_state(inner_file),
             inner_file.owner,
             commit,
@@ -430,7 +427,7 @@ public fun write_(
     clock: &Clock,
 
     system_cfg: &mut SystemConfig,
-    blob: Blob,
+    blobs: vector<Blob>,
     commit: vector<u8>,
     
     ctx: &mut TxContext,
@@ -448,7 +445,7 @@ public fun write_(
     //  build the fileData object
     let file_data: FileData = process_blob(
             system_cfg,
-            blob,
+            blobs,
             warlot_state(inner_file),
             store_to,
             commit,
@@ -770,7 +767,7 @@ fun get_issue_meta(inner_file: &InnerFile): &FileIssueMeta{
 //===== helper function ========//
 fun process_blob(
     system_cfg: &mut SystemConfig,
-    blob: Blob,
+    blobs: vector<Blob>,
     warlot_state: &WarlotState, 
     store_to: address,
     commit: vector<u8>,
@@ -778,8 +775,8 @@ fun process_blob(
     clock: &Clock,
     ctx: &mut TxContext, 
 ): FileData{
-    assert!(blob.is_deletable(), INVALIDBLOBTYPE);
-    let blob_config_id =  store::store_blob_internal(system_cfg, blob, warlot_state.epoch_set, warlot_state.cycle_end, option::none(), store_to, clock, ctx);
+   
+    let (blob_config_id, _) =  store::store_blob_internal(system_cfg, blobs, warlot_state.epoch_set, warlot_state.cycle_end, option::none(), store_to, clock, ctx);
     let file_data = inner_file_data::create_file_data(
         commit,
         commit_by,

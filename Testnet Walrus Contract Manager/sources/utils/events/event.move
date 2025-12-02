@@ -39,7 +39,7 @@ public struct AdminMint has copy, drop, store {
 // Emitted when a blob is stored in the Warlot file system
 public struct WarlotFileStore has copy, drop, store {
     owner: address,
-    blob_obj_id: ID,
+    blobs_obj_id: vector<ID>,
     size: u64,
     encoded_size: u64,
     current_epoch: u32,
@@ -121,14 +121,14 @@ public(package) fun emit_admin_mint(new_admin: ID, minter: address) {
 
 public(package) fun emit_warlot_file_store(
     owner: address,
-    blob_obj_id: ID,
+    blobs_obj_id: vector<ID>,
     size: u64,
     encoded_size: u64,
     current_epoch: u32,
     epoch_set: u32,
     cycle_end: u64,
 ) {
-    event::emit(WarlotFileStore { owner, blob_obj_id,  size,  encoded_size, current_epoch, epoch_set, cycle_end });
+    event::emit(WarlotFileStore { owner, blobs_obj_id,  size,  encoded_size, current_epoch, epoch_set, cycle_end });
 }
 
 public(package) fun emit_renew_digest(
