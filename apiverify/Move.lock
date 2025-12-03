@@ -2,15 +2,13 @@
 
 [move]
 version = 3
-manifest_digest = "40257EB1013720D8BAB031C05351226323E387C095BA01B9469AFDCF95B4CF5B"
-deps_digest = "52B406A7A21811BEF51751CF88DA0E76DAEFFEAC888D4F4060B1A72BBE7D8D35"
+manifest_digest = "8F876E9EC95D84A7487EC6BEFF4CACC09254847D7E80A7D5AD87B3F709E3FF90"
+deps_digest = "F9B494B64F0615AED0E98FC12A85B85ECD2BC5185C22D30E7F67786BB52E507C"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },
-  { id = "WAL", name = "WAL" },
-  { id = "Walrus", name = "Walrus" },
 ]
 
 [[move.package]]
@@ -44,32 +42,15 @@ dependencies = [
   { id = "Sui", name = "Sui" },
 ]
 
-[[move.package]]
-id = "WAL"
-source = { git = "https://github.com/MystenLabs/walrus.git", rev = "main", subdir = "testnet-contracts/wal" }
-
-dependencies = [
-  { id = "Sui", name = "Sui" },
-]
-
-[[move.package]]
-id = "Walrus"
-source = { git = "https://github.com/MystenLabs/walrus.git", rev = "main", subdir = "testnet-contracts/walrus" }
-
-dependencies = [
-  { id = "Sui", name = "Sui" },
-  { id = "WAL", name = "WAL" },
-]
-
 [move.toolchain-version]
-compiler-version = "1.59.1"
+compiler-version = "1.57.0"
 edition = "2024.beta"
 flavor = "sui"
 
 [env]
 
-[env.testnet]
+[env.Testnet]
 chain-id = "4c78adac"
-original-published-id = "0x2038eeb0bfc11b06c34e8c4d088190776b04eb2cb7ee8e72d31bc3c85fc184f3"
-latest-published-id = "0x2038eeb0bfc11b06c34e8c4d088190776b04eb2cb7ee8e72d31bc3c85fc184f3"
+original-published-id = "0xa05a6f09e6f7a0fd6bb1abeefa0738347b535cee181de00f3caf65f1a9d3d5eb"
+latest-published-id = "0xa05a6f09e6f7a0fd6bb1abeefa0738347b535cee181de00f3caf65f1a9d3d5eb"
 published-version = "1"

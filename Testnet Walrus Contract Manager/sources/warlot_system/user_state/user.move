@@ -1,23 +1,26 @@
 module warlot::user_state;
 use std::string::String;
 
-
-use warlot::{
-    wallet::{Self, Wallet}, 
-    config::{Self, BlobSettings}, 
-    registry::{Self}, 
-    constants::{Self},
-    project_main::{Self, ProjectHolder},
-    blob_config_vec::{Self, BlobConfigVec},
-    foreign_meta::{Self},
-    };
-
-
 use sui::{
     clock::Clock, 
     dynamic_object_field as ofields, 
     table::{Self, Table},
+    bag::{Self, Bag},
     };
+
+
+use warlot::{
+    wallet::{Self, Wallet}, 
+    config::{Self, BlobConfig}, 
+    registry::{Self}, 
+    constants::{Self},
+    project_main::{Self, ProjectHolder},
+    foreign_meta::{Self},
+    };
+
+
+
+
 
 
 
@@ -28,14 +31,13 @@ public struct User has key, store{
     owner: address,
     wallet: Wallet,
     meta_data: DashData,
-}
+
+    /*
+    holds the  tail of the blob_congig that are associated to this epoch set
+    */
+    index: Bag,
 
 
-
-
-public struct EpochState has store, drop{
-    epoch: u32,
-    vector_index: u64,
 }
 
 
@@ -57,14 +59,20 @@ public struct SubPermission has store{
 //  =============== errors ====================//
 #[error]
 const INVALIDACCESS: vector<u8> = b"permission denied";
+#[error]
+const EInvalidConfigId: vector<u8> = b"INVALID CONFIG ID";
+
+
+
+public(package) fun get_wallet(user: &mut User): &mut Wallet{
+    &mut user.wallet
+}
+
 
 
 public(package) fun create_user( 
     public_username: String, 
     system_id: ID, 
-    apikey: String, 
-    encrypt_key: String, 
-    warlot_sign_apikey: String, 
     clock: &Clock, 
     add_walot_permission: Option<address>,   
     ctx: &mut TxContext
@@ -80,10 +88,11 @@ public(package) fun create_user(
          meta_data : DashData{
             files: 0,
             storage_size: 0,
-         }
+         },
+         index: bag::new(ctx)
          };
 
-    ofields::add<String, Table<ID, EpochState>>(&mut new_user.id, constants::indexer_key(), table::new(ctx));
+
     // create project holder
     let project_holder: ProjectHolder = project_main::create_project_holder(ctx);
     
@@ -122,7 +131,7 @@ public(package) fun create_user(
 
     ofields::add<vector<u8>, Table<address, SubPermission>>(&mut new_user.id, constants::Acceptance_Key(), sub_permission);
 
-    registry::create_registry( public_username, object::id(&new_user), system_id, object::id(&project_holder), apikey, encrypt_key, warlot_sign_apikey, clock, ctx);
+    registry::create_registry( public_username, object::id(&new_user), system_id, option::some(object::id(&project_holder)),  clock, ctx);
     
     // create foreign_meta
     /*
@@ -162,8 +171,6 @@ public fun check_permission_add_blob(
 
     assert!(get_permission_obj(user_obj, ctx).add_blob_to_address, INVALIDACCESS);
 }
-
-
 
 
 public fun check_permission_inner_file(
@@ -229,56 +236,61 @@ public(package) fun create_permission_state(
 
 
 //   ====================================== blob ========================================//
-public(package) fun add_blob(user: &mut User, blob_cfg: BlobSettings, epoch: u32, ctx: &mut TxContext): ID{
+public(package) fun add_blob(user: &mut User, mut blob_cfg: BlobConfig, epoch: u32, ctx: &TxContext): ID{
+
     //this confirms that the person making this request has permission to make this request
     if (ctx.sender() != user.owner){
         check_permission_add_blob(user, ctx);
     };
-
-
-    /* 
-    todo change this so that the system will only get the blob by the blob setting config and not the blob id,
-    making sure that we can account for files larger than 13gb and light files that are predded into a single blob
     
+    /* 
+    done ✅ todo change this so that the system will only get the blob by the blob setting config and not the blob id,
+    making sure that we can account for files larger than 13gb and light files that are predded into a single blob 
     */ 
-    let config_obj_id = config::config_id(&blob_cfg);
+    let blob_cfg_id = config::config_id(&blob_cfg);
 
-    let blob_index: u64 =  {
-        if (ofields::exists_(&user.id, epoch)){
-            let blob_cfg_set: &mut BlobConfigVec = get_mut_obj_list_blob_cfg(user, epoch);
-            // add the data to the indexer
-            // since the lenght of the vector is equal to the index of the new data 
-            blob_cfg_set.push_back(blob_cfg);
-            blob_cfg_set.length() - 1
-                    
 
-        } else{
-            let new_blob_cfg_list : BlobConfigVec  = blob_config_vec::singleton(blob_cfg, ctx);
-            ofields::add<u32, BlobConfigVec>(&mut user.id, epoch, new_blob_cfg_list);
-            0
-        }
+    /*
+    check if the blob_config have been indexed, or modify existing one
+    */
+
+
+    if (user.index.contains<u32>(epoch)){
+      
+        let pre_id = *user.index.borrow<u32, ID>(epoch);
+        // set the pre in the current config
+        config::set_pre(&mut blob_cfg, pre_id);
+
+
+        // get and set the last head of the blob_cfg to pre the current config
+        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, pre_id)
+            .set_next(blob_cfg_id);
+        
+
+        // modify indexer
+        let indexer = user.index.borrow_mut<u32, ID>(epoch);
+        *indexer =  blob_cfg_id;
+
+    } else{
+        user.index.add<u32, ID>(epoch, blob_cfg_id)
+
     };
+    
 
-     user.add_to_indexer(
-                config_obj_id,
-                epoch,
-                blob_index,
-                );
 
-    config_obj_id
+    /*
+     all blob configs are now existing in the dynamic fields of the user object regardless of the epoch meta
+     but when renewal occurs or sync operation occurs; the loop occurs through the linked property of the set 
+    */
+
+    ofields::add<ID, BlobConfig>(&mut user.id, blob_cfg_id, blob_cfg);
+
+
+    blob_cfg_id
 }
 
 
 
-public(package) fun get_mut_obj_list_blob_cfg(user: &mut User, epoch: u32): &mut BlobConfigVec{
-    assert!(ofields::exists_(&user.id, epoch), 1);
-    ofields::borrow_mut<u32, BlobConfigVec>(&mut user.id, epoch)
-}
-
-
-public(package) fun get_wallet(user: &mut User): &mut Wallet{
-    &mut user.wallet
-}
 
 
 public(package) fun update_dash_data(user: &mut User, files: u128, storage_size: u128): bool{
@@ -292,7 +304,66 @@ public(package) fun update_dash_data(user: &mut User, files: u128, storage_size:
 
 
 
-public(package) fun reduce_dash_data(user: &mut User, storage_size: u128): bool{
+
+
+
+
+
+
+
+
+
+// remove blob_cfg from user ofields
+public(package) fun remove_blob_cfg_from_user(user: &mut User, blob_cfg_id: ID): BlobConfig{
+    assert!(ofields::exists_<ID>(&user.id, blob_cfg_id), EInvalidConfigId);
+    let blob_cfg =  ofields::remove<ID, BlobConfig>(&mut user.id, blob_cfg_id);
+
+   // Cache neighbors and context
+   let pre = blob_cfg.pre();
+   let next = blob_cfg.next();
+   let epoch_set : u32 = blob_cfg.epoch_set();
+
+   //  Re-link the list
+    if (option::is_some(pre) && option::is_some(next)){
+        let pre_id = *option::borrow(pre);
+        let next_id = *option::borrow(next);
+        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, pre_id)
+            .set_next(next_id);
+        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, next_id)
+            .set_pre(pre_id);
+    }else if (option::is_some(pre)){
+        let pre_id = *option::borrow(pre);
+        // this means what is being removed is the head of the list 
+        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, pre_id)
+            .set_next_none();
+        // set as new head 
+        let indexer = user.index.borrow_mut<u32, ID>(epoch_set);
+        *indexer =  pre_id;
+      
+    }else if (option::is_some(next)){
+        let next_id = *option::borrow(next);
+        // since we are only keeping track of the head
+        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, next_id)
+            .set_pre_none();
+    }else{
+        // Case D: Single Node (No Previous, No Next)
+        // The list is now empty. Remove the index entry entirely.
+        user.index.remove<u32, ID>(epoch_set);
+    };
+
+    // reduce the user dash size
+    reduce_dash_data(user, config::blob_cfg_size(&blob_cfg) as u128);
+   
+
+
+    // returns the blob_config
+    blob_cfg
+   
+}
+
+
+
+fun reduce_dash_data(user: &mut User, storage_size: u128): bool{
     let old_files =  user.meta_data.files;
     let old_storage_size = user.meta_data.storage_size;
 
@@ -302,80 +373,6 @@ public(package) fun reduce_dash_data(user: &mut User, storage_size: u128): bool{
 }
 
 
-
-public(package) fun add_to_indexer(user: &mut User, blob_obj_id: ID, epoch: u32, vector_index: u64){
-    let indexed_table = ofields::borrow_mut<String, Table<ID, EpochState>>(&mut user.id, constants::indexer_key());
-    indexed_table.add(blob_obj_id, EpochState{
-        epoch,
-        vector_index,
-    })
-}
-
-
-
-public(package) fun remove_from_indexer(user: &mut User, blob_obj_id: ID, replace: Option<ID>){
-    let indexed_table = ofields::borrow_mut<String, Table<ID, EpochState>>(&mut user.id, constants::indexer_key());
-    let deleted_data = indexed_table.remove(blob_obj_id);
-    if (option::is_some(&replace)){
-        indexed_table.borrow_mut(option::destroy_some(replace)).vector_index = deleted_data.vector_index;
-    }else{
-        option::destroy_none(replace)
-    };
-
-    let _ = deleted_data;
-}
-
-
-
-// this function is used to delete a blob from the system
-public(package) fun remove_blob_from_user(user: &mut User, blob_obj_id: ID): BlobSettings{
-    // get ref to the user indexer
-    let indexed_table = ofields::borrow<String, Table<ID, EpochState>>(&user.id, constants::indexer_key());
-    // get ref to the data tied to the blob_obj_id of that particular blob
-    let blob_index_data = indexed_table.borrow(blob_obj_id);
-    //get the vector set that the blob exist in 
-    let blob_cfg_set: &BlobConfigVec = ofields::borrow<u32, BlobConfigVec>(&user.id, blob_index_data.epoch);
-    
-    //// we confirm if the blob is deletable or not
-    
-    // assert!(blob_cfg_set.borrow(blob_index_data.vector_index).is_deletable(), 2);
-
-
-    // get the deletable blob_obj_id 
-    let deletable_blob_obj_id = blob_cfg_set.borrow(blob_index_data.vector_index).get_blob_obj_id();
-
-    // we get the replace blob_obj_id; which is the last item in the vector list
-    let replace_id: Option<ID> = {
-        if (blob_cfg_set.length() < 1) {
-            option::none()
-        } else {
-            let possible_replacement = blob_cfg_set.borrow(blob_cfg_set.length() - 1).get_blob_obj_id();
-            if (possible_replacement != deletable_blob_obj_id) {
-                option::some(possible_replacement)
-            } else {
-                option::none()
-            }
-        }
-    };
-
-    // store the epoch
-    let d_epoch = blob_index_data.epoch;
-
-    // store the index
-    let d_vector_index = blob_index_data.vector_index;
-
-    // get the mut ref to the vector that holds the blobs for that epoch
-    let blob_cfg_set_mut: &mut BlobConfigVec = get_mut_obj_list_blob_cfg(user, d_epoch);
-
-    // remove the blob_config from the system
-    let deletable_blob_cfg = blob_cfg_set_mut.swap_remove(d_vector_index);
-
-    // update the user indexer 
-    remove_from_indexer(user, deletable_blob_obj_id, replace_id);
-
-    // returns the blob_config
-    deletable_blob_cfg
-}
 
 
 

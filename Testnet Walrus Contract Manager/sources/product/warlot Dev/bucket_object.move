@@ -77,7 +77,7 @@ public fun upload_file(
     file_name: String,
     description: String,
     file_type: String,
-    blob: Blob,
+    blobs: vector<Blob>,
     clock: &Clock,
     epoch_set: u32,
     cycle_end: u64,
@@ -85,22 +85,20 @@ public fun upload_file(
     ctx: &mut TxContext
 ){
 
-    let file_size = blob.size();
-
-
-    
-    let file: FileMeta<Dev> = file_main::create<Dev>(
-    system_cfg,
-    file_name,
-    description,
-    file_type,
-    blob,
-    clock,
-    option::some(Dev{project_name, bucket_name}),
-    epoch_set,
-    cycle_end,
-    user,
-    ctx,);
+   
+    let (file_meta, file_size) = file_main::create<Dev>(
+        system_cfg,
+        file_name,
+        description,
+        file_type,
+        blobs,
+        clock,
+        option::some(Dev{project_name, bucket_name}),
+        epoch_set,
+        cycle_end,
+        user,
+        ctx,
+    );
 
     let ref_bucket: &mut Bucket = ofields::borrow_mut<String, Bucket>(
         project_main::bucket_holder(
@@ -108,36 +106,13 @@ public fun upload_file(
             bucket_name);  
 
  
-    ref_bucket.add_file(file);
+    ref_bucket.add_file(file_meta);
     ref_bucket.storage_size = ref_bucket.storage_size + file_size;
     project_holder.update_storage_count(project_name, file_size);
     // file name + file type
     // event::emit_warlot_attribute(ctx.sender(), object::id_from_address(blob_object_id), project.name, bucket_name, file_name, file_type)
 }
 
-
-
-
-// public fun add_file(
-//     project_holder: &mut ProjectHolder,
-//     project_name: String,
-//     bucket_name: String, 
-//     blob: Blob,
-//     user: address,
-//     ctx: &mut TxContext,
-// ){
-//     //3t6
-    
-// }
-
-// public fun modify_name(
-//     project_holder: &mut ProjectHolder,
-//     project_name: String,
-//     bucket_old_name: String, 
-//     bucket_new_name: String,
-// ){
-
-// }
 
 
 
@@ -149,15 +124,15 @@ public fun get_name(bucket: &Bucket): String{
 
 // add file type to your bucket collection
 fun add_file(bucket: &mut Bucket, file: FileMeta<Dev>){
-    let name = file.get_name();
-    assert!(!check_file_name_created(bucket, name), InvalidName);
-    ofields::add<String, FileMeta<Dev>>(&mut bucket.id, name, file)
+    let file_id = file.id();
+    assert!(!check_file_name_created(bucket, file_id), InvalidName);
+    ofields::add<ID, FileMeta<Dev>>(&mut bucket.id, file_id, file)
 
 }
 
 // chek if the bucket with the name has been created 
-public fun check_file_name_created(bucket: &Bucket, file_name: String): bool{
-    ofields::exists_(&bucket.id, file_name)
+public fun check_file_name_created(bucket: &Bucket, file_id: ID): bool{
+    ofields::exists_(&bucket.id, file_id)
 }
 
 

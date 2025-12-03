@@ -6,7 +6,7 @@ use sui::{
 };
 
 use warlot::{
-    config::{BlobSettings},
+    config::{BlobConfig},
 };
 
 
@@ -33,7 +33,7 @@ public(package) fun empty(ctx: &mut TxContext): BlobConfigVec {
     }
 } 
 
-public(package) fun singleton(item: BlobSettings, ctx: &mut TxContext): BlobConfigVec {
+public(package) fun singleton(item: BlobConfig, ctx: &mut TxContext): BlobConfigVec {
     let mut new = empty(ctx);
     new.push_back(item);
 
@@ -42,9 +42,9 @@ public(package) fun singleton(item: BlobSettings, ctx: &mut TxContext): BlobConf
 
 
 
-public(package) fun push_back(b_cfg_vec: &mut BlobConfigVec, config: BlobSettings){
+public(package) fun push_back(b_cfg_vec: &mut BlobConfigVec, config: BlobConfig){
     let length = b_cfg_vec.length();
-    ofields::add<u64, BlobSettings>(
+    ofields::add<u64, BlobConfig>(
         &mut b_cfg_vec.id,
         length,
         config
@@ -56,25 +56,25 @@ public(package) fun push_back(b_cfg_vec: &mut BlobConfigVec, config: BlobSetting
 
 
 
-public(package) fun borrow(b_cfg_vec: &BlobConfigVec, i : u64): &BlobSettings{
-    ofields::borrow<u64, BlobSettings>(
+public(package) fun borrow(b_cfg_vec: &BlobConfigVec, i : u64): &BlobConfig{
+    ofields::borrow<u64, BlobConfig>(
         &b_cfg_vec.id,
         i
     )
 }
 
 
-public(package) fun  borrow_mut(b_cfg_vec: &mut BlobConfigVec, i: u64): &mut BlobSettings{
-     ofields::borrow_mut<u64, BlobSettings>(
+public(package) fun  borrow_mut(b_cfg_vec: &mut BlobConfigVec, i: u64): &mut BlobConfig{
+     ofields::borrow_mut<u64, BlobConfig>(
         &mut b_cfg_vec.id,
         i
     )
 }
 
-fun add(b_cfg_vec: &mut BlobConfigVec, config: BlobSettings, i: u64){
+fun add(b_cfg_vec: &mut BlobConfigVec, config: BlobConfig, i: u64){
 
     assert!(!ofields::exists_(&b_cfg_vec.id, i), 0);
-    ofields::add<u64, BlobSettings>(
+    ofields::add<u64, BlobConfig>(
         &mut b_cfg_vec.id,
         i,
         config
@@ -83,8 +83,8 @@ fun add(b_cfg_vec: &mut BlobConfigVec, config: BlobSettings, i: u64){
 }
 
 
-public(package) fun remove(b_cfg_vec: &mut BlobConfigVec, i: u64): BlobSettings{
-    ofields::remove<u64, BlobSettings>(
+public(package) fun remove(b_cfg_vec: &mut BlobConfigVec, i: u64): BlobConfig{
+    ofields::remove<u64, BlobConfig>(
         &mut b_cfg_vec.id,
         i
     )
@@ -104,14 +104,14 @@ public(package) fun swap(b_cfg_vec: &mut BlobConfigVec, i : u64, j: u64) {
 }
 
 
-public fun pop_back(b_cfg_vec: &mut BlobConfigVec): BlobSettings {
+public fun pop_back(b_cfg_vec: &mut BlobConfigVec): BlobConfig {
     let length = b_cfg_vec.length();
     b_cfg_vec.remove(length - 1)
 }
 
 
 
-public fun swap_remove(b_cfg_vec: &mut BlobConfigVec, i: u64): BlobSettings {
+public fun swap_remove(b_cfg_vec: &mut BlobConfigVec, i: u64): BlobConfig {
     let tail = b_cfg_vec.length() - 1;
     b_cfg_vec.swap(i, tail);
     b_cfg_vec.pop_back()

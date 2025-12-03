@@ -35,19 +35,21 @@ const CAT_OTHER: u8 = 5;
 public(package) fun create(
     clock: &Clock,
     ctx: &mut TxContext
-): Drive {
+) {
     let drive_meta_UID = object::new(ctx);
-    Drive {
-        id: drive_meta_UID,
-        owner: ctx.sender(),
-        docs: 0,
-        images: 0,
-        videos: 0,
-        audios: 0,
-        others: 0,
-        storage_size: 0,
-        last_modified: clock.timestamp_ms(),
+    transfer::public_share_object(
+        Drive {
+            id: drive_meta_UID,
+            owner: ctx.sender(),
+            docs: 0,
+            images: 0,
+            videos: 0,
+            audios: 0,
+            others: 0,
+            storage_size: 0,
+            last_modified: clock.timestamp_ms(),
     }
+    )
 }
 
 
@@ -57,7 +59,7 @@ public fun upload_file(
     file_name: String,
     description: String,
     file_type: vector<u8>,
-    blob: Blob,
+    blobs: vector<Blob>,
     clock: &Clock,
     root: String,
     category: u8,          // CAT_DOC | CAT_IMAGE | CAT_VIDEO | CAT_AUDIO | CAT_OTHER
@@ -66,11 +68,7 @@ public fun upload_file(
     user: address,
     ctx: &mut TxContext
 ){
-    let file_size = blob.size();
-
-     
     
-
     match(category) {
         CAT_DOC => drive.docs = drive.docs + 1,
         CAT_IMAGE => drive.images = drive.images + 1,
@@ -82,12 +80,12 @@ public fun upload_file(
 
 
 
-    let file: FileMeta<DriveMeta> = file_main::create<DriveMeta>(
+    let (file_meta, file_size) = file_main::create<DriveMeta>(
         system_cfg,
         file_name,
         description,
         file_type.to_string(),
-        blob,
+        blobs,
         clock,
         option::some(DriveMeta{root}),
         epoch_set,
@@ -100,7 +98,7 @@ public fun upload_file(
     drive.last_modified = clock.timestamp_ms();
 
 
-    add_file(drive, file);
+    add_file(drive, file_meta);
    
 }
 
