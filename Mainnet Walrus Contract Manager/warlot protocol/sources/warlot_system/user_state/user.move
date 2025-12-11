@@ -5,7 +5,6 @@ use sui::{
     clock::Clock, 
     dynamic_object_field as ofields, 
     table::{Self, Table},
-    bag::{Self, Bag},
     };
 
 
@@ -14,7 +13,6 @@ use warlot::{
     config::{Self, BlobConfig}, 
     registry::{Self}, 
     constants::{Self},
-    project_main::{Self, ProjectHolder},
     foreign_meta::{Self},
     };
 
@@ -35,11 +33,9 @@ public struct User has key, store{
     /*
     holds the  tail of the blob_congig that are associated to this epoch set
     */
-    index: Bag,
+    index: Table<u32, ID>, 
 
-    // warlot system index 
-    warlot_system_index: u64,
-
+  
 
 }
 
@@ -66,12 +62,21 @@ const INVALIDACCESS: vector<u8> = b"permission denied";
 const EInvalidConfigId: vector<u8> = b"INVALID CONFIG ID";
 
 
+// =============== Getters ==================== //
 
 public(package) fun get_wallet(user: &mut User): &mut Wallet{
     &mut user.wallet
 }
 
+//  returns the HEAD (Start) of the list
+public(package) fun get_epoch_set_head(user: &User, epoch_set: u32): Option<ID> {
+    if (!table::contains(&user.index, epoch_set)) {
+        return option::none()
+    };
+    option::some(*table::borrow(&user.index, epoch_set))
+}
 
+// =============== Creation ==================== //
 
 public(package) fun create_user( 
     public_username: String, 
@@ -91,15 +96,9 @@ public(package) fun create_user(
             files: 0,
             storage_size: 0,
          },
-         index: bag::new(ctx)
+         index: table::new<u32, ID>(ctx)
          };
 
-
-    // create project holder
-    let project_holder: ProjectHolder = project_main::create_project_holder(ctx);
-    
-
-    
 
 
 
@@ -133,7 +132,7 @@ public(package) fun create_user(
 
     ofields::add<vector<u8>, Table<address, SubPermission>>(&mut new_user.id, constants::Acceptance_Key(), sub_permission);
 
-    registry::create_registry( public_username, object::id(&new_user), system_id, option::some(object::id(&project_holder)),  clock, ctx);
+    registry::create_registry( public_username, object::id(&new_user), system_id, option::none(),  clock, ctx);
     
     // create foreign_meta
     /*
@@ -142,14 +141,14 @@ public(package) fun create_user(
     foreign_meta::create_meta(ctx);
 
     // todo to convert to party share 
-    transfer::public_share_object(project_holder);
+    // transfer::public_share_object(project_holder);
  
     new_user
 }
 
 
 
-// ==================  permission setting ====================//
+// ==================  permission logic ====================//
 fun get_permission_obj(
     user_obj: &User,
     // request_address: address,  
@@ -170,7 +169,7 @@ public fun check_permission_add_blob(
     user_obj: &User,
     // request_address: address,  
     ctx: &TxContext){
-
+    if (ctx.sender() == user_obj.owner) return; 
     assert!(get_permission_obj(user_obj, ctx).add_blob_to_address, INVALIDACCESS);
 }
 
@@ -179,7 +178,7 @@ public fun check_permission_inner_file(
     user_obj: &User,
     // request_address: address,  
     ctx: &TxContext){
-
+    if (ctx.sender() == user_obj.owner) return; 
     assert!(get_permission_obj(user_obj, ctx).create_inner_file, INVALIDACCESS);
 }
 
@@ -257,21 +256,20 @@ public(package) fun add_blob(user: &mut User, mut blob_cfg: BlobConfig, epoch: u
     */
 
 
-    if (user.index.contains<u32>(epoch)){
+    if (user.index.contains<u32, ID>(epoch)){
       
-        let pre_id = *user.index.borrow<u32, ID>(epoch);
+        let old_head_id = *user.index.borrow<u32, ID>(epoch);
         // set the pre in the current config
-        config::set_pre(&mut blob_cfg, pre_id);
+        config::set_next(&mut blob_cfg, old_head_id);
 
 
         // get and set the last head of the blob_cfg to pre the current config
-        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, pre_id)
+        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, old_head_id)
             .set_next(blob_cfg_id);
         
 
         // modify indexer
-        let indexer = user.index.borrow_mut<u32, ID>(epoch);
-        *indexer =  blob_cfg_id;
+        *table::borrow_mut<u32, ID>(&mut user.index, epoch) = blob_cfg_id;
 
     } else{
         user.index.add<u32, ID>(epoch, blob_cfg_id)
@@ -292,8 +290,17 @@ public(package) fun add_blob(user: &mut User, mut blob_cfg: BlobConfig, epoch: u
 }
 
 
+//gets the blob_config id 
+public(package) fun get_blob_config_by_id(user: &mut User, blob_config_id: ID): &mut BlobConfig{
+   
+    ofields::borrow_mut<ID, BlobConfig>(&mut user.id, blob_config_id)
+     
+}
 
-
+//checkes if an id exists in the user set
+public(package) fun check_blob_config_id(user: &User, blob_config_id: ID): bool{
+    ofields::exists_<ID>(&user.id, blob_config_id)
+}
 
 public(package) fun update_dash_data(user: &mut User, files: u128, storage_size: u128): bool{
     let old_files =  user.meta_data.files;
@@ -314,54 +321,59 @@ public(package) fun update_dash_data(user: &mut User, files: u128, storage_size:
 
 
 
+// Remove blob and repair the chain
+public(package) fun remove_blob_cfg_from_user(user: &mut User, blob_cfg_id: ID): BlobConfig {
+    assert!(ofields::exists_(&user.id, blob_cfg_id), EInvalidConfigId);
+    let blob_cfg = ofields::remove<ID, BlobConfig>(&mut user.id, blob_cfg_id);
 
-// remove blob_cfg from user ofields
-public(package) fun remove_blob_cfg_from_user(user: &mut User, blob_cfg_id: ID): BlobConfig{
-    assert!(ofields::exists_<ID>(&user.id, blob_cfg_id), EInvalidConfigId);
-    let blob_cfg =  ofields::remove<ID, BlobConfig>(&mut user.id, blob_cfg_id);
+    let pre = blob_cfg.pre();
+    let next = blob_cfg.next();
+    let epoch_set = blob_cfg.epoch_set();
 
-   // Cache neighbors and context
-   let pre = blob_cfg.pre();
-   let next = blob_cfg.next();
-   let epoch_set : u32 = blob_cfg.epoch_set();
-
-   //  Re-link the list
-    if (option::is_some(pre) && option::is_some(next)){
+    // Repair Forward Link (Pre -> Next)
+    if (option::is_some(pre)) {
         let pre_id = *option::borrow(pre);
-        let next_id = *option::borrow(next);
-        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, pre_id)
-            .set_next(next_id);
-        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, next_id)
-            .set_pre(pre_id);
-    }else if (option::is_some(pre)){
-        let pre_id = *option::borrow(pre);
-        // this means what is being removed is the head of the list 
-        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, pre_id)
-            .set_next_none();
-        // set as new head 
-        let indexer = user.index.borrow_mut<u32, ID>(epoch_set);
-        *indexer =  pre_id;
-      
-    }else if (option::is_some(next)){
-        let next_id = *option::borrow(next);
-        // since we are only keeping track of the head
-        ofields::borrow_mut<ID, BlobConfig>(&mut user.id, next_id)
-            .set_pre_none();
-    }else{
-        // Case D: Single Node (No Previous, No Next)
-        // The list is now empty. Remove the index entry entirely.
-        user.index.remove<u32, ID>(epoch_set);
+        if (option::is_some(next)) {
+            // Case: Middle Node
+            ofields::borrow_mut<ID, BlobConfig>(&mut user.id, pre_id)
+                .set_next(*option::borrow(next));
+        } else {
+            // Case: Tail Node
+            ofields::borrow_mut<ID, BlobConfig>(&mut user.id, pre_id)
+                .set_next_none();
+        }
     };
 
-    // reduce the user dash size
+    // Repair Backward Link (Next -> Pre)
+    if (option::is_some(next)) {
+        let next_id = *option::borrow(next);
+        if (option::is_some(pre)) {
+            // Case: Middle Node
+            ofields::borrow_mut<ID, BlobConfig>(&mut user.id, next_id)
+                .set_pre(*option::borrow(pre));
+        } else {
+            // Case: Head Node (No Pre)
+            // removing the HEAD in this step. nd  must update the index to point to 'next'.
+            ofields::borrow_mut<ID, BlobConfig>(&mut user.id, next_id)
+                .set_pre_none();
+            
+            // CRITICAL: Update the index to the new Head
+            *table::borrow_mut(&mut user.index, epoch_set) = next_id;
+        }
+    } else {
+        // Case: Only Node or Tail
+        if (option::is_none(pre)) {
+            // No Pre, No Next -> It was the only node. Remove index.
+            table::remove(&mut user.index, epoch_set);
+        }
+        // If it was Tail (has Pre, no Next), Index doesn't change (Index points to Head)
+    };
+
     reduce_dash_data(user, config::blob_cfg_size(&blob_cfg) as u128);
-   
-
-
-    // returns the blob_config
     blob_cfg
-   
 }
+
+
 
 
 
