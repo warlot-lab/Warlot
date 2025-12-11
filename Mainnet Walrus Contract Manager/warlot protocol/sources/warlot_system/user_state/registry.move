@@ -23,7 +23,6 @@ public struct SystemDetail has store{
     user_object_id: ID,
     system_id: ID,
     project_holder: Option<ID>,
-    // drive_id: Option<ID>
 }
 
 

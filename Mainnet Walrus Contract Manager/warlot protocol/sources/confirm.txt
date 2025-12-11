@@ -1,0 +1,2 @@
+confirm collapse of filemeta into blob config 
+explore depreciation of the blob_vec
