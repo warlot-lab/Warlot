@@ -1,153 +1,192 @@
-# Warlot Set and Renew Module
+# Warlot Protocol Technical Documentation
 
-This Move smart contract module is part of the **Warlot** system, designed for managing user registrations, system administration, and blob storage with renew and update functionality. It provides core functionality for initializing the system, managing users, minting system administration capabilities, storing and renewing blobs (data chunks), and handling associated balances with the WAL token.
+## 1\. Protocol Overview
 
----
+Warlot is a decentralized storage management protocol built on the Sui blockchain. It serves as an orchestration layer for the Walrus file system, providing user identity management, multi-currency financial infrastructure, and automated storage renewal cycles.
 
-## Table of Contents
+The protocol operates through a singleton `SystemConfig` shared object that indexes users and manages a central financial `Vault`. Users possess distinct `User` objects containing their storage metadata and personal `Wallet` for interacting with the system.
 
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Core Structures](#core-structures)
-- [Public Functions](#public-functions)
-- [Events](#events)
-- [Error Handling](#error-handling)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+-----
 
----
+## 2\. Core Modules
 
-## Overview
+### 2.1. Module: `warlot::warlot_system`
 
-The **Warlot Set and Renew** module governs system-wide configurations and user interactions within the Warlot platform. It manages the lifecycle of users and system state via an admin capability pattern, ensuring that only authorized actors can perform critical system updates.
+The central hub of the protocol. It manages global configuration, user indexing, and the protocol's treasury.
 
-The module also handles storing and renewing blobs (files or data objects) linked to users and manages WAL token balances associated with these operations.
+#### Structs
 
----
+  * **`SystemConfig`** (`key`, `store`)
 
-## Key Features
+      * **Description:** The singleton shared object acting as the entry point for the protocol.
+      * **Fields:**
+          * `id`: Unique Identifier.
+          * `version`: Current protocol version.
+          * `users`: Counter for registered users.
+          * `managed_blobs`: Counter for total active blobs.
+          * `user_modification_cfg`: Struct defining costs for system operations (migration, name updates).
+          * *Dynamic Fields:*
+              * `USERINDEX`: A `TableVec<address>` listing all registered users.
+              * `USER_INDEX_MAP`: A `Table<address, u64>` for O(1) user lookups.
+              * `SYSTEM_VAULT`: A `Vault` object holding system revenue.
 
-- System initialization and admin capability minting
-- User creation with unique public usernames and API keys
-- Controlled minting of new system versions
-- Updating user API keys and usernames with associated costs
-- Secure storage and management of blobs
-- Renewal logic for blob lifecycle with token payments
-- Coin deposit and balance management within user wallets
+  * **`AdminCap`** (`key`, `store`)
 
----
+      * **Description:** Capability granting administrative privileges.
+      * **States:**
+          * `STATE_ORIGINAL` (0): Full access (Minting systems, withdrawing funds, adding coin types).
+          * `STATE_DUPLICATE` (1): Restricted access.
 
-## Core Structures
+#### Key Functions
 
-### `SystemConfig`
+  * **`init`**
+      * Initializes the protocol, creates the `SystemConfig` and `Vault`, sets WAL as the default accepted token, and shares the object.
+  * **`add_user`**
+      * Registers a new `User` object into the system. Updates both the `TableVec` and `Table` indexers to ensure O(1) access and iteration.
+  * **`remove_user`**
+      * Removes a user from the system. Utilizes a "swap-and-pop" strategy to remove the user from the `TableVec` in O(1) time without gas scaling issues.
+  * **`migrate_system`**
+      * Transfers a user's registry and identity from an old `SystemConfig` to a new one. Requires payment of a migration fee.
+  * **`mint_system`**
+      * Creates a new generation of `SystemConfig`. Only callable by the holder of the Original `AdminCap`.
+  * **`withdraw_system_coin<T>`**
+      * Allows the admin to withdraw accumulated fees of type `T` (e.g., WAL, USDC) from the system vault.
 
-- Holds the global system state, including user counts, system version, blob management, and balance.
+-----
 
-### `SystemMintCap`
+### 2.2. Module: `warlot::vault`
 
-- Tracks minting status for linear system upgrades.
+The financial engine supporting multi-token architecture.
 
-### `AdminCap`
+#### Structs
 
-- Admin capability token used for privileged actions like minting new systems, withdrawing funds, and blob management.
+  * **`Vault`** (`key`, `store`)
+      * **Description:** A container for assets. Unlike standard Move structs, it does not use a generic type parameter `<T>` on the struct itself, allowing it to hold mixed asset types simultaneously via Dynamic Fields.
+      * **Fields:**
+          * `accepted_coins`: A `Table<String, bool>` tracking allowed coin types.
 
-### `UserMdCfg`
+#### Key Functions
 
-- Configuration for user modification costs (e.g., updating API keys, migrating systems).
+  * **`deposit<T>`**
+      * Accepts a `Coin<T>`. Verifies `T` is in `accepted_coins`. Merges the coin into the vault's internal balance stored under a dynamic field key derived from the type name.
+  * **`withdraw<T>`**
+      * Extracts a specific amount of `Coin<T>` from the vault. Fails if the balance is insufficient.
+  * **`add_supported_coin<T>`**
+      * Registers a new coin type (e.g., USDC, SUI) as accepted.
+  * **`balance_of<T>`**
+      * Returns the current balance of type `T` held in the vault.
 
----
+-----
 
-## Public Functions
+### 2.3. Module: `warlot::user_state`
 
-### System Management
+Manages individual user identity, permissions, and the storage blob data structure.
 
-- **`init(ctx: &mut TxContext)`**
-  Initializes the system, creating the first `SystemConfig` and minting the original `AdminCap`.
+#### Structs
 
-- **`mint_admin(receiver: address, admin_cap: &AdminCap, ctx: &mut TxContext)`**
-  Mint a new admin capability if caller holds the original admin cap.
+  * **`User`** (`key`, `store`)
 
-- **`mint_system(...)`**
-  Mint a new system configuration with incremented version, ensuring linear system upgrades and only allowed by the original admin.
+      * **Description:** Represents a registered entity.
+      * **Fields:**
+          * `owner`: The Sui address controlling this user.
+          * `wallet`: The internal `Wallet` struct.
+          * `meta_data`: Statistics on file count and storage size.
+          * `index`: A `Table<u32, ID>` mapping an `EpochSet` to the **Head** of a Linked List of blobs.
 
-- **`update_cost(...)`**
-  Update user modification costs in the system config.
+  * **`SubPermission`** (`store`)
 
-- **`withdraw_system(system_cfg: &mut SystemConfig, admin_cap: &mut AdminCap, amount: u64, ctx: &mut TxContext)`**
-  Withdraw WAL tokens from the system balance, callable only by the original admin.
+      * **Description:** Granular access control list for third-party operators.
+      * **Flags:** `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`.
 
----
+#### Blob Chain Architecture (LIFO)
 
-### User and Blob Management
+Storage blobs are organized as a Linked List to enable efficient processing.
 
-- **`create_user(...)`**
-  Create a new user with API keys and public username, incrementing user count.
+  * **Insertion (`add_blob`):** New blobs are prepended to the **HEAD**. The `index` table is updated to point to the new blob ID.
+  * **Traversal:** Iteration starts at the ID found in `index` and follows the `next` pointer until `None`.
+  * **Removal:** Removing a blob repairs the chain by linking its `pre` and `next` neighbors. If the Head is removed, the `index` is updated to the next node.
 
-- **`update_api_key(...)`**
-  Update a user's API keys with associated WAL token payment.
+#### Key Functions
 
-- **`update_username(...)`**
-  Update a user's public username with associated WAL token payment.
+  * **`create_user`**
+      * mints a new `User` object, initializes the wallet and permission tables.
+  * **`add_blob`**
+      * Prepends a `BlobConfig` to the user's list for a specific epoch set.
+  * **`remove_blob_cfg_from_user`**
+      * Detaches a blob from the linked list, repairing links and updating statistics.
+  * **`check_permission_[action]`**
+      * Verifies if the caller has the specific `SubPermission` flag or is the owner.
 
-- **`store_blob(...)`**
-  Store a blob linked to a user, only callable by an admin.
+-----
 
-- **`deposit_coin(...)`**
-  Deposit WAL tokens into the user's internal wallet.
+### 2.4. Module: `warlot::wallet`
 
-- **`renew(...)`**
-  Renew blobs for a list of users, deducting funds from their wallets and updating blob states.
+The user's internal banking interface.
 
-- **`sync_blob(...)`**
-  Sync blob states across users and system.
+#### Structs
 
----
+  * **`Wallet`** (`key`, `store`)
 
-## Events
+      * **Description:** The user-facing interface for funds.
+      * **Storage:** Contains a `Bank` struct as a Dynamic Object Field.
 
-The module emits events for:
+  * **`Bank`** (`key`, `store`)
 
-- Minting of new admin caps
-- Minting of new systems
-- Blob storage
-- Blob renewals and updates
+      * **Description:** Holds balances for multiple coin types using Dynamic Fields.
 
-These events are crucial for tracking system changes and user interactions on-chain.
+#### Key Functions
 
----
+  * **`deposit<T>`**
+      * Splits a mutable `Coin<T>` and deposits the amount into the internal Bank.
+  * **`withdraw<T>`**
+      * Withdraws assets from the Bank to a `Coin<T>`.
+  * **`get_balance<T>`**
+      * Returns the available balance for a specific asset.
 
-## Error Handling
+-----
 
-The contract defines explicit errors such as:
+### 2.5. Module: `warlot::renew`
 
-- `EUserExist`: Returned if attempting to create a user that already exists.
-- Various asserts ensure only authorized admin caps can perform sensitive actions.
-- Minting and versioning are strictly enforced to maintain system integrity.
+Handles the periodic renewal of storage blobs to prevent expiration.
 
----
+#### Logic Flow (`renew_system_blob`)
 
-## Usage
+1.  **Iterate Users:** Loops through the global user indexer in `SystemConfig`.
+2.  **Access Chain:** For each user, retrieves the **Head** blob ID for the target `epoch_set`.
+3.  **Traverse List:** Iterates through the Linked List of `BlobConfig` objects.
+4.  **Execute Renewal:** Calls `renew_blob_cfg` on each config, calculating the cost based on the `ahead` parameter (target duration).
+5.  **Payment:** Deducts the total cost from the provided `Estimate` budget.
 
-1. **System Initialization**
-   Call `init` once to create the initial system configuration and mint the original admin cap.
+-----
 
-2. **Minting Admins and Systems**
-   Use the original admin cap to mint additional admin caps or upgrade the system by minting a new system.
+## 3\. Data Structures & Relationships
 
-3. **User Registration**
-   Users can be created with unique public usernames and secured API keys.
+### Hierarchy
 
-4. **Blob Management**
-   Admins store blobs on behalf of users and renew them periodically.
+```text
+SystemConfig (Shared)
+├── User Indexer (TableVec<address>)
+├── User Index Map (Table<address, u64>)
+└── System Vault (Dynamic Object Field)
+    └── Dynamic Fields: Balance<WAL>, Balance<USDC>, etc.
 
-5. **Token Management**
-   WAL tokens are used for payment of user updates and system operations, managed internally.
+User (Owned/Child Object)
+├── Wallet
+│   └── Bank (Dynamic Object Field)
+│       └── Dynamic Fields: Balance<WAL>, Balance<SUI>, etc.
+└── Blob Index (Table<u32, ID>)
+    └── Maps EpochSet -> Head Blob ID
+```
 
----
+### Blob Linked List
 
-## Contributing
+```text
+[Index Table] points to -> [Blob A (Head)]
+                              |
+                              v
+                           [Blob B]
+                              |
+                              v
+                           [Blob C (Tail)] -> Next: None
+```
 
-Contributions and improvements to this module are welcome. Please submit pull requests or open issues for bugs, enhancements, or questions.
-
----

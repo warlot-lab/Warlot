@@ -70,7 +70,7 @@ public fun deposit<T>(vault: &mut Vault, payment: Coin<T>) {
     assert!(table::contains(&vault.accepted_coins, type_name_str), EInvalidCoin);
 
     // Merge logic using Dynamic Fields
-    // We use the 'type_name_str' as the key for the Dynamic Field.
+    // use the 'type_name_str' as the key for the Dynamic Field.
     if (df::exists_(&vault.id, type_name_str)) {
         // Case A: Balance already exists, add to it
         let vault_balance = df::borrow_mut<String, Balance<T>>(&mut vault.id, type_name_str);
@@ -89,7 +89,7 @@ public fun withdraw<T>(
 ): Coin<T> {
     let type_name_str = get_type_name_string<T>();
 
-    // Ensure we actually have funds of this type
+    // Ensure vault actually have funds of this type
     assert!(df::exists_(&vault.id, type_name_str), ENoBalanceFound);
 
     // Borrow the balance mutably
