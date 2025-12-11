@@ -10,7 +10,7 @@ use warlot::{
 };
 
 
-// add coin to your internal wallet
+// add coin to the internal wallet
 public fun deposit_coin(
      system_cfg: &mut SystemConfig,
      coin: &mut Coin<WAL>,

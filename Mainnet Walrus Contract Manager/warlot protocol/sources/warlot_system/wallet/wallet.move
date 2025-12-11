@@ -85,7 +85,7 @@ public(package) fun deposit_coin<T>(wallet: &mut Wallet, coin: Coin<T>) {
 
 }
 
-/// Your specific deposit logic: Splits from a mutable Coin ref
+///  specific deposit logic: Splits from a mutable Coin ref
 public(package) fun deposit<T>(
     wallet: &mut Wallet, 
     funds: &mut Coin<T>, 
@@ -94,13 +94,13 @@ public(package) fun deposit<T>(
 ): u64 {
     assert!(coin::value(funds) >= amount, EInsufficientFunds);
     
-    // 1. Split the specific amount
+    // Split the specific amount
     let deposit_coin = coin::split(funds, amount, ctx);
     
-    // 2. Deposit it safely
+    // Deposit it safely
     deposit_coin<T>(wallet, deposit_coin);
 
-    // Emit event (assuming your event module handles this)
+    
     event::emit_deposit(ctx.sender(), amount);
 
     // Return the new total balance of this specific coin

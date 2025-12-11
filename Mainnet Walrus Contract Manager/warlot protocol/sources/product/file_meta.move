@@ -12,7 +12,7 @@ use warlot::{
 
 // this is an object that contains onchain atribut of blobs 
 public struct FileMeta<T:  store>  has key, store {
-    id: UID, //using the indexer you can get the file by id fast
+    id: UID, 
     name: String,
     description: String,
     file_type: String, // e.g .txt, .pdf, .mp4 e.t.c
