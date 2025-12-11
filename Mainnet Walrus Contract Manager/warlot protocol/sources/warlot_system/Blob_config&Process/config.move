@@ -10,7 +10,7 @@ use sui::{
 todo move optional meta to this part of the smart contract
 1]thereby removing the file object from the warlot attribute. making indexing of the epoch a lot more efficent 
 2] set up the warlot dev to be able to put files under users address but only the dev will pay for the data; this will bypass
-the allow to store blob permission set for the user. {to be concluded} here we are choose to see if we should make the user have to allow the dev to do this, or if we can just do this and make th edev responsible
+the allow to store blob permission set for the user. {to be concluded} here  are choose to see if  should make the user have to allow the dev to do this, or if  can just do this and make th edev responsible
 */
 
 // in the application each blob ctored with us is wraped in a blobsetting config; telling the renew system the 
@@ -184,9 +184,9 @@ public(package) fun get_renew_epoch_count(blob: &Blob, system: &System, ahead: u
 
     // SAFETY CHECKS:
     // 1. (blob_end_epoch < current_epoch): 
-    //    If blob is expired, we cannot renew. Return 0.
+    //    If blob is expired,  cannot renew. Return 0.
     // 2. (blob_end_epoch >= target_epoch): 
-    //    If blob is already paid far enough into the future, we owe nothing. Return 0.
+    //    If blob is already paid far enough into the future,  owe nothing. Return 0.
     //    (This also prevents the underflow panic).
     if (blob_end_epoch < current_epoch || blob_end_epoch >= target_epoch) {
         return 0
@@ -223,7 +223,7 @@ public(package) fun renew_blob_cfg(
         // get viable epoch end count
         let extend_epoch_count = get_renew_epoch_count(blob, system, ahead);
 
-        // make sure that we only renew needed data
+        // make sure that  only renew needed data
         if (extend_epoch_count > 0) {
             extend_blob(system, blob, payment, extend_epoch_count);
         }
@@ -280,3 +280,17 @@ public(package) fun withdraw_and_burn(blob_cfg: BlobConfig): vector<Blob>{
 // withdraw blob
 // transfer blob
 // share blob
+// ================== Test Helpers ==================
+
+#[test_only]
+public fun create_dummy_config(epoch: u32, clock: &Clock, ctx: &mut TxContext): BlobConfig {
+    new_config_blob(vector[], epoch, option::none(), option::none(), clock, ctx)
+}
+
+#[test_only]
+public fun destroy_dummy_config(cfg: BlobConfig) {
+    // Burn the config object and get the internal vector
+    let blobs = withdraw_and_burn(cfg);
+
+    vector::destroy_empty(blobs);
+}

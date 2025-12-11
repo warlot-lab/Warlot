@@ -73,7 +73,7 @@ public struct AdminCap has key, store {
 
 
 /*
- this struct holds bound for modifing your user registry
+ this struct holds bound for modifing the user registry
  todo
  to be used to show when you can leave the system
  to show when you can migrate to another system storage 
@@ -369,7 +369,7 @@ public fun mint_system(
     let new_system_id = object::id(&new_system);
     event::emit_system_mint(new_system_id, object::id(old_system), ctx.sender());
 
-    // admin_cap.total_system logic is debatable, but kept as per your original
+    // admin_cap.total_system logic is debatable, but kept as per the original
     let old_count = admin_cap.total_system;
     admin_cap.total_system = old_count + 1;
     option::fill(&mut old_system.mint_cap.next_system, new_system_id);
@@ -602,3 +602,8 @@ public fun check_user(system_cfg: &SystemConfig, user: address): bool{
 
 
 
+
+#[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(ctx);
+}

@@ -12,7 +12,7 @@ use sui::clock::Clock;
 
 
 /*
- currently, defines the set we would be working with for the mean time
+ currently, defines the set warlot would be working with for the mean time
 */
 fun get_set(epoch_set: u32): u32{
      let set = if (epoch_set > constants::half_set()) {
