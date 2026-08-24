@@ -18,8 +18,12 @@ days**, and remediation is prioritised by severity. You will be told when a fix 
 
 ## Scope
 
-**In scope:** the Move packages in this repository, the off-chain services in `RenewBot/` and
-`sui-indexer/`, and the build and deployment configuration.
+**In scope:** the Move packages in this repository and their build and deployment configuration.
+
+The off-chain services have their own repositories and their own reporting: report issues in
+[`warlot-renew-bot`](https://github.com/warlot-lab/warlot-renew-bot) or
+[`warlot-indexer`](https://github.com/warlot-lab/warlot-indexer) against those projects. Use the
+same private-disclosure address below for either.
 
 **Out of scope:** vulnerabilities in Sui, Walrus, or their reference clients, report those upstream
 to the relevant project. Third-party dependency vulnerabilities are in scope only for how this

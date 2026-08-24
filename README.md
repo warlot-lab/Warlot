@@ -58,8 +58,6 @@ part with trust value.
 | `Testnet Walrus Contract Manager/` | The same package, resolved against Walrus testnet contracts. |
 | `Mainnet Walrus Contract Manager/WLT/` | Reserved. Not implemented. |
 | `waitlist/` | Independent NFT waitlist package. Not part of the protocol. |
-| `RenewBot/` | Off-chain service that executes renewal mandates. Go. |
-| `sui-indexer/` | Off-chain service that indexes protocol events into PostgreSQL. Go. |
 
 The two contract folders are one package with two dependency resolutions, mainnet Walrus
 contracts for one, testnet for the other. Their sources are kept identical; only `Move.toml`
@@ -83,19 +81,18 @@ The package depends on the Walrus `wal` and `walrus` Move packages, fetched from
 [MystenLabs/walrus](https://github.com/MystenLabs/walrus) at a pinned revision. Build output goes
 to `build/`, which is not tracked.
 
-## The off-chain services
+## Related repositories
 
-Neither service is required to use the protocol. Renewal is permissionless by design, so anyone
-may run their own executor, these are the reference implementations, not privileged components.
+Neither service below is required to use the protocol. Renewal is permissionless by design, so
+anyone may run their own executor — these are reference implementations, not privileged components.
 
-**RenewBot** reads renewal mandates and submits `extend_blob` transactions. It signs with a key
-supplied through the environment; treat that key as production-sensitive and scope it to the
-minimum authority the deployment requires.
+| Repository | Purpose |
+|---|---|
+| [`warlot-renew-bot`](https://github.com/warlot-lab/warlot-renew-bot) | Executes renewal mandates by submitting `extend_blob` transactions |
+| [`warlot-indexer`](https://github.com/warlot-lab/warlot-indexer) | Consumes protocol events and maintains a queryable view |
 
-**sui-indexer** consumes protocol events and maintains a queryable view. All protocol events are
-defined in a single Move module so the whole stream is reachable through one subscription.
-
-Both are Go modules with their own `go.mod`. See their directories for configuration.
+All protocol events are declared in a single Move module, so a consumer can subscribe to the entire
+event stream with one filter.
 
 ## Security
 

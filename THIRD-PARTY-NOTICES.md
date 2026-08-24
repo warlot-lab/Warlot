@@ -3,8 +3,8 @@
 Warlot Protocol depends on the components below. Each is distributed under its own licence, which
 governs that component only and confers no rights in Warlot Protocol itself.
 
-This file records dependencies of the Move packages and of the off-chain services in this
-repository. It is maintained by hand; when a dependency is added, changed, or removed, update it in
+This file records the dependencies of the Move packages in this repository. It is maintained by
+hand; when a dependency is added, changed, or removed, update it in
 the same change.
 
 ---
@@ -34,24 +34,13 @@ Declared in each package's `Move.toml` as `license = "Apache-2.0"`, with
 
 ## Off-chain services
 
-The services in `RenewBot/` and `sui-indexer/` are Go modules. Their complete, resolved dependency
-sets are recorded in their respective `go.mod` and `go.sum` files, which are authoritative.
-Principal direct dependencies:
+The renewal executor and the event indexer live in separate repositories and carry their own
+third-party notices:
 
-| Component | Version | Licence | Used by |
-|---|---|---|---|
-| [`github.com/lib/pq`](https://github.com/lib/pq) | v1.10.9 | MIT | both |
-| [`github.com/joho/godotenv`](https://github.com/joho/godotenv) | v1.5.1 | MIT | RenewBot |
-| [`github.com/block-vision/sui-go-sdk`](https://github.com/block-vision/sui-go-sdk) | v1.0.8 | Apache-2.0 | RenewBot |
-| [`github.com/resend/resend-go/v2`](https://github.com/resend/resend-go) | v2.20.0 | MIT | RenewBot |
+- [`warlot-renew-bot`](https://github.com/warlot-lab/warlot-renew-bot)
+- [`warlot-indexer`](https://github.com/warlot-lab/warlot-indexer)
 
-Licences above were read from the resolved module cache, not inferred from the project pages.
-
-To regenerate the full transitive list for either service:
-
-```bash
-cd RenewBot && go list -m -json all
-```
+Nothing in this repository depends on them, and they confer no rights in this project.
 
 ---
 
