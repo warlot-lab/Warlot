@@ -1,153 +1,138 @@
-# Warlot Set and Renew Module
+# Warlot Protocol
 
-This Move smart contract module is part of the **Warlot** system, designed for managing user registrations, system administration, and blob storage with renew and update functionality. It provides core functionality for initializing the system, managing users, minting system administration capabilities, storing and renewing blobs (data chunks), and handling associated balances with the WAL token.
+Warlot is the on-chain half of a decentralised storage-management protocol built on Sui. It
+orchestrates [Walrus](https://github.com/MystenLabs/walrus) storage: it does not hold the bytes and
+it does not hold the metadata. It holds who is allowed to do what, the money, and the commitments
+that make everything off-chain verifiable.
 
----
+Walrus storage expires at a fixed epoch, Walrus blobs are immutable, and small blobs are
+disproportionately expensive. Warlot's answer to all three is the same move: put the renewal
+mandate and the mutable-state head on chain, in public, so that execution is permissionless.
+Anyone can renew anyone's blobs; Warlot's bot is the default executor, not a privileged one.
 
-## Table of Contents
+## Package layout
 
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Core Structures](#core-structures)
-- [Public Functions](#public-functions)
-- [Events](#events)
-- [Error Handling](#error-handling)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+`sources/` is organised by domain. One module, one responsibility.
 
----
+```
+sources/
+├── entry/        composition only ,  no structs, no state
+├── events/       every event struct and its emitter, in one module
+├── system/       protocol configuration, admin capability, treasury, version
+├── identity/     registry, user, delegated permissions, wallet
+├── storage/      blob configs, storage tiers, renewal accounting
+├── innerfile/    mutable-state anchoring on immutable storage
+├── foreign/      blob configs adopted from outside the protocol
+└── product/      file, project, bucket and drive records
+```
 
-## Overview
+### The dependency rule
 
-The **Warlot Set and Renew** module governs system-wide configurations and user interactions within the Warlot platform. It manages the lifecycle of users and system state via an admin capability pattern, ensuring that only authorized actors can perform critical system updates.
+```
+entry     ──► events, system, identity, storage, innerfile, foreign, product
+innerfile ──► storage
+storage   ──► identity
+identity  ──► system
+system    ──► version
+events    ──► (sui::event only)
+```
 
-The module also handles storing and renewing blobs (files or data objects) linked to users and manages WAL token balances associated with these operations.
+Three invariants, checkable by reading the `use` lines of any module:
 
----
+1. No domain imports `entry`.
+2. No domain imports sideways or upward. `identity` never imports `storage`.
+3. `events` imports nothing internal, so any module may import it without risking a cycle.
 
-## Key Features
+Where domains must be composed ,  registration touches `identity` and `system`, upload touches
+`identity` and `storage` ,  that composition happens in `entry`, never by one domain reaching into
+another.
 
-- System initialization and admin capability minting
-- User creation with unique public usernames and API keys
-- Controlled minting of new system versions
-- Updating user API keys and usernames with associated costs
-- Secure storage and management of blobs
-- Renewal logic for blob lifecycle with token payments
-- Coin deposit and balance management within user wallets
+### Module map
 
----
+Directory paths are the architecture; module names are unique across the package, so every module
+in `entry/` carries an `entry_` prefix.
 
-## Core Structures
+| File | Module | Purpose |
+|---|---|---|
+| `entry/register.move` | `entry_register` | Create, rename and migrate a user's registry and state |
+| `entry/wallet.move` | `entry_wallet` | Fund a user's internal wallet |
+| `entry/upload.move` | `entry_upload` | Adopt externally-sourced blobs into renewal management |
+| `entry/renew.move` | `entry_renew` | Select which users' configs to renew, and drive renewal |
+| `entry/withdraw.move` | `entry_withdraw` | Return a user's blobs to them |
+| `entry/innerfile.move` | `entry_innerfile` | Create a file, write to it, merge a draft, mint a pass |
+| `entry/admin.move` | `entry_admin` | Treasury withdrawal, fee changes, system and cap minting |
+| `events/events.move` | `events` | Declare every event struct and its emitter |
+| `system/config.move` | `system_config` | Version, fees, mint lineage, treasury, user index |
+| `system/admin_cap.move` | `admin_cap` | Mint and inspect the admin capability |
+| `system/vault.move` | `vault` | Custody the protocol's multi-coin treasury |
+| `system/version.move` | `version` | The package version and its gate |
+| `identity/registry.move` | `registry` | The owned object binding a user to a system |
+| `identity/user.move` | `user` | The per-user state container attached to `SystemConfig` |
+| `identity/permission.move` | `permission` | Store, write and check delegated capability bits |
+| `identity/wallet.move` | `wallet` | Hold, receive and release a user's coin balances |
+| `storage/blob_config.move` | `blob_config` | The object wrapping blobs and carrying their mandate |
+| `storage/store.move` | `store` | Attach configs to a user and detach them again |
+| `storage/tier.move` | `tier` | Resolve a requested `epoch_set` to a term on offer |
+| `storage/renew.move` | `renew` | Compute the extension and account for one cycle |
+| `innerfile/inner_file.move` | `inner_file` | The authoritative head, rollback window and fallback |
+| `innerfile/file_data.move` | `file_data` | One revision: its commit, author and blob config |
+| `innerfile/writer_pass.move` | `writer_pass` | Delegated write authority |
+| `innerfile/deny_list.move` | `deny_list` | Revocation of writers |
+| `innerfile/draft.move` | `draft` | Proposals awaiting the owner's merge |
+| `innerfile/issue.move` | `issue` | Issues raised and resolved against a file |
+| `foreign/foreign_meta.move` | `foreign_meta` | Index of adopted blob configs |
+| `product/file_meta.move` | `file_meta` | On-chain attributes of a stored file |
+| `product/project_object.move` | `project_object` | Projects, their buckets and their database |
+| `product/bucket_object.move` | `bucket_object` | A named collection of files inside a project |
+| `product/drive_meta.move` | `drive_meta` | Folder-style view with category counters |
 
-### `SystemConfig`
+### Conventions
 
-- Holds the global system state, including user counts, system version, blob management, and balance.
+Every module follows a fixed section order, marked with `// === Section ===` headers: imports,
+errors, constants, structs, events, method aliases, public functions, view functions, admin
+functions, package functions, private functions, test-only helpers. `///` doc comments carry the
+public surface; `//` carries implementation notes.
 
-### `SystemMintCap`
+A module is too large when its purpose no longer fits one sentence; over roughly 250 lines it needs
+a justification or a split.
 
-- Tracks minting status for linear system upgrades.
+## Networks
 
-### `AdminCap`
+The two package directories are one package with two dependency resolutions. Their `sources/` and
+`tests/` trees are identical, and only `Move.toml` differs ,  the Walrus dependency resolves to
+`mainnet-contracts/` for one and `testnet-contracts/` for the other. Their Move sources are
+byte-identical upstream; only the published addresses differ, which is exactly what the two
+directories exist to select between.
 
-- Admin capability token used for privileged actions like minting new systems, withdrawing funds, and blob management.
+| Directory | Walrus contracts |
+|---|---|
+| `Mainnet Walrus Contract Manager/warlot protocol/` | `mainnet-contracts/` |
+| `Testnet Walrus Contract Manager/` | `testnet-contracts/` |
 
-### `UserMdCfg`
+The Walrus dependency is pinned to a full commit SHA, never a branch, so the build is reproducible
+and an upstream change cannot silently alter the bytecode.
 
-- Configuration for user modification costs (e.g., updating API keys, migrating systems).
+## Building
 
----
+Requires the Sui CLI at 1.73 or later, which is where the new-style package manifest landed.
 
-## Public Functions
+```bash
+sui move build
+sui move test
+```
 
-### System Management
+`sui move build` resolves for the CLI's active environment. Pass `--build-env mainnet` or
+`--build-env testnet` to pin a specific environment's dependency addresses into `Move.lock`.
 
-- **`init(ctx: &mut TxContext)`**
-  Initializes the system, creating the first `SystemConfig` and minting the original `AdminCap`.
+## Tests
 
-- **`mint_admin(receiver: address, admin_cap: &AdminCap, ctx: &mut TxContext)`**
-  Mint a new admin capability if caller holds the original admin cap.
+```
+tests/
+├── regression/    one file per proven audit finding
+└── support/       shared test-only constructors
+```
 
-- **`mint_system(...)`**
-  Mint a new system configuration with incremented version, ensuring linear system upgrades and only allowed by the original admin.
-
-- **`update_cost(...)`**
-  Update user modification costs in the system config.
-
-- **`withdraw_system(system_cfg: &mut SystemConfig, admin_cap: &mut AdminCap, amount: u64, ctx: &mut TxContext)`**
-  Withdraw WAL tokens from the system balance, callable only by the original admin.
-
----
-
-### User and Blob Management
-
-- **`create_user(...)`**
-  Create a new user with API keys and public username, incrementing user count.
-
-- **`update_api_key(...)`**
-  Update a user's API keys with associated WAL token payment.
-
-- **`update_username(...)`**
-  Update a user's public username with associated WAL token payment.
-
-- **`store_blob(...)`**
-  Store a blob linked to a user, only callable by an admin.
-
-- **`deposit_coin(...)`**
-  Deposit WAL tokens into the user's internal wallet.
-
-- **`renew(...)`**
-  Renew blobs for a list of users, deducting funds from their wallets and updating blob states.
-
-- **`sync_blob(...)`**
-  Sync blob states across users and system.
-
----
-
-## Events
-
-The module emits events for:
-
-- Minting of new admin caps
-- Minting of new systems
-- Blob storage
-- Blob renewals and updates
-
-These events are crucial for tracking system changes and user interactions on-chain.
-
----
-
-## Error Handling
-
-The contract defines explicit errors such as:
-
-- `EUserExist`: Returned if attempting to create a user that already exists.
-- Various asserts ensure only authorized admin caps can perform sensitive actions.
-- Minting and versioning are strictly enforced to maintain system integrity.
-
----
-
-## Usage
-
-1. **System Initialization**
-   Call `init` once to create the initial system configuration and mint the original admin cap.
-
-2. **Minting Admins and Systems**
-   Use the original admin cap to mint additional admin caps or upgrade the system by minting a new system.
-
-3. **User Registration**
-   Users can be created with unique public usernames and secured API keys.
-
-4. **Blob Management**
-   Admins store blobs on behalf of users and renew them periodically.
-
-5. **Token Management**
-   WAL tokens are used for payment of user updates and system operations, managed internally.
-
----
-
-## Contributing
-
-Contributions and improvements to this module are welcome. Please submit pull requests or open issues for bugs, enhancements, or questions.
-
----
+The regression tests currently pass by **demonstrating** the findings they name. Each will be
+inverted as its finding is fixed, so that it passes by demonstrating the finding's absence.
+`support/fixtures.move` builds the Walrus objects the tests need ,  a system, a WAL coin and a
+registered blob ,  against the real Walrus package rather than a stub.

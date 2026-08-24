@@ -13,7 +13,7 @@ change after deployment, and a design discussion before implementation is cheape
 a rejected pull request afterwards.
 
 Please state, in the issue: what problem you are solving, why it belongs on chain rather than in a
-consumer of the protocol, and what it costs — in bytes stored, in objects created, and in whether
+consumer of the protocol, and what it costs ,  in bytes stored, in objects created, and in whether
 it puts a shared object on a hot path.
 
 ## Getting set up
@@ -45,7 +45,7 @@ that adds a sideways or upward import will be sent back.
 is not acceptable.
 
 **All events are declared in one module.** Sui's event filters match the module where an event type
-is *defined*, and no package-wide filter exists — so a single declaring module is what lets a
+is *defined*, and no package-wide filter exists ,  so a single declaring module is what lets a
 consumer subscribe to the whole protocol with one filter. Emit *call sites* stay at the point of
 state change, never hoisted into `entry`.
 
@@ -73,7 +73,7 @@ In particular:
 ## Comments
 
 Write comments a maintainer will need in a year. Do not comment the obvious, and do not narrate the
-diff — no `FIXED`, `NEW`, `UPDATED`, or first-person ownership tags. Version control records what
+diff ,  no `FIXED`, `NEW`, `UPDATED`, or first-person ownership tags. Version control records what
 changed; comments record why the code is the way it is.
 
 ## Tests
@@ -82,7 +82,7 @@ changed; comments record why the code is the way it is.
 after proves nothing.
 
 For a bug fix, write the failing test first and include it in the pull request. For anything
-touching authority — permissions, capabilities, passes, deny lists — include the negative case:
+touching authority ,  permissions, capabilities, passes, deny lists ,  include the negative case:
 prove the unauthorised party is *refused*, not merely that the authorised one succeeds.
 
 ## Pull requests
@@ -93,7 +93,7 @@ Split them.
 
 In the description, state: what changed, why, what you tested, and anything you deliberately did
 not do. If your change alters a public function signature, an object layout, or an event schema,
-say so explicitly — those are breaking changes for every consumer of the protocol.
+say so explicitly ,  those are breaking changes for every consumer of the protocol.
 
 ## What gets sent back
 

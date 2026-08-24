@@ -1,17 +1,7 @@
 [package]
 name = "warlot"
-edition = "2024.beta" 
-
+edition = "2024"
 
 [dependencies]
-WAL = { git = "https://github.com/MystenLabs/walrus.git",   rev = "main", subdir = "testnet-contracts/wal"}
-Walrus = { git = "https://github.com/MystenLabs/walrus.git",   rev = "main", subdir = "testnet-contracts/walrus"}
-
-[addresses]
-warlot = "0x0"
-
-
-
-
-
-
+wal    = { git = "https://github.com/MystenLabs/walrus.git", subdir = "mainnet-contracts/wal",    rev = "0d671d3cd27d18df6b6edb6e3efcf44e4fffcbdc" }
+walrus = { git = "https://github.com/MystenLabs/walrus.git", subdir = "mainnet-contracts/walrus", rev = "0d671d3cd27d18df6b6edb6e3efcf44e4fffcbdc" }

@@ -84,7 +84,7 @@ to `build/`, which is not tracked.
 ## Related repositories
 
 Neither service below is required to use the protocol. Renewal is permissionless by design, so
-anyone may run their own executor — these are reference implementations, not privileged components.
+anyone may run their own executor ,  these are reference implementations, not privileged components.
 
 | Repository | Purpose |
 |---|---|
