@@ -1,4 +1,4 @@
-# 📄 **Warlot Inner File — Quick Docs**
+# 📄 **Warlot Inner File, Quick Docs**
 
 The **Inner File** is a core structure in the Warlot system that enables **trusted, collaborative, and controlled file modification** on the Walrus protocol. It ensures file **integrity**, **ownership**, and **accountable collaboration**, while supporting features like draft editing, file history tracking, and admin-controlled recovery.
 

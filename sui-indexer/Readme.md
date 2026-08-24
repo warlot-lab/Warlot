@@ -19,8 +19,8 @@ BLOB_DATABASE_URL=postgres://reader:readerpass@98.82.8.211:5432/postgres?sslmode
 RETRY_INTERVAL=3s
 ```
 
-- **BLOB_DATABASE_URL** — PostgreSQL connection string
-- **SUI_RPC_URL** — Sui blockchain RPC node URL TestNet
+- **BLOB_DATABASE_URL**, PostgreSQL connection string
+- **SUI_RPC_URL**, Sui blockchain RPC node URL TestNet
 
 ### Step 3: Build & Run
 

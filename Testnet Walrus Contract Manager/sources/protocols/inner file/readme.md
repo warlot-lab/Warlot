@@ -14,7 +14,7 @@ Walrus, as a **decentralized storage protocol**, allows users to store blobs sec
 
 ## 💡 **Example Usage Scenarios**
 
-The _Inner File_ creates a means to ✏️ **modify files** in the system while still maintaining the **ownership** 🏷 and **integrity** 🛡 of each document. It allows for **group modification** 👥 of files in a trusted and transparent manner. Additionally, it gives trusted remote servers — such as the **Warlot server** — the ability to modify files (e.g., large table files 📊) on behalf of the user. This is especially important when files are too large to process efficiently on the user's local system 💻.
+The _Inner File_ creates a means to ✏️ **modify files** in the system while still maintaining the **ownership** 🏷 and **integrity** 🛡 of each document. It allows for **group modification** 👥 of files in a trusted and transparent manner. Additionally, it gives trusted remote servers, such as the **Warlot server**, the ability to modify files (e.g., large table files 📊) on behalf of the user. This is especially important when files are too large to process efficiently on the user's local system 💻.
 
 ---
 
@@ -32,7 +32,7 @@ The _Inner File_ creates a means to ✏️ **modify files** in the system while 
 
 ### 3️⃣ **Trusted Large File Modification**
 
-📊 When working with large files — such as database tables or massive datasets — trusted remote servers (e.g., the Warlot server) can securely modify these files on behalf of the user. This offloads heavy processing from the user’s local machine while preserving 🛡 **trust**, 🏷 **integrity**, and ✋ **ownership** of the files.
+📊 When working with large files, such as database tables or massive datasets, trusted remote servers (e.g., the Warlot server) can securely modify these files on behalf of the user. This offloads heavy processing from the user’s local machine while preserving 🛡 **trust**, 🏷 **integrity**, and ✋ **ownership** of the files.
 
 ---
 

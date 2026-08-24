@@ -193,11 +193,11 @@ This pattern preserves global integrity of point accrual while keeping the state
 
 ## Errors ⚠️
 
-* `EInvalidClone` — suspend requested while no template exists.
-* `ESuspendedClone` — mint attempted while template is suspended.
-* `ECapLimit` — admin cap limit exceeded.
-* `EActiveClone` — attempt to burn final admin cap while template is still active.
-* `EInvalidAccess` — self-mint attempted more than once by the same address.
+* `EInvalidClone`, suspend requested while no template exists.
+* `ESuspendedClone`, mint attempted while template is suspended.
+* `ECapLimit`, admin cap limit exceeded.
+* `EActiveClone`, attempt to burn final admin cap while template is still active.
+* `EInvalidAccess`, self-mint attempted more than once by the same address.
 
 ---
 
@@ -240,8 +240,8 @@ This pattern preserves global integrity of point accrual while keeping the state
 
 ## Changelog 🗒️
 
-* **v1.1.0** — Adds one-per-address self-mint gate.
-* **v1.0.0** — Initial release with shared template, admin caps, public/airdrop minting, and per-NFT contributions.
+* **v1.1.0**, Adds one-per-address self-mint gate.
+* **v1.0.0**, Initial release with shared template, admin caps, public/airdrop minting, and per-NFT contributions.
 
 ---
 
@@ -251,6 +251,6 @@ This pattern preserves global integrity of point accrual while keeping the state
 
 ---
 
-**Warlot Waitlist NFT** — minimal overhead, verifiable access, durable engagement. 💫
+**Warlot Waitlist NFT**, minimal overhead, verifiable access, durable engagement. 💫
 Warlot Waitlist NFT brings early community members on-chain with a clean, verifiable path to engagement
 simple to mint, safe to administer, and ready to evolve. 
