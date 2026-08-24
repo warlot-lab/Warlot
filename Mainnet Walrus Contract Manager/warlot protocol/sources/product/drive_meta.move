@@ -40,7 +40,7 @@ public struct DriveMeta has store {
 
 /// Store `blobs`, file them under `root`, and count them against `category`.
 public fun upload_file(
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     drive: &mut Drive,
     file_name: String,
     description: String,

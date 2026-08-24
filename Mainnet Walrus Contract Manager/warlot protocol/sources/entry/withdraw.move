@@ -3,21 +3,18 @@ module warlot::entry_withdraw;
 
 // === Imports ===
 
-use warlot::{registry::Registry, store, system_config::SystemConfig};
+use warlot::blob_config::{Self, BlobConfig};
 
 // === Public functions ===
 
 /// Unwrap one of the sender's blob configs and transfer its blobs back to them.
-public fun self_withdraw_blob(
-    registry: &mut Registry,
-    system_cfg: &mut SystemConfig,
-    blob_obj_id: address,
-    ctx: &TxContext,
-) {
-    let user: address = registry.get_user();
-    assert!(ctx.sender() == user, 3);
+///
+/// The shared config is taken by value and destroyed. Because the config is the
+/// only record of who holds what, nothing else has to be updated to match.
+public fun self_withdraw_blob(config: BlobConfig, ctx: &TxContext) {
+    let owner = config.owner();
 
-    store::withdraw_blob(system_cfg, blob_obj_id, user).do!(|blob| {
-        transfer::public_transfer(blob, user);
+    blob_config::unwrap(config, ctx).do!(|blob| {
+        transfer::public_transfer(blob, owner);
     })
 }

@@ -55,9 +55,9 @@ in `entry/` carries an `entry_` prefix.
 | File | Module | Purpose |
 |---|---|---|
 | `entry/register.move` | `entry_register` | Create, rename and migrate a user's registry and state |
-| `entry/wallet.move` | `entry_wallet` | Fund a user's internal wallet |
+| `entry/wallet.move` | `entry_wallet` | Fund a user's internal wallet, and pay it back out |
 | `entry/upload.move` | `entry_upload` | Adopt externally-sourced blobs into renewal management |
-| `entry/renew.move` | `entry_renew` | Select which users' configs to renew, and drive renewal |
+| `entry/renew.move` | `entry_renew` | Renew one blob config, one call per config in a block |
 | `entry/withdraw.move` | `entry_withdraw` | Return a user's blobs to them |
 | `entry/innerfile.move` | `entry_innerfile` | Create a file, write to it, merge a draft, mint a pass |
 | `entry/admin.move` | `entry_admin` | Treasury withdrawal, fee changes, system and cap minting |
@@ -70,8 +70,8 @@ in `entry/` carries an `entry_` prefix.
 | `identity/user.move` | `user` | The per-user state container attached to `SystemConfig` |
 | `identity/permission.move` | `permission` | Store, write and check delegated capability bits |
 | `identity/wallet.move` | `wallet` | Hold, receive and release a user's coin balances |
-| `storage/blob_config.move` | `blob_config` | The object wrapping blobs and carrying their mandate |
-| `storage/store.move` | `store` | Attach configs to a user and detach them again |
+| `storage/blob_config.move` | `blob_config` | The shared object holding blobs and their mandate |
+| `storage/store.move` | `store` | Take blobs into custody as shared configs |
 | `storage/tier.move` | `tier` | Resolve a requested `epoch_set` to a term on offer |
 | `storage/renew.move` | `renew` | Compute the extension and account for one cycle |
 | `innerfile/inner_file.move` | `inner_file` | The authoritative head, rollback window and fallback |

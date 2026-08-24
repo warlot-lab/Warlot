@@ -70,7 +70,7 @@ public fun create(
 
 /// Store `blobs` and file them under `bucket_name`.
 public fun upload_file(
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     project_holder: &mut ProjectHolder,
     project_name: String,
     bucket_name: String,

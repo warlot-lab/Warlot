@@ -1,50 +1,121 @@
-/// C-3a: removing a blob config aborts, because clearing the head's `pre` extracts
-/// from an option that `add_blob` never fills. Withdrawal is dead for any user
-/// holding two or more configs.
+/// Withdrawal consumes the shared config itself, so there is no bookkeeping to
+/// repair and no path on which it can fail for the owner. A user holding several
+/// configs takes every one of them back, and only that user can.
 #[test_only]
 module warlot::withdraw_tests;
 
 // === Imports ===
 
-use sui::{clock, test_scenario as ts, test_utils};
-use warlot::{blob_config, store, user};
+use std::unit_test::destroy;
+use sui::{clock, test_scenario as ts};
+use walrus::blob::Blob;
+use warlot::{
+    blob_config::BlobConfig,
+    entry_register,
+    entry_withdraw,
+    fixtures,
+    store,
+    system_config::{Self, SystemConfig},
+};
 
 // === Constants ===
 
 const ALICE: address = @0xA11CE;
+const MALLORY: address = @0xBAD;
 const SET: u32 = 13;
+const START_EPOCHS: u32 = 5;
+const CYCLES: u64 = 2;
+const CONFIG_COUNT: u64 = 3;
+const BLOB_SIZE: u64 = 1_024;
 
 // === Test-only helpers ===
 
 #[test]
-#[expected_failure]
-fun remove_blob_cfg_aborts() {
+fun owner_withdraws_every_config() {
     let mut sc = ts::begin(ALICE);
-    let ctx = sc.ctx();
-    let clk = clock::create_for_testing(ctx);
+    system_config::init_for_testing(sc.ctx());
 
-    let mut alice = user::create_user(
-        b"alice".to_string(),
-        object::id_from_address(@0x1),
-        &clk,
-        option::none(),
-        ctx,
-    );
+    sc.next_tx(ALICE);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
 
-    let a = store::add_blob(&mut alice, blob_config::create_dummy_config(SET, &clk, ctx), SET, ctx);
-    let _b = store::add_blob(
-        &mut alice,
-        blob_config::create_dummy_config(SET, &clk, ctx),
-        SET,
-        ctx,
-    );
+    sc.next_tx(ALICE);
+    let mut sys = sc.take_shared<SystemConfig>();
+    let clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
 
-    // `a` has a successor but no predecessor, so removal takes the head branch
-    // and aborts extracting `pre`.
-    let cfg = store::remove_blob_cfg_from_user(&mut alice, a);
+    entry_register::all_register_user_publicly(&mut sys, b"alice".to_string(), &clk, sc.ctx());
 
-    test_utils::destroy(cfg);
+    // Three separate stores through the real upload path.
+    let mut ids = vector<ID>[];
+    let mut i = 0;
+    while (i < CONFIG_COUNT) {
+        let raw_blob = fixtures::certified_blob(
+            &mut wsys,
+            BLOB_SIZE,
+            START_EPOCHS,
+            &mut funds,
+            sc.ctx(),
+        );
+        let (config_id, _) = store::store_blob_internal(
+            &sys,
+            vector[raw_blob],
+            SET,
+            CYCLES,
+            option::none(),
+            ALICE,
+            &clk,
+            sc.ctx(),
+        );
+        ids.push_back(config_id);
+        i = i + 1;
+    };
+
+    sc.next_tx(ALICE);
+    ids.do_ref!(|id| {
+        let config = ts::take_shared_by_id<BlobConfig>(&sc, *id);
+        entry_withdraw::self_withdraw_blob(config, sc.ctx());
+    });
+
+    // Every blob is back in Alice's own account, owned outright.
+    sc.next_tx(ALICE);
+    let returned = ts::ids_for_sender<Blob>(&sc);
+    assert!(returned.length() == CONFIG_COUNT, 0);
+    returned.do_ref!(|id| destroy(ts::take_from_sender_by_id<Blob>(&sc, *id)));
+
+    destroy(funds);
+    destroy(wsys);
     clock::destroy_for_testing(clk);
-    test_utils::destroy(alice);
+    ts::return_shared(sys);
+    sc.end();
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::blob_config::ENotOwner)]
+fun a_stranger_cannot_withdraw() {
+    let mut sc = ts::begin(ALICE);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
+    let config_id = fixtures::shared_config(
+        &mut wsys,
+        ALICE,
+        SET,
+        option::some(CYCLES),
+        START_EPOCHS,
+        &mut funds,
+        &clk,
+        sc.ctx(),
+    );
+
+    // The config is shared, so Mallory can reach it; `owner` is what stops her.
+    sc.next_tx(MALLORY);
+    let config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
+    entry_withdraw::self_withdraw_blob(config, sc.ctx());
+
+    destroy(funds);
+    destroy(wsys);
+    clock::destroy_for_testing(clk);
     sc.end();
 }

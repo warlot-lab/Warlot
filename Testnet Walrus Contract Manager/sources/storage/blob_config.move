@@ -1,17 +1,35 @@
-/// Owns `BlobConfig`: the object wrapping a user's blobs and carrying their renewal mandate.
+/// Owns `BlobConfig`: the shared object holding a user's blobs and their renewal mandate.
 module warlot::blob_config;
 
 // === Imports ===
 
 use sui::clock::Clock;
 use walrus::blob::Blob;
+use warlot::events;
+
+// === Errors ===
+
+#[error]
+const ENotOwner: vector<u8> = b"NOT THE OWNER OF THIS BLOB CONFIG";
 
 // === Structs ===
 
-/// Every blob stored with Warlot is wrapped in a config that tells the renewal
-/// system how to keep it alive.
-public struct BlobConfig has key, store {
+/// Every blob stored with Warlot is wrapped in a config that names its owner and
+/// tells the renewal system how to keep it alive.
+///
+/// The config is shared rather than owned, because renewal is permissionless and
+/// an owned object can only be used in a transaction its owner signed. Custody is
+/// therefore mediated by `owner` rather than by Sui object ownership: anyone may
+/// pass a config to renewal, only `owner` may pass it to withdrawal.
+///
+/// `key` without `store`, so a config can never be wrapped inside another object
+/// or transferred away from the shared pool. It is created, shared once, and
+/// consumed by `unwrap`.
+public struct BlobConfig has key {
     id: UID,
+    /// The address that may withdraw these blobs. The only authorization this
+    /// object needs.
+    owner: address,
     /// The blobs under this config's custody.
     blobs: vector<Blob>,
     /// How many epochs ahead the blobs are kept paid for.
@@ -20,92 +38,19 @@ public struct BlobConfig has key, store {
     cycle_limit: Option<u64>,
     /// The `FileMeta` naming this config, if one exists.
     fileMeta_id: Option<ID>,
-    /// An address paying for renewal without owning the data, used by platforms
-    /// that fund storage on a user's behalf.
-    sponsor: Option<address>,
-    /// Addresses sharing the cost of this config.
-    share_payment: SharedPayment,
     uploaded_on: u64,
-    /// This config's position in its owner's epoch-set list.
-    index: Index,
 }
 
-/// Links a config to its neighbours in the owner's epoch-set list.
-public struct Index has drop, store {
-    pre: Option<ID>,
-    next: Option<ID>,
-}
-
-/// The addresses sharing the cost of a config.
-public struct SharedPayment has store, drop {
-    assist: vector<address>,
-}
-
-// === Package functions ===
+// === View functions ===
 
 /// This config's object id.
 public(package) fun config_id(blob_cfg: &BlobConfig): ID {
     object::id(blob_cfg)
 }
 
-/// Wrap `blobs` in a config carrying the given renewal mandate.
-public(package) fun new_config_blob(
-    blobs: vector<Blob>,
-    epoch_set: u32,
-    cycle_limit: Option<u64>,
-    fileMeta_id: Option<ID>,
-    clock: &Clock,
-    ctx: &mut TxContext,
-): BlobConfig {
-    BlobConfig {
-        id: object::new(ctx),
-        blobs,
-        epoch_set,
-        cycle_limit,
-        fileMeta_id,
-        sponsor: option::none(),
-        share_payment: SharedPayment { assist: vector::empty() },
-        uploaded_on: clock.timestamp_ms(),
-        index: Index {
-            pre: option::none(),
-            next: option::none(),
-        },
-    }
-}
-
-/// The config preceding this one in the epoch-set list.
-public(package) fun pre(blob_cfg: &BlobConfig): &Option<ID> {
-    &blob_cfg.index.pre
-}
-
-/// The config following this one in the epoch-set list.
-public(package) fun next(blob_cfg: &BlobConfig): &Option<ID> {
-    &blob_cfg.index.next
-}
-
-/// Set this config's predecessor, returning what it displaced.
-public(package) fun set_pre(blob_cfg: &mut BlobConfig, pre: ID): Option<ID> {
-    option::swap_or_fill(&mut blob_cfg.index.next, pre)
-}
-
-/// Set this config's successor, returning what it displaced.
-public(package) fun set_next(blob_cfg: &mut BlobConfig, next: ID): Option<ID> {
-    option::swap_or_fill(&mut blob_cfg.index.next, next)
-}
-
-/// Clear this config's predecessor, returning what it held.
-public(package) fun set_pre_none(blob_cfg: &mut BlobConfig): ID {
-    option::extract(&mut blob_cfg.index.pre)
-}
-
-/// Clear this config's successor, returning what it held.
-public(package) fun set_next_none(blob_cfg: &mut BlobConfig): ID {
-    option::extract(&mut blob_cfg.index.next)
-}
-
-/// Mutable access to the wrapped blobs.
-public(package) fun blob(blob_cfg: &mut BlobConfig): &mut vector<Blob> {
-    &mut blob_cfg.blobs
+/// The address entitled to withdraw these blobs.
+public(package) fun owner(blob_cfg: &BlobConfig): address {
+    blob_cfg.owner
 }
 
 /// How many epochs ahead the blobs are kept paid for.
@@ -115,64 +60,89 @@ public(package) fun epoch_set(blob_cfg: &BlobConfig): u32 {
 
 /// How many renewal cycles remain, or `none` for an indefinite mandate.
 public(package) fun cycle_limit(blob_cfg: &BlobConfig): Option<u64> {
-    if (option::is_none(&blob_cfg.cycle_limit)) {
-        return option::none()
+    blob_cfg.cycle_limit
+}
+
+/// Whether the mandate still authorises a renewal. An indefinite mandate always
+/// does.
+public(package) fun has_cycles(blob_cfg: &BlobConfig): bool {
+    if (blob_cfg.cycle_limit.is_none()) {
+        return true
     };
-    option::some(*option::borrow<u64>(&blob_cfg.cycle_limit))
+
+    *blob_cfg.cycle_limit.borrow() > 0
 }
 
-/// Mutable access to the remaining renewal cycles.
-public(package) fun cycle_limit_mut(blob_cfg: &mut BlobConfig): &mut Option<u64> {
-    &mut blob_cfg.cycle_limit
+// === Package functions ===
+
+/// Wrap `blobs` in a config owned by `owner` and carrying the given renewal mandate.
+///
+/// Construction is deliberately separate from `share`, so the caller can read the
+/// new config's id ,  or act on it ,  while it is still owned by the transaction.
+public(package) fun new(
+    owner: address,
+    blobs: vector<Blob>,
+    epoch_set: u32,
+    cycle_limit: Option<u64>,
+    fileMeta_id: Option<ID>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): BlobConfig {
+    BlobConfig {
+        id: object::new(ctx),
+        owner,
+        blobs,
+        epoch_set,
+        cycle_limit,
+        fileMeta_id,
+        uploaded_on: clock.timestamp_ms(),
+    }
 }
 
-/// Whether every wrapped blob is deletable.
-public(package) fun is_deletable(blob_cfg: &BlobConfig): bool {
-    let mut deletable = true;
-    blob_cfg.blobs.do_ref!(|blob| {
-        if (!blob.is_deletable()) {
-            deletable = false;
-            return
-        }
-    });
-
-    return deletable
+/// Publish the config, making it reachable by any renewer.
+public(package) fun share(blob_cfg: BlobConfig) {
+    transfer::share_object(blob_cfg);
 }
 
-/// The total unencoded size of the wrapped blobs.
-public(package) fun blob_cfg_size(blob_cfg: &BlobConfig): u64 {
-    let mut size = 0;
-    blob_cfg.blobs.do_ref!(|blob| { size = size + blob.size() });
-    size
+/// Mutable access to the wrapped blobs.
+public(package) fun blobs_mut(blob_cfg: &mut BlobConfig): &mut vector<Blob> {
+    &mut blob_cfg.blobs
+}
+
+/// Spend one renewal cycle. An indefinite mandate is left alone.
+///
+/// Guarded by `has_cycles`, which the caller checks before doing the work the
+/// cycle pays for; spending from an exhausted mandate underflows rather than
+/// wrapping the count round.
+public(package) fun consume_cycle(blob_cfg: &mut BlobConfig) {
+    if (blob_cfg.cycle_limit.is_none()) {
+        return
+    };
+
+    let remaining = blob_cfg.cycle_limit.borrow_mut();
+    *remaining = *remaining - 1;
 }
 
 /// Destroy the config and return the blobs it held.
-public(package) fun withdraw_and_burn(blob_cfg: BlobConfig): vector<Blob> {
+///
+/// The owner's exit is unconditional and has no repair step: the config is the
+/// only place custody was recorded, so deleting it is the whole operation.
+public(package) fun unwrap(blob_cfg: BlobConfig, ctx: &TxContext): vector<Blob> {
+    assert!(ctx.sender() == blob_cfg.owner, ENotOwner);
+
+    let config_id = object::id(&blob_cfg);
     let BlobConfig {
         id,
+        owner,
         blobs,
         epoch_set: _,
         cycle_limit: _,
         fileMeta_id: _,
-        sponsor: _,
-        share_payment: _,
         uploaded_on: _,
-        index: _,
     } = blob_cfg;
     id.delete();
+
+    events::emit_withdraw_blob(owner, config_id);
+
     blobs
-}
-
-// === Test-only helpers ===
-
-#[test_only]
-public fun create_dummy_config(epoch: u32, clock: &Clock, ctx: &mut TxContext): BlobConfig {
-    new_config_blob(vector[], epoch, option::none(), option::none(), clock, ctx)
-}
-
-#[test_only]
-public fun destroy_dummy_config(cfg: BlobConfig) {
-    let blobs = withdraw_and_burn(cfg);
-
-    vector::destroy_empty(blobs);
 }

@@ -25,6 +25,8 @@ use warlot::{
 const ACCESSDENIED: vector<u8> = b"invalid writer pass";
 #[error]
 const INVALIDACCESS: vector<u8> = b"Invalid access";
+#[error]
+const ENotFileOwner: vector<u8> = b"NOT THE OWNER OF THIS FILE";
 
 // === Public functions ===
 
@@ -32,7 +34,7 @@ const INVALIDACCESS: vector<u8> = b"Invalid access";
 /// a non-decaying pass. When `should_include_pass` is set and the caller is not
 /// the owner, the caller is given one too.
 public fun create_file(
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     owner: address,
     writers_length: u8,
     track_back_length: u8,
@@ -96,7 +98,7 @@ public fun create_file(
 public fun initialize_project_file(
     project_holder: &mut ProjectHolder,
     project_name: String,
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     owner: address,
     writers_length: u8,
     track_back_length: u8,
@@ -138,7 +140,7 @@ public fun deny_writer(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(file.owner() == ctx.sender(), 1);
+    assert!(file.owner() == ctx.sender(), ENotFileOwner);
     let now_ms = clock.timestamp_ms();
     let deny_obj = deny_list::borrow_mut(file.uid_mut());
     deny_list::deny(deny_obj, writer, period, now_ms);
@@ -146,7 +148,7 @@ public fun deny_writer(
 
 /// Lift `writer`'s denial.
 public fun remove_deny_writer(file: &mut InnerFile, writer: address, ctx: &mut TxContext) {
-    assert!(file.owner() == ctx.sender(), 1);
+    assert!(file.owner() == ctx.sender(), ENotFileOwner);
     let deny_obj = deny_list::borrow_mut(file.uid_mut());
     deny_list::undeny(deny_obj, writer);
 }
@@ -158,7 +160,7 @@ public fun force_write_innerfile(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
     clock: &Clock,
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     blobs: vector<Blob>,
     commit: vector<u8>,
     ctx: &mut TxContext,
@@ -190,7 +192,7 @@ public fun write_(
     file_issue: u64,
     should_include_issue: bool,
     clock: &Clock,
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     blobs: vector<Blob>,
     commit: vector<u8>,
     ctx: &mut TxContext,
@@ -342,7 +344,7 @@ public fun create_pass(
     admin_pass: bool,
     ctx: &mut TxContext,
 ) {
-    assert!(file.owner() == ctx.sender(), 1);
+    assert!(file.owner() == ctx.sender(), ENotFileOwner);
     let admin_pass = {
         if (admin_pass) {
             option::some(writer_pass::new_admin_pass(file.owner()))
@@ -360,7 +362,7 @@ public fun create_pass(
 
 /// Store `blobs` under `store_to` and record the result as one revision.
 fun process_blob(
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     blobs: vector<Blob>,
     epoch_set: u32,
     cycle_end: u64,

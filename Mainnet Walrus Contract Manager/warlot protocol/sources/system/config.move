@@ -16,6 +16,11 @@ use warlot::{
     version,
 };
 
+// === Errors ===
+
+#[error]
+const EVersionNotOlder: vector<u8> = b"SYSTEM IS ALREADY AT THE PACKAGE VERSION";
+
 // === Constants ===
 
 const VERSION: u64 = 1;
@@ -36,8 +41,6 @@ public struct SystemConfig has key, store {
     warlot_allowed_address: address,
     /// Count of registered users.
     users: u64,
-    /// Count of blob configs under management.
-    managed_blobs: u64,
     /// The upgrade gate.
     version: u64,
     /// Enforces that systems are minted in a single chain.
@@ -128,18 +131,6 @@ public(package) fun decrease_user_count(system_cfg: &mut SystemConfig) {
     system_cfg.users = old_user_count - 1;
 }
 
-/// Raise the managed-blob count by one.
-public(package) fun increase_managed_blobs(system_cfg: &mut SystemConfig) {
-    let old_m_blob = system_cfg.managed_blobs;
-    system_cfg.managed_blobs = old_m_blob + 1;
-}
-
-/// Lower the managed-blob count by one.
-public(package) fun decrease_managed_blobs(system_cfg: &mut SystemConfig) {
-    let old_m_blob = system_cfg.managed_blobs;
-    system_cfg.managed_blobs = old_m_blob - 1;
-}
-
 /// Mutable access to the system treasury.
 public(package) fun get_vault_mut(system_cfg: &mut SystemConfig): &mut Vault {
     ofields::borrow_mut<vector<u8>, Vault>(&mut system_cfg.id, SYSTEM_VAULT)
@@ -158,7 +149,7 @@ public(package) fun uid_mut(system_cfg: &mut SystemConfig): &mut UID {
 
 /// Raise the system to the package version.
 public(package) fun update_version(system_cfg: &mut SystemConfig) {
-    assert!(system_cfg.version < version::get_version(), 1);
+    assert!(system_cfg.version < version::get_version(), EVersionNotOlder);
 
     system_cfg.version = version::get_version();
 }
@@ -195,7 +186,6 @@ public(package) fun new(
         id: object::new(ctx),
         warlot_allowed_address: ctx.sender(),
         users: 0,
-        managed_blobs: 0,
         version,
         mint_cap: SystemMintCap {
             previous_system,

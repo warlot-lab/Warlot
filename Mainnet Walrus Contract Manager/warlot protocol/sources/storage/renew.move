@@ -1,40 +1,17 @@
-/// Computes how far a blob must be extended and accounts for one renewal cycle.
+/// Computes how far a blob must be extended and spends one renewal cycle doing it.
 module warlot::renew;
 
 // === Imports ===
 
-use sui::{balance::Balance, coin::{Self, Coin}};
+use sui::coin::Coin;
 use wal::wal::WAL;
 use walrus::{blob::Blob, system::System};
-use warlot::{
-    blob_config::{Self, BlobConfig},
-    store,
-    user::User,
-};
+use warlot::blob_config::{Self, BlobConfig};
 
-// === Constants ===
+// === Errors ===
 
-const BYTES_PER_UNIT_SIZE: u64 = 1_024 * 1_024; // 1 MiB
-
-// === Structs ===
-
-/// A renewal budget, priced against a storage rate.
-public struct Estimate has store {
-    storage_price_per_unit_size: u64,
-    bytes_per_unit_size: u64,
-    budget: Balance<WAL>,
-}
-
-// === Public functions ===
-
-/// Convert a coin into a renewal budget priced at `storage_price_per_unit_size`.
-public fun create_estimate(storage_price_per_unit_size: u64, coin: Coin<WAL>): Estimate {
-    Estimate {
-        storage_price_per_unit_size,
-        bytes_per_unit_size: BYTES_PER_UNIT_SIZE,
-        budget: coin::into_balance(coin),
-    }
-}
+#[error]
+const EInvalidAhead: vector<u8> = b"RENEWAL HORIZON MUST BE AT LEAST ONE EPOCH";
 
 // === Package functions ===
 
@@ -55,89 +32,37 @@ public(package) fun get_renew_epoch_count(blob: &Blob, system: &System, ahead: u
     target_epoch - blob_end_epoch
 }
 
-/// Spend one renewal cycle bringing every blob in `blob_cfg` up to `ahead`.
+/// Bring every blob in `blob_cfg` up to `ahead` epochs beyond the current one.
+///
+/// The cycle is charged after the extension, and only if at least one blob was
+/// actually extended. Charging it up front makes a call that does nothing
+/// indistinguishable from one that does work, which lets any address exhaust
+/// another user's mandate for the price of gas. A horizon of zero can never do
+/// work, so it is refused outright rather than accepted as a silent no-op.
 public(package) fun renew_blob_cfg(
     blob_cfg: &mut BlobConfig,
     system: &mut System,
     ahead: u32,
     payment: &mut Coin<WAL>,
 ) {
-    if (option::is_some(blob_config::cycle_limit_mut(blob_cfg))) {
-        let cycle_limit = option::borrow_mut(blob_config::cycle_limit_mut(blob_cfg));
+    assert!(ahead > 0, EInvalidAhead);
 
-        if (*cycle_limit == 0) {
-            return
-        };
-
-        *cycle_limit = *cycle_limit - 1;
+    if (!blob_config::has_cycles(blob_cfg)) {
+        return
     };
 
-    blob_config::blob(blob_cfg).do_mut!(|blob| {
+    let mut extended = false;
+
+    blob_config::blobs_mut(blob_cfg).do_mut!(|blob| {
         let extend_epoch_count = get_renew_epoch_count(blob, system, ahead);
 
         if (extend_epoch_count > 0) {
-            extend_blob(system, blob, payment, extend_epoch_count);
+            system.extend_blob(blob, extend_epoch_count, payment);
+            extended = true;
         }
     });
-}
 
-/// Extend one blob's storage resource by `new_epoch` epochs.
-public(package) fun extend_blob(
-    system: &mut System,
-    blob: &mut Blob,
-    payment: &mut Coin<WAL>,
-    new_epoch: u32,
-) {
-    system.extend_blob(blob, new_epoch, payment);
-}
-
-/// Walk one user's blob-config list for `epoch_set` and renew every config on it.
-public(package) fun process_user_renewal(
-    user_mut: &mut User,
-    walrus_system: &mut System,
-    epoch_set: u32,
-    ahead: u32,
-    payment: &mut Coin<WAL>,
-) {
-    let mut current_blob_id_opt = store::get_epoch_set_head(user_mut, epoch_set);
-
-    while (option::is_some(&current_blob_id_opt)) {
-        let blob_id = *option::borrow(&current_blob_id_opt);
-
-        let blob_config = store::get_blob_config_by_id(user_mut, blob_id);
-
-        renew_blob_cfg(blob_config, walrus_system, ahead, payment);
-
-        current_blob_id_opt = *blob_config.next();
+    if (extended) {
+        blob_config::consume_cycle(blob_cfg);
     };
-}
-
-/// Unwrap a budget back into a spendable coin.
-public(package) fun extract_payment(estimate: Estimate, ctx: &mut TxContext): Coin<WAL> {
-    let Estimate {
-        storage_price_per_unit_size: _,
-        bytes_per_unit_size: _,
-        budget,
-    } = estimate;
-    coin::from_balance(budget, ctx)
-}
-
-/// Return whatever is left of a budget to the sender, or destroy it if empty.
-#[allow(lint(self_transfer))]
-public(package) fun finalize_payment(payment: Coin<WAL>, ctx: &TxContext) {
-    if (coin::value(&payment) > 0) {
-        transfer::public_transfer(payment, ctx.sender());
-    } else {
-        coin::destroy_zero(payment);
-    }
-}
-
-// === Private functions ===
-
-#[allow(unused_function)]
-fun calcuate_renew_cost(blob: &Blob, estimate: &Estimate, epoch_count: u32): u64 {
-    let storage_size = blob.storage().size();
-    let storage_units = storage_size.divide_and_round_up(estimate.bytes_per_unit_size);
-    let period_payment_due = estimate.storage_price_per_unit_size * storage_units;
-    period_payment_due * (epoch_count as u64)
 }

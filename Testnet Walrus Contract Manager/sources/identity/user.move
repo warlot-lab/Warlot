@@ -21,7 +21,9 @@ use warlot::{
 // === Errors ===
 
 #[error]
-const EUserExist: vector<u8> = b"user already exists";
+const EUserExist: vector<u8> = b"USER ALREADY EXISTS";
+#[error]
+const EUserNotFound: vector<u8> = b"USER IS NOT REGISTERED ON THIS SYSTEM";
 
 // === Structs ===
 
@@ -32,16 +34,6 @@ public struct User has key, store {
     owner: address,
     /// The user's internal balances.
     wallet: Wallet,
-    /// File and byte totals.
-    meta_data: DashData,
-    /// Maps an epoch set to the head of that set's blob-config list.
-    index: Table<u32, ID>,
-}
-
-/// Running totals over the user's stored files.
-public struct DashData has store {
-    files: u128,
-    storage_size: u128,
 }
 
 // === Public functions ===
@@ -70,7 +62,7 @@ public fun check_permission_can_init_db(user_obj: &User, ctx: &TxContext) {
 
 /// Immutable access to a registered user, or an abort if they are not registered.
 public fun get_user(system_cfg: &SystemConfig, user: address): &User {
-    assert!(check_user(system_cfg, user), 1);
+    assert!(check_user(system_cfg, user), EUserNotFound);
 
     ofields::borrow<address, User>(system_config::uid(system_cfg), user)
 }
@@ -93,16 +85,6 @@ public(package) fun uid(user: &User): &UID {
 /// Mutable access to the user's UID, so sibling modules can attach objects to it.
 public(package) fun uid_mut(user: &mut User): &mut UID {
     &mut user.id
-}
-
-/// The epoch-set to list-head index.
-public(package) fun index(user: &User): &Table<u32, ID> {
-    &user.index
-}
-
-/// Mutable access to the epoch-set to list-head index.
-public(package) fun index_mut(user: &mut User): &mut Table<u32, ID> {
-    &mut user.index
 }
 
 /// The user's internal wallet.
@@ -128,11 +110,6 @@ public(package) fun create_user(
         id: object::new(ctx),
         owner: ctx.sender(),
         wallet: safe_vault,
-        meta_data: DashData {
-            files: 0,
-            storage_size: 0,
-        },
-        index: table::new<u32, ID>(ctx),
     };
 
     permission::create_table(&mut new_user.id, add_walot_permission, ctx);
@@ -166,32 +143,18 @@ public(package) fun remove_user(system_cfg: &mut SystemConfig, user: address): U
     index_remove_user(system_cfg, user);
 
     system_config::decrease_user_count(system_cfg);
-    dfield::remove<address, User>(system_config::uid_mut(system_cfg), user)
+
+    // `dynamic_object_field` wraps its keys, so a record attached with it has to be
+    // detached with it; `dynamic_field` looks in a different key space and finds
+    // nothing.
+    ofields::remove<address, User>(system_config::uid_mut(system_cfg), user)
 }
 
 /// Mutable access to a registered user.
 public(package) fun get_user_mut(system_cfg: &mut SystemConfig, user: address): &mut User {
+    assert!(check_user(system_cfg, user), EUserNotFound);
+
     ofields::borrow_mut<address, User>(system_config::uid_mut(system_cfg), user)
-}
-
-/// Add `files` and `storage_size` to the user's running totals.
-public(package) fun update_dash_data(user: &mut User, files: u128, storage_size: u128): bool {
-    let old_files = user.meta_data.files;
-    let old_storage_size = user.meta_data.storage_size;
-
-    user.meta_data.files = files + old_files;
-    user.meta_data.storage_size = storage_size + old_storage_size;
-    true
-}
-
-/// Take one file and `storage_size` bytes off the user's running totals.
-public(package) fun reduce_dash_data(user: &mut User, storage_size: u128): bool {
-    let old_files = user.meta_data.files;
-    let old_storage_size = user.meta_data.storage_size;
-
-    user.meta_data.files = old_files - 1;
-    user.meta_data.storage_size = old_storage_size - storage_size;
-    true
 }
 
 // === Private functions ===

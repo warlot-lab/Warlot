@@ -1,20 +1,24 @@
-/// Shared constructors for the objects the tests need from Walrus.
+/// Shared constructors for the objects the tests need from Walrus and from custody.
 #[test_only]
 module warlot::fixtures;
 
 // === Imports ===
 
-use sui::coin::{Self, Coin};
+use sui::{clock::Clock, coin::{Self, Coin}};
 use wal::wal::WAL;
-use walrus::{blob::{Self, Blob}, encoding, system::{Self, System}};
+use walrus::{blob::{Self, Blob}, encoding, messages, system::{Self, System}};
+use warlot::blob_config;
 
 // === Constants ===
 
 /// RedStuff with Reed-Solomon, the only encoding Walrus currently accepts.
 const RS2: u8 = 1;
 
-/// Enough WAL to cover reservation and write payments in a test.
+/// Enough WAL to cover reservation, write and extension payments in a test.
 const TEST_WAL: u64 = 1_000_000_000;
+
+/// The unencoded size of every blob a fixture mints.
+const BLOB_SIZE: u64 = 1_024;
 
 // === Test-only helpers ===
 
@@ -44,4 +48,64 @@ public fun blob(
     let blob_id = blob::derive_blob_id(root_hash, RS2, size);
 
     walrus_system.register_blob(storage, blob_id, root_hash, size, RS2, true, payment, ctx)
+}
+
+/// The same blob, certified.
+///
+/// `walrus::system::extend_blob` refuses an uncertified blob, so any test that
+/// renews has to mint one the way the network would rather than stopping at
+/// registration.
+public fun certified_blob(
+    walrus_system: &mut System,
+    size: u64,
+    epochs_ahead: u32,
+    payment: &mut Coin<WAL>,
+    ctx: &mut TxContext,
+): Blob {
+    let mut raw_blob = blob(walrus_system, size, epochs_ahead, payment, ctx);
+
+    let message = messages::certified_deletable_blob_message_for_testing(
+        blob::blob_id(&raw_blob),
+        object::id(&raw_blob),
+    );
+    blob::certify_with_certified_msg_for_testing(
+        &mut raw_blob,
+        walrus_system.epoch(),
+        message,
+    );
+
+    raw_blob
+}
+
+/// Publish a config owned by `owner` holding one certified blob, and return its id.
+///
+/// `blob_epochs_ahead` sets where the blob's storage term already reaches, so a
+/// test can put it short of `epoch_set` when renewal should do work and past it
+/// when it should not.
+public fun shared_config(
+    walrus_system: &mut System,
+    owner: address,
+    epoch_set: u32,
+    cycle_limit: Option<u64>,
+    blob_epochs_ahead: u32,
+    payment: &mut Coin<WAL>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): ID {
+    let raw_blob = certified_blob(walrus_system, BLOB_SIZE, blob_epochs_ahead, payment, ctx);
+
+    let config = blob_config::new(
+        owner,
+        vector[raw_blob],
+        epoch_set,
+        cycle_limit,
+        option::none(),
+        clock,
+        ctx,
+    );
+    let config_id = blob_config::config_id(&config);
+
+    blob_config::share(config);
+
+    config_id
 }

@@ -30,7 +30,7 @@ public struct FileMeta<T: store> has key, store {
 
 /// Store `raw_blobs` and wrap them in a file record.
 public fun create<T: store>(
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     file_name: String,
     description: String,
     file_type: String,

@@ -20,7 +20,7 @@ use warlot::{
 /// owner, one config per blob, and index them in the user's foreign meta.
 public fun foreign_blob_add(
     registry: &Registry,
-    system_cfg: &mut SystemConfig,
+    system_cfg: &SystemConfig,
     user_foreign_meta: &mut ForeignMeta,
     cycle_end: u64,
     epoch_set: u32,
@@ -51,13 +51,11 @@ public fun foreign_blob_add(
             cycle_end,
         );
 
-        let blob_size = raw_blob.size();
         vector::push_back(
             &mut config_list,
             store::raw_store_blob(
                 system_cfg,
                 vector::singleton(raw_blob),
-                blob_size,
                 set,
                 cycle_end,
                 option::none(),
