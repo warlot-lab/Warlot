@@ -1,0 +1,21 @@
+# Move build output
+build/
+**/build/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
