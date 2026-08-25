@@ -7,7 +7,7 @@ module warlot::inner_file;
 use sui::{clock::Clock, dynamic_object_field as ofields};
 use warlot::{
     deny_list,
-    draft::{Self, FileDraftHolder},
+    draft::{Self, Draft, FileDraftHolder},
     file_data::FileData,
     issue::{Self, FileIssueMeta},
     writer_pass::{Self, WriterPass},
@@ -24,9 +24,19 @@ const INVALIDPASS: vector<u8> = b"enter valid pass";
 #[error]
 const INVALIDTRACKBACKLENGTH: vector<u8> = b"provide a valid track back len data";
 #[error]
+const EDraftLimitReached: vector<u8> = b"THIS FILE ALREADY HOLDS AS MANY OPEN DRAFTS AS IT ALLOWS";
+#[error]
 const EPassRevoked: vector<u8> = b"this pass has been revoked by the file owner";
 
 // === Constants ===
+
+/// The deepest rollback window a file may ask for.
+///
+/// The window is a vector held inline on a shared object, so every entry is
+/// re-serialised through consensus on every write, and every entry is a revision
+/// whose content is being paid for. Eight is past the point where a deeper
+/// history is worth either cost; the field is a `u8` and used to accept 255.
+const MAX_TRACK_BACK: u8 = 8;
 
 /// Dynamic object field key for the file's draft queue.
 const FILEDRAFTKEY: vector<u8> = b"file draft";
@@ -40,7 +50,7 @@ public struct InnerFile has key, store {
     id: UID,
     /// The address that may merge drafts and set the fallback.
     owner: address,
-    /// How many drafts a writer may hold open at a time.
+    /// How many drafts may stand open on this file at once.
     writers_length: u8,
     file_history: FileTrack,
     created_at_ms: u64,
@@ -147,10 +157,22 @@ public fun owner(inner_file: &InnerFile): address {
     inner_file.owner
 }
 
-/// How many drafts a writer may hold open at a time.
+/// How many drafts may stand open on this file at once.
 public fun writers_length(inner_file: &InnerFile): u8 {
     inner_file.writers_length
 }
+
+/// The config the fallback names, if the file holds one.
+public fun root_change_config(inner_file: &InnerFile): Option<ID> {
+    if (inner_file.file_history.root_change.is_none()) {
+        return option::none()
+    };
+
+    option::some(inner_file.file_history.root_change.borrow().blob_config_id())
+}
+
+/// The deepest rollback window a file may ask for.
+public fun max_track_back(): u8 { MAX_TRACK_BACK }
 
 // === Package functions ===
 
@@ -165,7 +187,10 @@ public(package) fun new(
     clock: &Clock,
     ctx: &mut TxContext,
 ): InnerFile {
-    assert!(track_back_length > 0, INVALIDTRACKBACKLENGTH);
+    assert!(
+        track_back_length > 0 && track_back_length <= MAX_TRACK_BACK,
+        INVALIDTRACKBACKLENGTH,
+    );
 
     InnerFile {
         id: object::new(ctx),
@@ -227,23 +252,49 @@ public(package) fun get_issue_meta(inner_file: &InnerFile): &FileIssueMeta {
     ofields::borrow<vector<u8>, FileIssueMeta>(&inner_file.id, ISSUEKEY)
 }
 
-/// Make `file_data` the newest revision, evicting the oldest once the rollback
-/// window is full.
+/// Make `file_data` the newest revision, returning the oldest one if the rollback
+/// window was already full.
+///
+/// The displaced revision comes back rather than being discarded, because it names
+/// content that is still stored and still being paid for. What becomes of that
+/// content is the caller's to settle; the window's job ends at deciding that the
+/// revision no longer belongs to the file.
+///
+/// The window is bounded at `MAX_TRACK_BACK`, so the shift that keeps index 0 the
+/// newest revision moves at most that many entries.
 public(package) fun override_file_add(
     inner_file: &mut InnerFile,
     file_data: FileData,
     clock: &Clock,
-) {
+): Option<FileData> {
     let max_length = inner_file.file_history.track_back_length as u64;
     let current_length = vector::length(&inner_file.file_history.track_back);
 
-    if (max_length <= current_length) {
-        let _ = inner_file.file_history.track_back.pop_back();
+    let displaced = if (max_length <= current_length) {
+        option::some(inner_file.file_history.track_back.pop_back())
+    } else {
+        option::none()
     };
 
     // Index 0 is the newest revision.
     inner_file.file_history.track_back.insert(file_data, 0);
     inner_file.file_history.last_modified = clock.timestamp_ms();
+
+    displaced
+}
+
+/// Attach `draft` to the file's queue, refusing it once the file already holds as
+/// many open drafts as it allows.
+///
+/// The cap was declared on the file from the beginning and enforced nowhere, so
+/// the queue was a shared structure any pass holder could grow without limit.
+public(package) fun pin_draft(inner_file: &mut InnerFile, draft: Draft, clock: &Clock) {
+    let cap = inner_file.writers_length as u64;
+    let draft_holder = inner_file.get_draft_holder();
+
+    assert!(draft::total_draft(draft_holder) < cap, EDraftLimitReached);
+
+    draft::pin_draft(draft_holder, draft, clock);
 }
 
 /// Record the known-good fallback, returning the revision it displaced if there

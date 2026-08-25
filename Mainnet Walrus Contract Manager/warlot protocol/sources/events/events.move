@@ -123,6 +123,21 @@ public struct SystemWithdraw has copy, drop, store {
     amount: u64,
 }
 
+/// A revision stopped being referenced by the file that held it.
+///
+/// `released` distinguishes the two outcomes: the revision's content was handed
+/// back to its owner and the config destroyed, or the config was left alive
+/// because someone else still holds a claim on it ,  a draft's author, or the
+/// file's own fallback. The config id is carried either way, because it is the
+/// only handle on content that has just lost its last on-chain reference.
+public struct RevisionRetired has copy, drop, store {
+    file: ID,
+    blob_config: ID,
+    commit: vector<u8>,
+    commit_by: address,
+    released: bool,
+}
+
 // === Package functions ===
 
 /// Announce a newly registered user.
@@ -261,4 +276,15 @@ public(package) fun emit_permission_granted(
 /// Announce a withdrawn delegation.
 public(package) fun emit_permission_revoked(owner: address, delegate: address) {
     event::emit(PermissionRevoked { owner, delegate })
+}
+
+/// Announce a revision leaving the file that held it.
+public(package) fun emit_revision_retired(
+    file: ID,
+    blob_config: ID,
+    commit: vector<u8>,
+    commit_by: address,
+    released: bool,
+) {
+    event::emit(RevisionRetired { file, blob_config, commit, commit_by, released })
 }

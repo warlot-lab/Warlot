@@ -123,6 +123,18 @@ public(package) fun consume_cycle(blob_cfg: &mut BlobConfig) {
     *remaining = *remaining - 1;
 }
 
+/// Re-parent the config to `new_owner`.
+///
+/// Custody is a field rather than Sui object ownership, so moving it is a write
+/// and not a transfer. Nothing here decides *whether* the move is allowed: this
+/// is `public(package)` and the caller is the only thing standing between an
+/// owner and a stranger, so every call site must already have established that
+/// the current owner consented or that the new owner is the party the content was
+/// approved by.
+public(package) fun transfer_ownership(blob_cfg: &mut BlobConfig, new_owner: address) {
+    blob_cfg.owner = new_owner;
+}
+
 /// Destroy the config and return the blobs it held.
 ///
 /// The owner's exit is unconditional and has no repair step: the config is the
@@ -130,6 +142,26 @@ public(package) fun consume_cycle(blob_cfg: &mut BlobConfig) {
 public(package) fun unwrap(blob_cfg: BlobConfig, ctx: &TxContext): vector<Blob> {
     assert!(ctx.sender() == blob_cfg.owner, ENotOwner);
 
+    let (_, blobs) = destroy(blob_cfg);
+
+    blobs
+}
+
+/// Destroy the config on behalf of whoever owns it, returning that address
+/// alongside the blobs.
+///
+/// The sender is not the owner on this path: a revision leaving a file's rollback
+/// window is retired by whoever wrote the revision that displaced it. Returning
+/// the owner rather than taking a recipient is what keeps that safe ,  the caller
+/// chooses when the content is released and never where it goes.
+public(package) fun unwrap_for_owner(blob_cfg: BlobConfig): (address, vector<Blob>) {
+    destroy(blob_cfg)
+}
+
+// === Private functions ===
+
+/// Delete the config, announce it, and hand back its owner and its blobs.
+fun destroy(blob_cfg: BlobConfig): (address, vector<Blob>) {
     let config_id = object::id(&blob_cfg);
     let BlobConfig {
         id,
@@ -144,5 +176,5 @@ public(package) fun unwrap(blob_cfg: BlobConfig, ctx: &TxContext): vector<Blob> 
 
     events::emit_withdraw_blob(owner, config_id);
 
-    blobs
+    (owner, blobs)
 }

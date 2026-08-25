@@ -7,6 +7,11 @@ use sui::clock::Clock;
 use walrus::blob::{Self, Blob};
 use warlot::{blob_config, events, system_config::SystemConfig, tier, user};
 
+// === Errors ===
+
+#[error]
+const ENoBlobs: vector<u8> = b"A STORE MUST CARRY AT LEAST ONE BLOB";
+
 // === Package functions ===
 
 /// Wrap `blobs` in a config owned by `owner`, publish it, and return its id.
@@ -55,7 +60,9 @@ public(package) fun store_blob_internal(
     clock: &Clock,
     ctx: &mut TxContext,
 ): (ID, u64) {
-    let set = tier::get_set(epoch_set);
+    assert!(!raw_blobs.is_empty(), ENoBlobs);
+
+    let set = tier::validate(system_cfg, epoch_set);
 
     let mut size = 0;
     let mut storage_size = 0;
@@ -63,6 +70,8 @@ public(package) fun store_blob_internal(
 
     let mut raw_blobs_id = vector<ID>[];
 
+    // Bounded by the blobs the caller handed in, which the transaction carrying
+    // them already bounds.
     raw_blobs.do_ref!(|blob_x| {
         size = size + blob::size(blob_x);
         storage_size = storage_size + blob::storage(blob_x).size();

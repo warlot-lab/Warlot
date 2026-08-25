@@ -10,13 +10,22 @@ use sui::{
     dynamic_field as df,
     table::{Self, Table},
 };
+use warlot::admin_cap::{Self, AdminCap};
 
 // === Errors ===
 
-const EInvalidCoin: u64 = 0;
-const EInsufficientBalance: u64 = 1;
-const ENoBalanceFound: u64 = 2;
-const ECoinAlreadySupported: u64 = 3;
+#[error]
+const EInvalidCoin: vector<u8> = b"THIS VAULT DOES NOT ACCEPT THAT COIN TYPE";
+#[error]
+const EInsufficientBalance: vector<u8> = b"THE VAULT HOLDS LESS THAN THAT";
+#[error]
+const ENoBalanceFound: vector<u8> = b"THE VAULT HOLDS NONE OF THAT COIN TYPE";
+#[error]
+const ECoinAlreadySupported: vector<u8> = b"THIS VAULT ALREADY ACCEPTS THAT COIN TYPE";
+#[error]
+const ENotOriginalCap: vector<u8> = b"THIS OPERATION NEEDS THE ORIGINAL ADMIN CAPABILITY";
+#[error]
+const ECapForAnotherSystem: vector<u8> = b"THIS ADMIN CAPABILITY WAS MINTED FOR A DIFFERENT SYSTEM";
 
 // === Structs ===
 
@@ -25,6 +34,10 @@ const ECoinAlreadySupported: u64 = 3;
 /// under a dynamic field keyed by its type name.
 public struct Vault has key, store {
     id: UID,
+    /// The system this vault is the treasury of. Every operation that takes value
+    /// out of the vault is authorised against this, so the vault does not depend
+    /// on being unreachable to be safe.
+    system: ID,
     /// Tracks valid coin types. Key = type name string (e.g. `0x2::sui::SUI`).
     accepted_coins: Table<String, bool>,
 }
@@ -32,19 +45,21 @@ public struct Vault has key, store {
 // === Public functions ===
 
 /// Add a coin type to the allowed list.
-public fun add_supported_coin<T>(vault: &mut Vault) {
+public fun add_supported_coin<T>(vault: &mut Vault, admin_cap: &AdminCap) {
+    vault.assert_operator(admin_cap);
+
     let type_name_str = get_type_name_string<T>();
 
-    if (table::contains(&vault.accepted_coins, type_name_str)) {
-        abort ECoinAlreadySupported
-    };
+    assert!(!table::contains(&vault.accepted_coins, type_name_str), ECoinAlreadySupported);
 
     table::add(&mut vault.accepted_coins, type_name_str, true);
 }
 
 /// Remove a coin type from the allowed list.
 /// This does not remove the balance, it only prevents new deposits.
-public fun remove_supported_coin<T>(vault: &mut Vault) {
+public fun remove_supported_coin<T>(vault: &mut Vault, admin_cap: &AdminCap) {
+    vault.assert_operator(admin_cap);
+
     let type_name_str = get_type_name_string<T>();
     if (table::contains(&vault.accepted_coins, type_name_str)) {
         table::remove(&mut vault.accepted_coins, type_name_str);
@@ -52,6 +67,10 @@ public fun remove_supported_coin<T>(vault: &mut Vault) {
 }
 
 /// Deposit a `Coin<T>` into the vault, merging it with any balance already held.
+///
+/// Deliberately unauthorised. Paying into the treasury is what users do when they
+/// pay a fee, and a deposit can only ever increase what the vault holds ,  the
+/// accepted-coin list is the only thing that needs saying no here, and it does.
 public fun deposit<T>(vault: &mut Vault, payment: Coin<T>) {
     let type_name_str = get_type_name_string<T>();
 
@@ -66,7 +85,14 @@ public fun deposit<T>(vault: &mut Vault, payment: Coin<T>) {
 }
 
 /// Withdraw a specific amount of `Coin<T>`.
-public fun withdraw<T>(vault: &mut Vault, amount: u64, ctx: &mut TxContext): Coin<T> {
+public fun withdraw<T>(
+    vault: &mut Vault,
+    admin_cap: &AdminCap,
+    amount: u64,
+    ctx: &mut TxContext,
+): Coin<T> {
+    vault.assert_operator(admin_cap);
+
     let type_name_str = get_type_name_string<T>();
 
     assert!(df::exists_(&vault.id, type_name_str), ENoBalanceFound);
@@ -76,18 +102,6 @@ public fun withdraw<T>(vault: &mut Vault, amount: u64, ctx: &mut TxContext): Coi
     assert!(balance::value(vault_balance) >= amount, EInsufficientBalance);
 
     let split_balance = balance::split(vault_balance, amount);
-    coin::from_balance(split_balance, ctx)
-}
-
-/// Withdraw the entire balance of `Coin<T>`.
-public fun withdraw_all<T>(vault: &mut Vault, ctx: &mut TxContext): Coin<T> {
-    let type_name_str = get_type_name_string<T>();
-    assert!(df::exists_(&vault.id, type_name_str), ENoBalanceFound);
-
-    let vault_balance = df::borrow_mut<String, Balance<T>>(&mut vault.id, type_name_str);
-    let total_amount = balance::value(vault_balance);
-
-    let split_balance = balance::split(vault_balance, total_amount);
     coin::from_balance(split_balance, ctx)
 }
 
@@ -111,17 +125,43 @@ public fun is_coin_supported<T>(vault: &Vault): bool {
     table::contains(&vault.accepted_coins, type_name_str)
 }
 
+/// The system this vault is the treasury of.
+public fun system(vault: &Vault): ID {
+    vault.system
+}
+
 // === Package functions ===
 
 /// Create a new, empty vault accepting no coin types.
-public(package) fun create_vault(ctx: &mut TxContext): Vault {
+public(package) fun create_vault(system: ID, ctx: &mut TxContext): Vault {
     Vault {
         id: object::new(ctx),
+        system,
         accepted_coins: table::new(ctx),
     }
 }
 
+/// Add a coin type to the allowed list while the vault is still being built.
+///
+/// The vault's own system has no original capability until the transaction that
+/// mints it has finished, so the first accepted coin type cannot be authorised
+/// the ordinary way. This is `public(package)`, and its only caller is the system
+/// constructor.
+public(package) fun support_coin_on_creation<T>(vault: &mut Vault) {
+    let type_name_str = get_type_name_string<T>();
+
+    assert!(!table::contains(&vault.accepted_coins, type_name_str), ECoinAlreadySupported);
+
+    table::add(&mut vault.accepted_coins, type_name_str, true);
+}
+
 // === Private functions ===
+
+/// Assert `admin_cap` is an original capability for this vault's own system.
+fun assert_operator(vault: &Vault, admin_cap: &AdminCap) {
+    assert!(admin_cap.state() == admin_cap::state_original(), ENotOriginalCap);
+    assert!(admin_cap.system_config_id() == vault.system, ECapForAnotherSystem);
+}
 
 fun get_type_name_string<T>(): String {
     string::from_ascii(type_name::with_defining_ids<T>().into_string())

@@ -14,6 +14,18 @@ use warlot::{
     vault,
 };
 
+// === Errors ===
+
+#[error]
+const ERegistryForAnotherSystem: vector<u8> = b"THIS REGISTRY BELONGS TO A DIFFERENT SYSTEM";
+#[error]
+const EInsufficientPayment: vector<u8> = b"THE COIN DOES NOT COVER THE MIGRATION FEE";
+#[error]
+const ENotRegisteredHere: vector<u8> = b"THIS USER IS NOT REGISTERED WITH THE SYSTEM BEING LEFT";
+#[error]
+const EAlreadyRegisteredThere: vector<u8> =
+    b"THIS USER IS ALREADY REGISTERED WITH THE SYSTEM BEING JOINED";
+
 // === Public functions ===
 
 /// Register the sender with no delegate.
@@ -26,6 +38,8 @@ public fun all_register_user_publicly(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    system_cfg.assert_version();
+
     let new_user = user::create_user(
         public_username,
         object::id(system_cfg),
@@ -47,6 +61,8 @@ public fun all_register_user_with_system_permission(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    system_cfg.assert_version();
+
     let new_user = user::create_user(
         public_username,
         object::id(system_cfg),
@@ -68,7 +84,9 @@ public fun update_username(
     payment: &mut Coin<WAL>,
     ctx: &mut TxContext,
 ) {
-    assert!(object::id(system_cfg) == registry.get_system(), 9);
+    system_cfg.assert_version();
+
+    assert!(object::id(system_cfg) == registry.get_system(), ERegistryForAnotherSystem);
 
     let fee = system_cfg.cost_to_update_name();
     let paid_coin = coin::split(payment, fee, ctx);
@@ -88,19 +106,23 @@ public fun migrate_system(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    current_system.assert_version();
+    next_system.assert_version();
+
     let user_address = registry.get_user();
 
     let cost = next_system.cost_to_migrate_system();
 
-    assert!(object::id(current_system) == registry.get_system(), 1);
+    assert!(object::id(current_system) == registry.get_system(), ERegistryForAnotherSystem);
 
-    assert!(coin.value() >= cost, 2);
+    assert!(coin.value() >= cost, EInsufficientPayment);
 
-    assert!(user::check_user(current_system, registry.get_user()), 3);
+    assert!(user::check_user(current_system, registry.get_user()), ENotRegisteredHere);
 
     // This version only allows migration into a system the user is not already in.
-    assert!(!user::check_user(next_system, registry.get_user()), 4);
+    assert!(!user::check_user(next_system, registry.get_user()), EAlreadyRegisteredThere);
 
+    // Only the fee leaves the caller's coin; the change stays where it was.
     let payment = coin::split(coin, cost, ctx);
 
     let next_vault = system_config::get_vault_mut(next_system);

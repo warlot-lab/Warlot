@@ -4,10 +4,17 @@ module warlot::fixtures;
 
 // === Imports ===
 
+use std::hash;
 use sui::{clock::Clock, coin::{Self, Coin}};
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, encoding, messages, system::{Self, System}};
-use warlot::{blob_config, entry_innerfile, entry_register, system_config::SystemConfig};
+use warlot::{
+    blob_config::{Self, BlobConfig},
+    commit,
+    entry_innerfile,
+    entry_register,
+    system_config::SystemConfig,
+};
 
 // === Constants ===
 
@@ -39,6 +46,14 @@ const FILE_TRACK_BACK: u8 = 3;
 const FILE_DRAFT_EPOCHS: u32 = 1;
 
 // === Test-only helpers ===
+
+/// A well-formed commitment naming one operation derived from `label`.
+///
+/// Commits are fixed-width roots now, so a test cannot hand a file a readable
+/// string; this keeps them readable at the call site and well formed on the way in.
+public fun commit_for(label: vector<u8>): vector<u8> {
+    commit::root(&vector[hash::sha2_256(label)])
+}
 
 /// A Walrus system at epoch zero.
 public fun walrus_system(ctx: &mut TxContext): System {
@@ -166,6 +181,12 @@ public fun inner_file(
 
 /// The storage term a fixture file's revisions are bought under.
 public fun file_epoch_set(): u32 { FILE_EPOCH_SET }
+
+/// How many revisions a fixture file's rollback window holds.
+public fun file_track_back(): u8 { FILE_TRACK_BACK }
+
+/// How many drafts may stand open on a fixture file at once.
+public fun file_writers(): u8 { FILE_WRITERS }
 
 /// How many renewal cycles a fixture file's revisions are bought for.
 public fun file_cycles(): u64 { FILE_CYCLES }

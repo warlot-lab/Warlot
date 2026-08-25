@@ -51,7 +51,7 @@ fun expires() {
         &mut sys,
         ALICE,
         b"alice",
-        b"first",
+        fixtures::commit_for(b"first"),
         &mut funds,
         &clk,
         sc.ctx(),
@@ -59,7 +59,7 @@ fun expires() {
 
     sc.next_tx(ALICE);
     let file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_innerfile::create_pass(&file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
     let bob_pass = sc.take_from_sender<WriterPass>();
@@ -96,7 +96,7 @@ fun immortal_is_deniable() {
         &mut sys,
         ALICE,
         b"alice",
-        b"first",
+        fixtures::commit_for(b"first"),
         &mut funds,
         &clk,
         sc.ctx(),
@@ -105,8 +105,15 @@ fun immortal_is_deniable() {
     // A pass the system does not decay, held by an address the owner then denies.
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_innerfile::create_pass(&file, BOB, writer_pass::immortal_duration(), false, sc.ctx());
-    entry_innerfile::deny_writer(&mut file, BOB, FOREVER, &clk, sc.ctx());
+    entry_innerfile::create_pass(
+        &sys,
+        &file,
+        BOB,
+        writer_pass::immortal_duration(),
+        false,
+        sc.ctx(),
+    );
+    entry_innerfile::deny_writer(&sys, &mut file, BOB, FOREVER, &clk, sc.ctx());
 
     sc.next_tx(BOB);
     let bob_pass = sc.take_from_sender<WriterPass>();
@@ -141,7 +148,7 @@ fun revoked_pass_refused() {
         &mut sys,
         ALICE,
         b"alice",
-        b"first",
+        fixtures::commit_for(b"first"),
         &mut funds,
         &clk,
         sc.ctx(),
@@ -154,7 +161,7 @@ fun revoked_pass_refused() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_innerfile::create_pass(&file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
     let mut bob_pass = sc.take_from_sender<WriterPass>();
@@ -163,7 +170,7 @@ fun revoked_pass_refused() {
     // The pass is still in Bob's account, and stays there. The record on the
     // file is the whole of the revocation.
     sc.next_tx(ALICE);
-    entry_innerfile::revoke_pass(&mut file, bob_pass_id, sc.ctx());
+    entry_innerfile::revoke_pass(&sys, &mut file, bob_pass_id, sc.ctx());
     assert!(file.is_pass_revoked(bob_pass_id), 0);
 
     sc.next_tx(BOB);
@@ -183,7 +190,8 @@ fun revoked_pass_refused() {
         &clk,
         &sys,
         vector[raw_blob],
-        b"a change the owner never accepted",
+        fixtures::commit_for(b"a change the owner never accepted"),
+        vector[],
         sc.ctx(),
     );
 
@@ -230,7 +238,7 @@ fun delegated_pass_has_duration() {
         fixtures::file_epoch_set(),
         fixtures::file_cycles(),
         &clk,
-        b"first",
+        fixtures::commit_for(b"first"),
         1,
         true,
         PASS_EXPIRY_MS,
@@ -284,7 +292,7 @@ fun a_delegated_pass_cannot_be_immortal() {
         fixtures::file_epoch_set(),
         fixtures::file_cycles(),
         &clk,
-        b"first",
+        fixtures::commit_for(b"first"),
         1,
         true,
         writer_pass::immortal_duration(),

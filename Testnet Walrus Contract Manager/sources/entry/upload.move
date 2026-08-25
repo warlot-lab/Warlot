@@ -14,6 +14,25 @@ use warlot::{
     tier,
 };
 
+// === Errors ===
+
+#[error]
+const ERegistryForAnotherSystem: vector<u8> = b"THIS REGISTRY BELONGS TO A DIFFERENT SYSTEM";
+#[error]
+const EBatchTooLarge: vector<u8> = b"TOO MANY BLOBS FOR ONE ADOPTION";
+
+// === Constants ===
+
+/// The largest number of blobs one adoption may carry.
+///
+/// Each blob costs a shared object created and an event emitted, so the call's
+/// gas grows linearly and would otherwise be bounded only by the gas budget ,
+/// which is to say, bounded by failing. The cap also keeps a single call well
+/// short of the point where the index vector it appends to could overflow a Sui
+/// object on its own. Conservative until the per-blob cost is measured on a live
+/// network.
+const MAX_ADOPTION_BATCH: u64 = 100;
+
 // === Public functions ===
 
 /// Take `blobs` sourced outside the protocol into custody under the registry's
@@ -24,22 +43,28 @@ public fun foreign_blob_add(
     user_foreign_meta: &mut ForeignMeta,
     cycle_end: u64,
     epoch_set: u32,
-    blobs: vector<Blob>,
+    mut blobs: vector<Blob>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let set = tier::get_set(epoch_set);
+    system_cfg.assert_version();
 
-    let mut temp_list = vector::empty<Blob>();
-    temp_list.append(blobs);
+    // A registry names the system it belongs to, so a call that pairs one with a
+    // different system is asking two objects that know nothing about each other
+    // to agree on who the user is.
+    assert!(registry.get_system() == object::id(system_cfg), ERegistryForAnotherSystem);
+    assert!(blobs.length() <= MAX_ADOPTION_BATCH, EBatchTooLarge);
+
+    let set = tier::validate(system_cfg, epoch_set);
 
     let mut meta_peak = foreign_meta::verify_peak(user_foreign_meta);
     let avg_len = foreign_meta::avg_len();
 
     let mut config_list: vector<ID> = vector::empty<ID>();
 
-    while (!temp_list.is_empty()) {
-        let raw_blob = temp_list.pop_back();
+    // Bounded by `MAX_ADOPTION_BATCH`.
+    while (!blobs.is_empty()) {
+        let raw_blob = blobs.pop_back();
 
         events::emit_managed_blobs(
             registry.get_user(),
@@ -75,5 +100,5 @@ public fun foreign_blob_add(
     };
     foreign_meta::add_foreign_blob(user_foreign_meta, config_list);
 
-    temp_list.destroy_empty()
+    blobs.destroy_empty()
 }

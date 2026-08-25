@@ -22,6 +22,8 @@ use warlot::{
 
 const ALICE: address = @0xA11CE;
 const MIGRATION_COST: u64 = 100;
+/// Far more than the fee, so a coin that came back short would be obvious.
+const PURSE: u64 = 10_000;
 
 // === Test-only helpers ===
 
@@ -92,6 +94,62 @@ fun migrate_system_moves_a_user_between_systems() {
     assert!(registry.get_system() == next_id, 2);
 
     destroy(fee);
+    destroy(registry);
+    destroy(admin_cap);
+    clock::destroy_for_testing(clk);
+    ts::return_shared(current);
+    ts::return_shared(next);
+    sc.end();
+}
+
+#[test]
+fun change_returned() {
+    let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut current = sc.take_shared<SystemConfig>();
+    let mut admin_cap = sc.take_from_sender<AdminCap>();
+    entry_admin::mint_system(
+        &mut admin_cap,
+        &mut current,
+        MIGRATION_COST,
+        MIGRATION_COST,
+        MIGRATION_COST,
+        MIGRATION_COST,
+        sc.ctx(),
+    );
+    let next_id = *current.next_system().borrow();
+
+    sc.next_tx(ALICE);
+    let mut next = ts::take_shared_by_id<SystemConfig>(&sc, next_id);
+    let clk = clock::create_for_testing(sc.ctx());
+    entry_register::all_register_user_publicly(
+        &mut current,
+        b"alice".to_string(),
+        &clk,
+        sc.ctx(),
+    );
+
+    sc.next_tx(ALICE);
+    let mut registry = sc.take_from_sender<Registry>();
+    let mut purse = coin::mint_for_testing<WAL>(PURSE, sc.ctx());
+
+    entry_register::migrate_system(
+        &mut registry,
+        &mut current,
+        &mut next,
+        &mut purse,
+        &clk,
+        sc.ctx(),
+    );
+
+    // The fee is split off the coin. The rest stays with the caller, rather than
+    // the whole coin being swallowed by the system being joined.
+    assert!(purse.value() == PURSE - MIGRATION_COST, 0);
+    assert!(next.get_system_balance<WAL>() == MIGRATION_COST, 1);
+
+    destroy(purse);
     destroy(registry);
     destroy(admin_cap);
     clock::destroy_for_testing(clk);

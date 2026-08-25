@@ -73,7 +73,7 @@ fun owner_withdraws_every_config() {
     sc.next_tx(ALICE);
     ids.do_ref!(|id| {
         let config = ts::take_shared_by_id<BlobConfig>(&sc, *id);
-        entry_withdraw::self_withdraw_blob(config, sc.ctx());
+        entry_withdraw::self_withdraw_blob(&sys, config, sc.ctx());
     });
 
     // Every blob is back in Alice's own account, owned outright.
@@ -93,9 +93,13 @@ fun owner_withdraws_every_config() {
 #[expected_failure(abort_code = warlot::blob_config::ENotOwner)]
 fun a_stranger_cannot_withdraw() {
     let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
     let mut wsys = fixtures::walrus_system(sc.ctx());
 
     sc.next_tx(ALICE);
+    let sys = sc.take_shared<SystemConfig>();
     let clk = clock::create_for_testing(sc.ctx());
     let mut funds = fixtures::wal(sc.ctx());
     let config_id = fixtures::shared_config(
@@ -112,10 +116,11 @@ fun a_stranger_cannot_withdraw() {
     // The config is shared, so Mallory can reach it; `owner` is what stops her.
     sc.next_tx(MALLORY);
     let config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
-    entry_withdraw::self_withdraw_blob(config, sc.ctx());
+    entry_withdraw::self_withdraw_blob(&sys, config, sc.ctx());
 
     destroy(funds);
     destroy(wsys);
     clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
     sc.end();
 }

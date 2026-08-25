@@ -31,10 +31,14 @@ public fun withdraw_system_wal(
     amount: u64,
     ctx: &mut TxContext,
 ) {
+    system_cfg.assert_version();
     assert_original_cap_for(admin_cap, object::id(system_cfg));
 
+    let system_id = object::id(system_cfg);
     let vault = system_cfg.get_vault_mut();
-    let withdrawn_coin = vault::withdraw<WAL>(vault, amount, ctx);
+    let withdrawn_coin = vault::withdraw<WAL>(vault, admin_cap, amount, ctx);
+
+    events::emit_system_withdraw(ctx.sender(), system_id, amount);
 
     transfer::public_transfer(withdrawn_coin, ctx.sender());
 }
@@ -47,30 +51,36 @@ public fun withdraw_system_coin<T>(
     amount: u64,
     ctx: &mut TxContext,
 ) {
+    system_cfg.assert_version();
     assert_original_cap_for(admin_cap, object::id(system_cfg));
 
+    let system_id = object::id(system_cfg);
     let vault = system_cfg.get_vault_mut();
 
     // Aborts with `ENoBalanceFound` when the vault holds none of this type.
-    let withdrawn_coin = vault::withdraw<T>(vault, amount, ctx);
+    let withdrawn_coin = vault::withdraw<T>(vault, admin_cap, amount, ctx);
+
+    events::emit_system_withdraw(ctx.sender(), system_id, amount);
 
     transfer::public_transfer(withdrawn_coin, ctx.sender());
 }
 
 /// Accept a new coin type into the system vault.
 public fun add_coin_type<T>(admin_cap: &mut AdminCap, system_cfg: &mut SystemConfig) {
+    system_cfg.assert_version();
     assert_original_cap_for(admin_cap, object::id(system_cfg));
 
     let vault = system_cfg.get_vault_mut();
-    vault::add_supported_coin<T>(vault);
+    vault::add_supported_coin<T>(vault, admin_cap);
 }
 
 /// Stop accepting a coin type. Balances already held stay withdrawable.
 public fun remove_supported_coin<T>(admin_cap: &mut AdminCap, system_cfg: &mut SystemConfig) {
+    system_cfg.assert_version();
     assert_original_cap_for(admin_cap, object::id(system_cfg));
 
     let vault = system_cfg.get_vault_mut();
-    vault::remove_supported_coin<T>(vault);
+    vault::remove_supported_coin<T>(vault, admin_cap);
 }
 
 /// Mint the next system in the chain, share it, and hand the caller the original
@@ -88,18 +98,24 @@ public fun mint_system(
     cost_to_delete: u64,
     ctx: &mut TxContext,
 ) {
+    old_system.assert_version();
+
     // System minting is linear: an old system may name only one successor.
     assert!(option::is_none(old_system.next_system()), ESuccessorAlreadyMinted);
 
     assert_original_cap_for(admin_cap, object::id(old_system));
 
+    // The successor opens selling what its predecessor sold. A ladder that reset
+    // to nothing would leave the new system unable to take a single upload until
+    // somebody remembered to configure it.
     let new_system = system_config::new(
         object::id(old_system),
-        1 + old_system.get_system_version(),
         cost_change_apikey_forms,
         cost_to_migrate_system,
         cost_to_update_name,
         cost_to_delete,
+        *old_system.tier_table(),
+        old_system.max_epochs_ahead(),
         ctx,
     );
 
@@ -124,10 +140,45 @@ public fun update_cost(
     cost_change_apikey_forms: u64,
     cost_to_migrate_system: u64,
     cost_to_update_name: u64,
+    cost_to_delete: u64,
 ) {
+    system.assert_version();
     assert_original_cap_for(admin_cap, object::id(system));
 
-    system.set_costs(cost_change_apikey_forms, cost_to_migrate_system, cost_to_update_name);
+    system.set_costs(
+        cost_change_apikey_forms,
+        cost_to_migrate_system,
+        cost_to_update_name,
+        cost_to_delete,
+    );
+}
+
+/// Replace the storage terms this system sells and the horizon they sit inside.
+///
+/// The ladder is configuration rather than a compile-time constant so that it can
+/// be retuned, and so that a change to the storage horizon upstream is answered
+/// here instead of by republishing the package.
+public fun update_tier_table(
+    admin_cap: &mut AdminCap,
+    system: &mut SystemConfig,
+    tier_table: vector<u32>,
+    max_epochs_ahead: u32,
+) {
+    system.assert_version();
+    assert_original_cap_for(admin_cap, object::id(system));
+
+    system.set_tier_table(tier_table, max_epochs_ahead);
+}
+
+/// Raise the system to the package version.
+///
+/// The one entry point that must not assert the version, because a stale version
+/// is the condition it exists to clear. It asserts the opposite instead: the
+/// system is behind the package, so there is something to do.
+public fun migrate_version(admin_cap: &mut AdminCap, system: &mut SystemConfig) {
+    assert_original_cap_for(admin_cap, object::id(system));
+
+    system.update_version();
 }
 
 /// Mint a duplicate admin capability for `receiver`.
@@ -137,6 +188,7 @@ public fun mint_admin(
     admin_cap: &AdminCap,
     ctx: &mut TxContext,
 ) {
+    system_cfg.assert_version();
     assert_original_cap_for(admin_cap, object::id(system_cfg));
 
     let new_cap = admin_cap::new(

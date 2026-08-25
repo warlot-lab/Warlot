@@ -28,6 +28,8 @@ public fun grant(
     compact: bool,
     ctx: &mut TxContext,
 ) {
+    system_cfg.assert_version();
+
     let user_obj = user::get_user_mut(system_cfg, owner);
     assert!(user_obj.owner() == ctx.sender(), ENotAccountOwner);
 
@@ -50,6 +52,8 @@ public fun revoke(
     delegate: address,
     ctx: &mut TxContext,
 ) {
+    system_cfg.assert_version();
+
     let user_obj = user::get_user_mut(system_cfg, owner);
     assert!(user_obj.owner() == ctx.sender(), ENotAccountOwner);
 

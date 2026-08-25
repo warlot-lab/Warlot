@@ -11,7 +11,12 @@ use std::unit_test::destroy;
 use sui::{clock, coin, test_scenario as ts};
 use wal::wal::WAL;
 use walrus::blob;
-use warlot::{blob_config::{Self, BlobConfig}, entry_renew, fixtures};
+use warlot::{
+    blob_config::{Self, BlobConfig},
+    entry_renew,
+    fixtures,
+    system_config::{Self, SystemConfig},
+};
 
 // === Constants ===
 
@@ -30,17 +35,23 @@ const ATTEMPTS: u64 = 100;
 
 #[test]
 #[expected_failure(abort_code = warlot::renew::EInvalidAhead)]
-fun a_zero_horizon_is_refused() {
+fun a_zero_term_is_refused() {
     let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
     let mut wsys = fixtures::walrus_system(sc.ctx());
 
     sc.next_tx(ALICE);
+    let sys = sc.take_shared<SystemConfig>();
     let clk = clock::create_for_testing(sc.ctx());
     let mut funds = fixtures::wal(sc.ctx());
+    // Built directly, because the upload path refuses a term the system does not
+    // sell and zero is not one of them. The guard below is what stands behind that.
     let config_id = fixtures::shared_config(
         &mut wsys,
         ALICE,
-        SET,
+        0,
         option::some(CYCLES),
         SHORT_EPOCHS,
         &mut funds,
@@ -52,22 +63,27 @@ fun a_zero_horizon_is_refused() {
     let mut zero = coin::zero<WAL>(sc.ctx());
     let mut config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
 
-    entry_renew::renew_blob(&mut wsys, &mut config, &mut zero, 0);
+    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero);
 
     destroy(config);
     destroy(zero);
     destroy(funds);
     destroy(wsys);
     clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
     sc.end();
 }
 
 #[test]
 fun a_renewal_that_does_no_work_spends_no_cycle() {
     let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
     let mut wsys = fixtures::walrus_system(sc.ctx());
 
     sc.next_tx(ALICE);
+    let sys = sc.take_shared<SystemConfig>();
     let clk = clock::create_for_testing(sc.ctx());
     let mut funds = fixtures::wal(sc.ctx());
 
@@ -89,7 +105,7 @@ fun a_renewal_that_does_no_work_spends_no_cycle() {
 
     let mut i = 0;
     while (i < ATTEMPTS) {
-        entry_renew::renew_blob(&mut wsys, &mut config, &mut zero, SET);
+        entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero);
         i = i + 1;
     };
 
@@ -101,15 +117,20 @@ fun a_renewal_that_does_no_work_spends_no_cycle() {
     destroy(funds);
     destroy(wsys);
     clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
     sc.end();
 }
 
 #[test]
 fun an_exhausted_mandate_renews_nothing_and_aborts_nothing() {
     let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
     let mut wsys = fixtures::walrus_system(sc.ctx());
 
     sc.next_tx(ALICE);
+    let sys = sc.take_shared<SystemConfig>();
     let clk = clock::create_for_testing(sc.ctx());
     let mut funds = fixtures::wal(sc.ctx());
     let config_id = fixtures::shared_config(
@@ -127,7 +148,7 @@ fun an_exhausted_mandate_renews_nothing_and_aborts_nothing() {
     let mut zero = coin::zero<WAL>(sc.ctx());
     let mut config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
 
-    entry_renew::renew_blob(&mut wsys, &mut config, &mut zero, SET);
+    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero);
 
     assert!(config.cycle_limit().borrow() == 0, 0);
     assert!(zero.value() == 0, 1);
@@ -141,15 +162,20 @@ fun an_exhausted_mandate_renews_nothing_and_aborts_nothing() {
     destroy(funds);
     destroy(wsys);
     clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
     sc.end();
 }
 
 #[test]
 fun an_unrelated_address_renews_another_users_blobs() {
     let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
     let mut wsys = fixtures::walrus_system(sc.ctx());
 
     sc.next_tx(ALICE);
+    let sys = sc.take_shared<SystemConfig>();
     let clk = clock::create_for_testing(sc.ctx());
     let mut alice_funds = fixtures::wal(sc.ctx());
     let config_id = fixtures::shared_config(
@@ -170,7 +196,7 @@ fun an_unrelated_address_renews_another_users_blobs() {
     let before = mallory_funds.value();
     let mut config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
 
-    entry_renew::renew_blob(&mut wsys, &mut config, &mut mallory_funds, SET);
+    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut mallory_funds);
 
     assert!(config.cycle_limit().borrow() == CYCLES - 1, 0);
     assert!(mallory_funds.value() < before, 1);
@@ -184,5 +210,6 @@ fun an_unrelated_address_renews_another_users_blobs() {
     destroy(alice_funds);
     destroy(wsys);
     clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
     sc.end();
 }

@@ -43,8 +43,10 @@ fun a_matching_cap_is_accepted() {
     let mut sc = ts::begin(ADMIN);
     let (mut first, second, mut cap) = two_systems(&mut sc);
 
-    entry_admin::update_cost(&mut cap, &mut first, NEW_FEE, NEW_FEE, NEW_FEE);
+    entry_admin::update_cost(&mut cap, &mut first, NEW_FEE, NEW_FEE, NEW_FEE, NEW_FEE);
     assert!(first.cost_to_update_name() == NEW_FEE, 0);
+    // The deletion fee moved with the other three rather than being left behind.
+    assert!(first.cost_to_delete() == NEW_FEE, 1);
 
     sc.return_to_sender(cap);
     ts::return_shared(first);
@@ -58,7 +60,7 @@ fun cap_bound_to_system() {
     let mut sc = ts::begin(ADMIN);
     let (first, mut second, mut cap) = two_systems(&mut sc);
 
-    entry_admin::update_cost(&mut cap, &mut second, NEW_FEE, NEW_FEE, NEW_FEE);
+    entry_admin::update_cost(&mut cap, &mut second, NEW_FEE, NEW_FEE, NEW_FEE, NEW_FEE);
 
     sc.return_to_sender(cap);
     ts::return_shared(first);
@@ -129,6 +131,34 @@ fun a_foreign_cap_cannot_mint_a_system() {
     let (first, mut second, mut cap) = two_systems(&mut sc);
 
     entry_admin::mint_system(&mut cap, &mut second, FEE, FEE, FEE, FEE, sc.ctx());
+
+    sc.return_to_sender(cap);
+    ts::return_shared(first);
+    ts::return_shared(second);
+    sc.end();
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::entry_admin::ECapForAnotherSystem)]
+fun a_foreign_cap_cannot_retune_the_tiers() {
+    let mut sc = ts::begin(ADMIN);
+    let (first, mut second, mut cap) = two_systems(&mut sc);
+
+    entry_admin::update_tier_table(&mut cap, &mut second, vector[1, 2, 7], 53);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(first);
+    ts::return_shared(second);
+    sc.end();
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::entry_admin::ECapForAnotherSystem)]
+fun a_foreign_cap_cannot_migrate_the_version() {
+    let mut sc = ts::begin(ADMIN);
+    let (first, mut second, mut cap) = two_systems(&mut sc);
+
+    entry_admin::migrate_version(&mut cap, &mut second);
 
     sc.return_to_sender(cap);
     ts::return_shared(first);

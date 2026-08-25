@@ -17,6 +17,8 @@ public fun deposit_coin(
     amount: u64,
     ctx: &mut TxContext,
 ): u64 {
+    system_cfg.assert_version();
+
     let user = user::get_user_mut(system_cfg, ctx.sender());
     let wallet_state = user.get_wallet();
 
@@ -30,6 +32,8 @@ public fun deposit_coin(
 /// wallet.
 #[allow(lint(self_transfer))]
 public fun withdraw_wal(system_cfg: &mut SystemConfig, amount: u64, ctx: &mut TxContext) {
+    system_cfg.assert_version();
+
     let user = user::get_user_mut(system_cfg, ctx.sender());
     let coin = wallet::withdraw<WAL>(user.get_wallet(), amount, ctx);
 
@@ -39,6 +43,8 @@ public fun withdraw_wal(system_cfg: &mut SystemConfig, amount: u64, ctx: &mut Tx
 /// Empty the sender's internal WAL balance back to them.
 #[allow(lint(self_transfer))]
 public fun withdraw_all_wal(system_cfg: &mut SystemConfig, ctx: &mut TxContext) {
+    system_cfg.assert_version();
+
     let user = user::get_user_mut(system_cfg, ctx.sender());
     let coin = wallet::withdraw_all<WAL>(user.get_wallet(), ctx);
 

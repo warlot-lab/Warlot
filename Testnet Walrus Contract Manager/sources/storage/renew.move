@@ -11,7 +11,7 @@ use warlot::blob_config::{Self, BlobConfig};
 // === Errors ===
 
 #[error]
-const EInvalidAhead: vector<u8> = b"RENEWAL HORIZON MUST BE AT LEAST ONE EPOCH";
+const EInvalidAhead: vector<u8> = b"A CONFIG'S STORAGE TERM MUST BE AT LEAST ONE EPOCH";
 
 // === Package functions ===
 
@@ -32,19 +32,24 @@ public(package) fun get_renew_epoch_count(blob: &Blob, system: &System, ahead: u
     target_epoch - blob_end_epoch
 }
 
-/// Bring every blob in `blob_cfg` up to `ahead` epochs beyond the current one.
+/// Bring every blob in `blob_cfg` back up to the term the config was bought under.
+///
+/// The term is a sustained target rather than a one-off purchase: every renewal
+/// tops the blobs back up to `current_epoch + epoch_set`, so a config settles into
+/// a steady state that many epochs ahead of wherever the chain has got to.
 ///
 /// The cycle is charged after the extension, and only if at least one blob was
 /// actually extended. Charging it up front makes a call that does nothing
 /// indistinguishable from one that does work, which lets any address exhaust
-/// another user's mandate for the price of gas. A horizon of zero can never do
-/// work, so it is refused outright rather than accepted as a silent no-op.
+/// another user's mandate for the price of gas. A term of zero can never do work,
+/// so it is refused outright rather than accepted as a silent no-op.
 public(package) fun renew_blob_cfg(
     blob_cfg: &mut BlobConfig,
     system: &mut System,
-    ahead: u32,
     payment: &mut Coin<WAL>,
 ) {
+    let ahead = blob_config::epoch_set(blob_cfg);
+
     assert!(ahead > 0, EInvalidAhead);
 
     if (!blob_config::has_cycles(blob_cfg)) {
@@ -53,6 +58,7 @@ public(package) fun renew_blob_cfg(
 
     let mut extended = false;
 
+    // Bounded by the blobs this config holds, which is fixed when it is created.
     blob_config::blobs_mut(blob_cfg).do_mut!(|blob| {
         let extend_epoch_count = get_renew_epoch_count(blob, system, ahead);
 
