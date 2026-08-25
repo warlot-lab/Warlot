@@ -12,6 +12,15 @@ use warlot::{
     vault,
 };
 
+// === Errors ===
+
+#[error]
+const ENotOriginalCap: vector<u8> = b"THIS OPERATION NEEDS THE ORIGINAL ADMIN CAPABILITY";
+#[error]
+const ECapForAnotherSystem: vector<u8> = b"THIS ADMIN CAPABILITY WAS MINTED FOR A DIFFERENT SYSTEM";
+#[error]
+const ESuccessorAlreadyMinted: vector<u8> = b"THIS SYSTEM HAS ALREADY NAMED ITS SUCCESSOR";
+
 // === Admin functions ===
 
 /// Withdraw WAL from the system vault to the caller.
@@ -22,7 +31,7 @@ public fun withdraw_system_wal(
     amount: u64,
     ctx: &mut TxContext,
 ) {
-    assert!(admin_cap.state() == admin_cap::state_original(), 1);
+    assert_original_cap_for(admin_cap, object::id(system_cfg));
 
     let vault = system_cfg.get_vault_mut();
     let withdrawn_coin = vault::withdraw<WAL>(vault, amount, ctx);
@@ -38,7 +47,7 @@ public fun withdraw_system_coin<T>(
     amount: u64,
     ctx: &mut TxContext,
 ) {
-    assert!(admin_cap.state() == admin_cap::state_original(), 1);
+    assert_original_cap_for(admin_cap, object::id(system_cfg));
 
     let vault = system_cfg.get_vault_mut();
 
@@ -49,20 +58,27 @@ public fun withdraw_system_coin<T>(
 }
 
 /// Accept a new coin type into the system vault.
-public fun add_coin_type<T>(_admin_cap: &mut AdminCap, system_cfg: &mut SystemConfig) {
+public fun add_coin_type<T>(admin_cap: &mut AdminCap, system_cfg: &mut SystemConfig) {
+    assert_original_cap_for(admin_cap, object::id(system_cfg));
+
     let vault = system_cfg.get_vault_mut();
     vault::add_supported_coin<T>(vault);
 }
 
 /// Stop accepting a coin type. Balances already held stay withdrawable.
 public fun remove_supported_coin<T>(admin_cap: &mut AdminCap, system_cfg: &mut SystemConfig) {
-    assert!(admin_cap.state() == admin_cap::state_original(), 1);
+    assert_original_cap_for(admin_cap, object::id(system_cfg));
 
     let vault = system_cfg.get_vault_mut();
     vault::remove_supported_coin<T>(vault);
 }
 
-/// Mint the next system in the chain and share it.
+/// Mint the next system in the chain, share it, and hand the caller the original
+/// capability for it.
+///
+/// The successor gets its own capability because capabilities are bound to the
+/// system they name: without one minted here, nothing could ever administer the
+/// system this call creates.
 public fun mint_system(
     admin_cap: &mut AdminCap,
     old_system: &mut SystemConfig,
@@ -73,9 +89,9 @@ public fun mint_system(
     ctx: &mut TxContext,
 ) {
     // System minting is linear: an old system may name only one successor.
-    assert!(option::is_none(old_system.next_system()), 0);
+    assert!(option::is_none(old_system.next_system()), ESuccessorAlreadyMinted);
 
-    assert!(admin_cap.state() == admin_cap::state_original(), 3);
+    assert_original_cap_for(admin_cap, object::id(old_system));
 
     let new_system = system_config::new(
         object::id(old_system),
@@ -93,7 +109,12 @@ public fun mint_system(
     admin_cap.increase_total_system();
     old_system.set_next_system(new_system_id);
 
+    let successor_cap = admin_cap::new(new_system_id, admin_cap::state_original(), 0, ctx);
+
+    events::emit_admin_mint(object::id(&successor_cap), ctx.sender());
+
     transfer::public_share_object(new_system);
+    admin_cap::transfer_to(successor_cap, ctx.sender());
 }
 
 /// Overwrite the registry modification fees.
@@ -104,7 +125,8 @@ public fun update_cost(
     cost_to_migrate_system: u64,
     cost_to_update_name: u64,
 ) {
-    assert!(admin_cap.state() == admin_cap::state_original(), 3);
+    assert_original_cap_for(admin_cap, object::id(system));
+
     system.set_costs(cost_change_apikey_forms, cost_to_migrate_system, cost_to_update_name);
 }
 
@@ -115,7 +137,7 @@ public fun mint_admin(
     admin_cap: &AdminCap,
     ctx: &mut TxContext,
 ) {
-    assert!(admin_cap.state() == admin_cap::state_original(), 1);
+    assert_original_cap_for(admin_cap, object::id(system_cfg));
 
     let new_cap = admin_cap::new(
         object::id(system_cfg),
@@ -126,4 +148,17 @@ public fun mint_admin(
 
     events::emit_admin_mint(object::id(&new_cap), ctx.sender());
     admin_cap::transfer_to(new_cap, receiver);
+}
+
+// === Private functions ===
+
+/// Assert `admin_cap` is an original and was minted for `system_cfg_id`.
+///
+/// Every admin function goes through here. A capability that merely exists is
+/// not authority over an arbitrary system: `mint_system` builds successors and
+/// `migrate_system` moves users between them, so a capability that carried
+/// across systems would collapse the isolation those two are for.
+fun assert_original_cap_for(admin_cap: &AdminCap, system_cfg_id: ID) {
+    assert!(admin_cap.state() == admin_cap::state_original(), ENotOriginalCap);
+    assert!(admin_cap.system_config_id() == system_cfg_id, ECapForAnotherSystem);
 }

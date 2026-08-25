@@ -23,6 +23,8 @@ const DECAYEXCEEDED: vector<u8> = b"destroy current pass, and create new pass";
 const INVALIDPASS: vector<u8> = b"enter valid pass";
 #[error]
 const INVALIDTRACKBACKLENGTH: vector<u8> = b"provide a valid track back len data";
+#[error]
+const EPassRevoked: vector<u8> = b"this pass has been revoked by the file owner";
 
 // === Constants ===
 
@@ -68,26 +70,34 @@ public struct WarlotState has store {
 
 /// Assert `writer_pass` authorises `writer` to modify this file.
 ///
-/// A writer with no denial recorded, or holding a non-decaying pass, is admitted
-/// without further checks; otherwise the pass must not have decayed and the
-/// denial must have lapsed.
+/// Four conditions, each independent of the others: the pass is for this file,
+/// it has not decayed, the writer is not denied, and the pass has not been
+/// revoked. A non-decaying pass is exempt from the second and from nothing else
+/// ,  its end date is the owner's decision rather than the clock's, and both of
+/// the owner's revocations still reach it.
 public fun verify_pass(file: &InnerFile, writer: address, writer_pass: &WriterPass, clock: &Clock) {
     assert!(object::id(file) == writer_pass.file_id(), INVALIDPASS);
 
-    let deny_obj = deny_list::borrow(&file.id);
-    if (!deny_list::contains(deny_obj, writer) || writer_pass.is_immortal()) {
-        return
-    };
-
     let current_time = clock.timestamp_ms();
 
-    assert!(writer_pass.duration() > current_time, DECAYEXCEEDED);
-
-    let user_deny_period = deny_list::period(deny_obj, writer);
     assert!(
-        !(user_deny_period == 0 || user_deny_period > current_time),
-        INVALIDWRITER,
+        writer_pass.is_immortal() || writer_pass.duration() > current_time,
+        DECAYEXCEEDED,
     );
+
+    let deny_obj = deny_list::borrow(&file.id);
+
+    if (deny_list::contains(deny_obj, writer)) {
+        // A denial recorded with a period of zero holds indefinitely; any other
+        // period holds until the clock passes it.
+        let user_deny_period = deny_list::period(deny_obj, writer);
+        assert!(
+            !(user_deny_period == 0 || user_deny_period > current_time),
+            INVALIDWRITER,
+        );
+    };
+
+    assert!(!deny_list::is_pass_revoked(deny_obj, object::id(writer_pass)), EPassRevoked);
 }
 
 // === View functions ===
@@ -95,6 +105,16 @@ public fun verify_pass(file: &InnerFile, writer: address, writer_pass: &WriterPa
 /// The revision the owner designated as known good.
 public fun root_change(inner_file: &InnerFile): &FileData {
     inner_file.file_history.root_change.borrow()
+}
+
+/// Whether the file already holds a known-good fallback.
+public fun has_root_change(inner_file: &InnerFile): bool {
+    inner_file.file_history.root_change.is_some()
+}
+
+/// Whether the pass `pass_id` has been revoked on this file.
+public fun is_pass_revoked(inner_file: &InnerFile, pass_id: ID): bool {
+    deny_list::is_pass_revoked(deny_list::borrow(&inner_file.id), pass_id)
 }
 
 /// How many revisions the rollback window holds.
@@ -226,9 +246,16 @@ public(package) fun override_file_add(
     inner_file.file_history.last_modified = clock.timestamp_ms();
 }
 
-/// Replace the known-good fallback, returning the revision it displaced.
-public(package) fun swap_root_change(inner_file: &mut InnerFile, file_data: FileData): FileData {
-    option::swap(&mut inner_file.file_history.root_change, file_data)
+/// Record the known-good fallback, returning the revision it displaced if there
+/// was one.
+///
+/// `swap_or_fill` rather than `swap`: a file starts with no fallback, so the
+/// first call has nothing to displace.
+public(package) fun swap_root_change(
+    inner_file: &mut InnerFile,
+    file_data: FileData,
+): Option<FileData> {
+    option::swap_or_fill(&mut inner_file.file_history.root_change, file_data)
 }
 
 /// Take the known-good fallback out of the file.

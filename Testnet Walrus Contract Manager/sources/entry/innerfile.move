@@ -27,12 +27,19 @@ const ACCESSDENIED: vector<u8> = b"invalid writer pass";
 const INVALIDACCESS: vector<u8> = b"Invalid access";
 #[error]
 const ENotFileOwner: vector<u8> = b"NOT THE OWNER OF THIS FILE";
+#[error]
+const EInvalidPassDuration: vector<u8> = b"A DELEGATED PASS MUST EXPIRE AT A FUTURE TIMESTAMP";
 
 // === Public functions ===
 
 /// Store `blobs` as a file's first revision, share the file, and hand the owner
 /// a non-decaying pass. When `should_include_pass` is set and the caller is not
-/// the owner, the caller is given one too.
+/// the owner, the caller is given one that expires at `pass_duration`.
+///
+/// `pass_duration` is a timestamp in ms and is read only on that branch. It must
+/// be in the future, which is also what keeps it away from the sentinel that
+/// marks a pass non-decaying: a delegate acting on someone else's behalf is
+/// given authority with an end date, never authority without one.
 public fun create_file(
     system_cfg: &SystemConfig,
     owner: address,
@@ -45,6 +52,7 @@ public fun create_file(
     commit: vector<u8>,
     draft_epoch_duration: u32,
     should_include_pass: bool,
+    pass_duration: u64,
     ctx: &mut TxContext,
 ): ID {
     let first_revision = process_blob(
@@ -82,8 +90,14 @@ public fun create_file(
     // restricted operations on it.
     if (should_include_pass && owner != ctx.sender()) {
         user::check_permission_writer_pass(owners_obj, ctx);
+        assert!(pass_duration > clock.timestamp_ms(), EInvalidPassDuration);
 
-        let temp_pass = inner_file::new_owner_pass(new_inner_file_id, owner, ctx);
+        let temp_pass = writer_pass::new(
+            new_inner_file_id,
+            pass_duration,
+            option::some(writer_pass::new_admin_pass(owner)),
+            ctx,
+        );
 
         writer_pass::transfer_to(temp_pass, ctx.sender());
     };
@@ -109,6 +123,7 @@ public fun initialize_project_file(
     commit: vector<u8>,
     draft_epoch_duration: u32,
     should_include_pass: bool,
+    pass_duration: u64,
     ctx: &mut TxContext,
 ) {
     let new_inner_file_id = create_file(
@@ -123,6 +138,7 @@ public fun initialize_project_file(
         commit,
         draft_epoch_duration,
         should_include_pass,
+        pass_duration,
         ctx,
     );
 
@@ -151,6 +167,20 @@ public fun remove_deny_writer(file: &mut InnerFile, writer: address, ctx: &mut T
     assert!(file.owner() == ctx.sender(), ENotFileOwner);
     let deny_obj = deny_list::borrow_mut(file.uid_mut());
     deny_list::undeny(deny_obj, writer);
+}
+
+/// Revoke the pass `pass_id`, permanently.
+///
+/// A pass is an owned object living in its holder's account, so the owner of the
+/// file cannot reach it and cannot destroy it. The record kept on the file is
+/// therefore the whole of the mechanism: the pass survives in the delegate's
+/// account and stops being accepted. Denying the delegate's address is the
+/// blunter instrument and does not replace this one ,  a pass can be handed on,
+/// and an address can hold more than one.
+public fun revoke_pass(file: &mut InnerFile, pass_id: ID, ctx: &mut TxContext) {
+    assert!(file.owner() == ctx.sender(), ENotFileOwner);
+    let deny_obj = deny_list::borrow_mut(file.uid_mut());
+    deny_list::revoke_pass(deny_obj, pass_id);
 }
 
 /// Write straight into the file's history, bypassing the draft queue.

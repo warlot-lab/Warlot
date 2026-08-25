@@ -50,12 +50,12 @@ public fun check_permission_inner_file(user_obj: &User, ctx: &TxContext) {
 
 /// Assert the sender may mint writer passes on `user_obj`'s files.
 public fun check_permission_writer_pass(user_obj: &User, ctx: &TxContext) {
-    permission::check_writer_pass(&user_obj.id, ctx);
+    permission::check_writer_pass(&user_obj.id, user_obj.owner, ctx);
 }
 
 /// Assert the sender may initialise `user_obj`'s database.
 public fun check_permission_can_init_db(user_obj: &User, ctx: &TxContext) {
-    permission::check_can_init_db(&user_obj.id, ctx);
+    permission::check_can_init_db(&user_obj.id, user_obj.owner, ctx);
 }
 
 // === View functions ===

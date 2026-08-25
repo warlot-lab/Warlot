@@ -99,6 +99,23 @@ public struct BlobWarlotAttribut has copy, drop, store {
     file_type: String,
 }
 
+/// A user delegated capability bits to another address.
+public struct PermissionGranted has copy, drop, store {
+    owner: address,
+    delegate: address,
+    add_blob_to_address: bool,
+    create_inner_file: bool,
+    create_writer_pass: bool,
+    can_init_db: bool,
+    can_compact: bool,
+}
+
+/// A user withdrew every capability bit from an address.
+public struct PermissionRevoked has copy, drop, store {
+    owner: address,
+    delegate: address,
+}
+
 /// The protocol treasury paid out.
 public struct SystemWithdraw has copy, drop, store {
     operator: address,
@@ -218,4 +235,30 @@ public(package) fun emit_warlot_attribute(
 /// Announce a treasury payout.
 public(package) fun emit_system_withdraw(operator: address, system: ID, amount: u64) {
     event::emit(SystemWithdraw { operator, system, amount })
+}
+
+/// Announce a delegation.
+public(package) fun emit_permission_granted(
+    owner: address,
+    delegate: address,
+    add_blob_to_address: bool,
+    create_inner_file: bool,
+    create_writer_pass: bool,
+    can_init_db: bool,
+    can_compact: bool,
+) {
+    event::emit(PermissionGranted {
+        owner,
+        delegate,
+        add_blob_to_address,
+        create_inner_file,
+        create_writer_pass,
+        can_init_db,
+        can_compact,
+    })
+}
+
+/// Announce a withdrawn delegation.
+public(package) fun emit_permission_revoked(owner: address, delegate: address) {
+    event::emit(PermissionRevoked { owner, delegate })
 }

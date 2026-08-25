@@ -7,7 +7,7 @@ module warlot::fixtures;
 use sui::{clock::Clock, coin::{Self, Coin}};
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, encoding, messages, system::{Self, System}};
-use warlot::blob_config;
+use warlot::{blob_config, entry_innerfile, entry_register, system_config::SystemConfig};
 
 // === Constants ===
 
@@ -19,6 +19,24 @@ const TEST_WAL: u64 = 1_000_000_000;
 
 /// The unencoded size of every blob a fixture mints.
 const BLOB_SIZE: u64 = 1_024;
+
+/// How far past the current epoch a fixture blob's storage already reaches.
+const BLOB_EPOCHS_AHEAD: u32 = 5;
+
+/// The storage term a fixture file's revisions are bought under.
+const FILE_EPOCH_SET: u32 = 13;
+
+/// How many renewal cycles a fixture file's revisions are bought for.
+const FILE_CYCLES: u64 = 2;
+
+/// How many drafts a writer may hold open on a fixture file.
+const FILE_WRITERS: u8 = 5;
+
+/// How many revisions a fixture file's rollback window holds.
+const FILE_TRACK_BACK: u8 = 3;
+
+/// How many epochs a draft on a fixture file lives for.
+const FILE_DRAFT_EPOCHS: u32 = 1;
 
 // === Test-only helpers ===
 
@@ -109,3 +127,51 @@ public fun shared_config(
 
     config_id
 }
+
+/// Register the sender and publish an inner file they own, returning its id.
+///
+/// The first revision goes through the real upload path, so a test that reads
+/// the file's history gets the object graph the protocol actually builds. The
+/// sender must be `owner`: registration keys the record off the sender.
+public fun inner_file(
+    walrus_system: &mut System,
+    system_cfg: &mut SystemConfig,
+    owner: address,
+    username: vector<u8>,
+    commit: vector<u8>,
+    payment: &mut Coin<WAL>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): ID {
+    entry_register::all_register_user_publicly(system_cfg, username.to_string(), clock, ctx);
+
+    let first_revision = certified_blob(walrus_system, BLOB_SIZE, BLOB_EPOCHS_AHEAD, payment, ctx);
+
+    entry_innerfile::create_file(
+        system_cfg,
+        owner,
+        FILE_WRITERS,
+        FILE_TRACK_BACK,
+        vector[first_revision],
+        FILE_EPOCH_SET,
+        FILE_CYCLES,
+        clock,
+        commit,
+        FILE_DRAFT_EPOCHS,
+        false,
+        0,
+        ctx,
+    )
+}
+
+/// The storage term a fixture file's revisions are bought under.
+public fun file_epoch_set(): u32 { FILE_EPOCH_SET }
+
+/// How many renewal cycles a fixture file's revisions are bought for.
+public fun file_cycles(): u64 { FILE_CYCLES }
+
+/// The unencoded size of every blob a fixture mints.
+public fun blob_size(): u64 { BLOB_SIZE }
+
+/// How far past the current epoch a fixture blob's storage already reaches.
+public fun blob_epochs_ahead(): u32 { BLOB_EPOCHS_AHEAD }
