@@ -3,10 +3,10 @@ module warlot::renew;
 
 // === Imports ===
 
-use sui::coin::Coin;
+use sui::coin::{Self, Coin};
 use wal::wal::WAL;
-use walrus::{blob::Blob, system::System};
-use warlot::blob_config::{Self, BlobConfig};
+use walrus::{blob::{Self, Blob}, system::System};
+use warlot::{blob_config::{Self, BlobConfig}, storage_events};
 
 // === Errors ===
 
@@ -47,28 +47,99 @@ public(package) fun renew_blob_cfg(
     blob_cfg: &mut BlobConfig,
     system: &mut System,
     payment: &mut Coin<WAL>,
+    system_id: ID,
+    ctx: &TxContext,
 ) {
     let ahead = blob_config::epoch_set(blob_cfg);
 
     assert!(ahead > 0, EInvalidAhead);
 
+    let config_id = blob_config::config_id(blob_cfg);
+    let owner = blob_config::owner(blob_cfg);
+    let executed_by = ctx.sender();
+    let current_epoch = system.epoch();
+
     if (!blob_config::has_cycles(blob_cfg)) {
+        // A drained mandate is the outcome an attacker is aiming for, so it is
+        // the one that must not be silent.
+        storage_events::emit_renew_skipped(
+            system_id,
+            config_id,
+            owner,
+            option::none(),
+            storage_events::renew_skip_cycle_exhausted(),
+            ahead,
+            current_epoch,
+            executed_by,
+        );
+
         return
     };
 
-    let mut extended = false;
+    let mut extended = 0;
+    let mut wal_spent = 0;
 
     // Bounded by the blobs this config holds, which is fixed when it is created.
     blob_config::blobs_mut(blob_cfg).do_mut!(|blob| {
         let extend_epoch_count = get_renew_epoch_count(blob, system, ahead);
+        let blob_obj_id = blob::object_id(blob);
 
         if (extend_epoch_count > 0) {
+            // The cost is the coin's value either side of the call. Nothing else
+            // knows it: the price is Walrus's, not the protocol's, and it varies
+            // with the size and the number of epochs bought.
+            let before = coin::value(payment);
+
             system.extend_blob(blob, extend_epoch_count, payment);
-            extended = true;
+
+            let spent = before - coin::value(payment);
+
+            extended = extended + 1;
+            wal_spent = wal_spent + spent;
+
+            storage_events::emit_blob_renewed(
+                system_id,
+                config_id,
+                owner,
+                blob_obj_id,
+                ahead,
+                current_epoch,
+                extend_epoch_count,
+                blob::storage(blob).end_epoch(),
+                spent,
+                executed_by,
+            );
+        } else {
+            let reason = if (blob::storage(blob).end_epoch() < current_epoch) {
+                storage_events::renew_skip_expired()
+            } else {
+                storage_events::renew_skip_already_funded()
+            };
+
+            storage_events::emit_renew_skipped(
+                system_id,
+                config_id,
+                owner,
+                option::some(blob_obj_id),
+                reason,
+                ahead,
+                current_epoch,
+                executed_by,
+            );
         }
     });
 
-    if (extended) {
+    if (extended > 0) {
         blob_config::consume_cycle(blob_cfg);
+
+        storage_events::emit_renew_cycle_spent(
+            system_id,
+            config_id,
+            owner,
+            extended,
+            wal_spent,
+            blob_config::cycle_limit(blob_cfg),
+            executed_by,
+        );
     };
 }

@@ -6,9 +6,9 @@ module warlot::eviction;
 use sui::clock::Clock;
 use warlot::{
     blob_config::{Self, BlobConfig},
-    events,
     file_data::{Self, FileData},
     inner_file::InnerFile,
+    innerfile_events,
 };
 
 // === Errors ===
@@ -39,11 +39,32 @@ public(package) fun advance_history(
     revision: FileData,
     evicted: vector<BlobConfig>,
     clock: &Clock,
+    system_id: ID,
 ) {
     let file_id = object::id(inner_file);
     let fallback = inner_file.root_change_config();
 
+    let previous_head = &inner_file.track_back()[0];
+    let previous_commit = previous_head.commit();
+    let previous_blob_config = previous_head.blob_config_id();
+
+    let commit = revision.commit();
+    let commit_by = revision.commit_by();
+    let blob_config_id = revision.blob_config_id();
+
     let displaced = inner_file.override_file_add(revision, clock);
+
+    innerfile_events::emit_head_advanced(
+        system_id,
+        file_id,
+        commit,
+        commit_by,
+        blob_config_id,
+        previous_commit,
+        previous_blob_config,
+        inner_file.track_back().length(),
+        inner_file.last_modified(),
+    );
 
     if (displaced.is_none()) {
         displaced.destroy_none();
@@ -57,13 +78,13 @@ public(package) fun advance_history(
 
     if (still_the_fallback) {
         assert_no_config(evicted);
-        discard(retired, file_id);
+        discard(retired, file_id, system_id);
         return
     };
 
     let mut evicted = evicted;
     assert!(evicted.length() == 1, EEvictedConfigRequired);
-    release(retired, evicted.pop_back(), file_id);
+    release(retired, evicted.pop_back(), file_id, system_id);
     evicted.destroy_empty();
 }
 
@@ -83,14 +104,19 @@ public(package) fun assert_no_config(configs: vector<BlobConfig>) {
 /// `config` must be the one `revision` names. Without that check the caller would
 /// be choosing which config to consume rather than being handed one, and a file
 /// owner could retire content belonging to a file they have nothing to do with.
-public(package) fun release(revision: FileData, config: BlobConfig, file_id: ID): ID {
+public(package) fun release(
+    revision: FileData,
+    config: BlobConfig,
+    file_id: ID,
+    system_id: ID,
+): ID {
     let (commit, commit_by, blob_config_id) = file_data::destroy(revision);
     assert!(object::id(&config) == blob_config_id, EWrongConfig);
 
-    let (owner, blobs) = blob_config::unwrap_for_owner(config);
+    let (owner, blobs) = blob_config::unwrap_for_owner(config, system_id);
     blobs.do!(|blob| transfer::public_transfer(blob, owner));
 
-    events::emit_revision_retired(file_id, blob_config_id, commit, commit_by, true);
+    innerfile_events::emit_revision_retired(system_id, file_id, blob_config_id, commit, commit_by, true);
 
     blob_config_id
 }
@@ -102,10 +128,10 @@ public(package) fun release(revision: FileData, config: BlobConfig, file_id: ID)
 /// up is still reachable by the file's owner through withdrawal. The event is the
 /// whole point ,  it publishes the config id at the moment the last reference to
 /// it disappears, so the party who owns it can act on it.
-public(package) fun discard(revision: FileData, file_id: ID): ID {
+public(package) fun discard(revision: FileData, file_id: ID, system_id: ID): ID {
     let (commit, commit_by, blob_config_id) = file_data::destroy(revision);
 
-    events::emit_revision_retired(file_id, blob_config_id, commit, commit_by, false);
+    innerfile_events::emit_revision_retired(system_id, file_id, blob_config_id, commit, commit_by, false);
 
     blob_config_id
 }

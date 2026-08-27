@@ -63,6 +63,8 @@ public fun create_file(
 ): ID {
     system_cfg.assert_version();
 
+    let system_id = object::id(system_cfg);
+
     let first_revision = process_blob(
         system_cfg,
         blobs,
@@ -107,11 +109,11 @@ public fun create_file(
             ctx,
         );
 
-        writer_pass::transfer_to(temp_pass, ctx.sender());
+        writer_pass::transfer_to(temp_pass, ctx.sender(), system_id, ctx);
     };
 
-    inner_file::share(new_inner_file, draft_epoch_duration, clock, ctx);
-    writer_pass::transfer_to(immortal_pass, owner);
+    inner_file::share(new_inner_file, draft_epoch_duration, system_id, clock, ctx);
+    writer_pass::transfer_to(immortal_pass, owner, system_id, ctx);
 
     new_inner_file_id
 }
@@ -170,8 +172,10 @@ public fun deny_writer(
     system_cfg.assert_version();
     assert!(file.owner() == ctx.sender(), ENotFileOwner);
     let now_ms = clock.timestamp_ms();
+    let system_id = object::id(system_cfg);
+    let file_id = object::id(file);
     let deny_obj = deny_list::borrow_mut(file.uid_mut());
-    deny_list::deny(deny_obj, writer, period, now_ms);
+    deny_list::deny(deny_obj, writer, period, now_ms, system_id, file_id, ctx.sender());
 }
 
 /// Lift `writer`'s denial.
@@ -183,8 +187,10 @@ public fun remove_deny_writer(
 ) {
     system_cfg.assert_version();
     assert!(file.owner() == ctx.sender(), ENotFileOwner);
+    let system_id = object::id(system_cfg);
+    let file_id = object::id(file);
     let deny_obj = deny_list::borrow_mut(file.uid_mut());
-    deny_list::undeny(deny_obj, writer);
+    deny_list::undeny(deny_obj, writer, system_id, file_id, ctx.sender());
 }
 
 /// Revoke the pass `pass_id`, permanently.
@@ -203,8 +209,10 @@ public fun revoke_pass(
 ) {
     system_cfg.assert_version();
     assert!(file.owner() == ctx.sender(), ENotFileOwner);
+    let system_id = object::id(system_cfg);
+    let file_id = object::id(file);
     let deny_obj = deny_list::borrow_mut(file.uid_mut());
-    deny_list::revoke_pass(deny_obj, pass_id);
+    deny_list::revoke_pass(deny_obj, pass_id, system_id, file_id, ctx.sender());
 }
 
 /// Write straight into the file's history, bypassing the draft queue.
@@ -240,7 +248,7 @@ public fun force_write_innerfile(
         ctx,
     );
 
-    eviction::advance_history(inner_file, file_data, evicted, clock);
+    eviction::advance_history(inner_file, file_data, evicted, clock, object::id(system_cfg));
 }
 
 /// Write to the file, either as a draft awaiting the owner's merge or, with an
@@ -283,9 +291,11 @@ public fun write_(
         ctx,
     );
 
+    let system_id = object::id(system_cfg);
+
     if (!to_draft) {
         assert!(writer_pass.has_admin_privilege(), ACCESSDENIED);
-        eviction::advance_history(inner_file, file_data, evicted, clock);
+        eviction::advance_history(inner_file, file_data, evicted, clock, system_id);
         return
     };
 
@@ -308,7 +318,7 @@ public fun write_(
         ctx,
     );
 
-    inner_file.pin_draft(file_draft, clock);
+    inner_file.pin_draft(file_draft, clock, system_id);
 }
 
 /// Record a revision as the file's known-good fallback.
@@ -332,16 +342,17 @@ public fun set_root_change(
     assert!(blob_config::owner(config) == inner_file.owner(), ENotOwnersConfig);
 
     let file_id = object::id(inner_file);
+    let system_id = object::id(system_cfg);
     let file_data: FileData = file_data::create_file_data(
         commit,
         ctx.sender(),
         blob_config::config_id(config),
     );
 
-    let displaced = inner_file.swap_root_change(file_data);
+    let displaced = inner_file.swap_root_change(file_data, system_id);
 
     if (displaced.is_some()) {
-        eviction::discard(displaced.destroy_some(), file_id);
+        eviction::discard(displaced.destroy_some(), file_id, system_id);
     } else {
         displaced.destroy_none();
     }
@@ -365,8 +376,13 @@ public fun remove_root_change(
     inner_file.verify_pass(ctx.sender(), writer_pass, clock);
 
     let file_id = object::id(inner_file);
+    let system_id = object::id(system_cfg);
 
-    eviction::discard(inner_file.extract_root_change(), file_id);
+    eviction::discard(
+        inner_file.extract_root_change(system_id, ctx.sender()),
+        file_id,
+        system_id,
+    );
 }
 
 /// Merge a draft into the file's history.
@@ -395,13 +411,29 @@ public fun merge_draft_into_file(
     inner_file.verify_pass(ctx.sender(), writer_pass, clock);
 
     let owner = inner_file.owner();
+    let system_id = object::id(system_cfg);
+    let file_id = object::id(inner_file);
+    let merged_by = ctx.sender();
     let draft_holder = inner_file.get_draft_holder();
 
     let file_data: FileData = {
         if (merge_latest) {
-            draft::fetch_and_delete_latest_draft(draft_holder, clock)
+            draft::fetch_and_delete_latest_draft(
+                draft_holder,
+                clock,
+                system_id,
+                file_id,
+                merged_by,
+            )
         } else {
-            draft::resolve_draft_to_file(draft_holder, draft_index, clock)
+            draft::resolve_draft_to_file(
+                draft_holder,
+                draft_index,
+                clock,
+                system_id,
+                file_id,
+                merged_by,
+            )
         }
     };
 
@@ -409,9 +441,9 @@ public fun merge_draft_into_file(
         blob_config::config_id(draft_config) == file_data.blob_config_id(),
         EWrongDraftConfig,
     );
-    blob_config::transfer_ownership(draft_config, owner);
+    blob_config::transfer_ownership(draft_config, system_id, owner);
 
-    eviction::advance_history(inner_file, file_data, evicted, clock);
+    eviction::advance_history(inner_file, file_data, evicted, clock, system_id);
 }
 
 /// Delete one draft.
@@ -431,11 +463,20 @@ public fun delete_draft(
     inner_file.verify_pass(ctx.sender(), writer_pass, clock);
 
     let file_id = object::id(inner_file);
+    let system_id = object::id(system_cfg);
+    let deleted_by = ctx.sender();
     let draft_holder = inner_file.get_draft_holder();
 
-    let proposed = draft::delete_draft(draft_holder, draft_index, clock);
+    let proposed = draft::delete_draft(
+        draft_holder,
+        draft_index,
+        clock,
+        system_id,
+        file_id,
+        deleted_by,
+    );
 
-    eviction::discard(option::destroy_some(proposed), file_id);
+    eviction::discard(option::destroy_some(proposed), file_id, system_id);
 }
 
 /// Delete the drafts this file holds at indices `[from_index, to_index)`.
@@ -457,13 +498,23 @@ public fun clear_drafts(
     inner_file.verify_pass(ctx.sender(), writer_pass, clock);
 
     let file_id = object::id(inner_file);
+    let system_id = object::id(system_cfg);
+    let deleted_by = ctx.sender();
     let draft_holder = inner_file.get_draft_holder();
 
-    let mut revisions = draft::clear_drafts(draft_holder, from_index, to_index, clock);
+    let mut revisions = draft::clear_drafts(
+        draft_holder,
+        from_index,
+        to_index,
+        clock,
+        system_id,
+        file_id,
+        deleted_by,
+    );
 
     // Bounded by the range above, one entry per draft that was present in it.
     while (!revisions.is_empty()) {
-        eviction::discard(revisions.pop_back(), file_id);
+        eviction::discard(revisions.pop_back(), file_id, system_id);
     };
 
     revisions.destroy_empty();
@@ -490,7 +541,7 @@ public fun create_pass(
 
     let pass = writer_pass::new(object::id(file), duration, admin_pass, ctx);
 
-    writer_pass::transfer_to(pass, writer);
+    writer_pass::transfer_to(pass, writer, object::id(system_cfg), ctx);
 }
 
 // === Private functions ===

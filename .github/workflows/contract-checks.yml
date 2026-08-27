@@ -1,0 +1,21 @@
+name: contract checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  event-contract:
+    # Every emitter has a call site, every event type is declared under
+    # sources/events/, the event modules import nothing internal, every abort is
+    # named, and the two packages stay byte-identical.
+    #
+    # Static checks only, so this job needs no Move toolchain and no network.
+    # `sui move build` and `sui move test` are run locally against the pinned
+    # toolchain; wiring them in here belongs with the rest of the CI work.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: event and package contract
+        run: ./scripts/check-events.sh

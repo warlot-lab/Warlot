@@ -10,7 +10,7 @@ use sui::{
     dynamic_field as df,
     table::{Self, Table},
 };
-use warlot::admin_cap::{Self, AdminCap};
+use warlot::{admin_cap::{Self, AdminCap}, treasury_events};
 
 // === Errors ===
 
@@ -53,6 +53,8 @@ public fun add_supported_coin<T>(vault: &mut Vault, admin_cap: &AdminCap) {
     assert!(!table::contains(&vault.accepted_coins, type_name_str), ECoinAlreadySupported);
 
     table::add(&mut vault.accepted_coins, type_name_str, true);
+
+    treasury_events::emit_vault_coin_support_changed(vault.system, type_name_str, true);
 }
 
 /// Remove a coin type from the allowed list.
@@ -63,6 +65,8 @@ public fun remove_supported_coin<T>(vault: &mut Vault, admin_cap: &AdminCap) {
     let type_name_str = get_type_name_string<T>();
     if (table::contains(&vault.accepted_coins, type_name_str)) {
         table::remove(&mut vault.accepted_coins, type_name_str);
+
+        treasury_events::emit_vault_coin_support_changed(vault.system, type_name_str, false);
     };
 }
 
@@ -76,15 +80,23 @@ public fun deposit<T>(vault: &mut Vault, payment: Coin<T>) {
 
     assert!(table::contains(&vault.accepted_coins, type_name_str), EInvalidCoin);
 
+    let system = vault.system;
+    let amount = coin::value(&payment);
+
     if (df::exists_(&vault.id, type_name_str)) {
         let vault_balance = df::borrow_mut<String, Balance<T>>(&mut vault.id, type_name_str);
         balance::join(vault_balance, coin::into_balance(payment));
     } else {
         df::add(&mut vault.id, type_name_str, coin::into_balance(payment));
-    }
+    };
+
+    treasury_events::emit_vault_deposited(system, type_name_str, amount, balance_of<T>(vault));
 }
 
 /// Withdraw a specific amount of `Coin<T>`.
+/// Every payout is announced from here rather than from the entry points that
+/// compose it, so a route added later cannot take value out of the treasury
+/// without saying so.
 public fun withdraw<T>(
     vault: &mut Vault,
     admin_cap: &AdminCap,
@@ -97,11 +109,17 @@ public fun withdraw<T>(
 
     assert!(df::exists_(&vault.id, type_name_str), ENoBalanceFound);
 
+    let system = vault.system;
+
     let vault_balance = df::borrow_mut<String, Balance<T>>(&mut vault.id, type_name_str);
 
     assert!(balance::value(vault_balance) >= amount, EInsufficientBalance);
 
     let split_balance = balance::split(vault_balance, amount);
+    let remaining = balance::value(vault_balance);
+
+    treasury_events::emit_system_withdraw(system, ctx.sender(), type_name_str, amount, remaining);
+
     coin::from_balance(split_balance, ctx)
 }
 
@@ -153,6 +171,8 @@ public(package) fun support_coin_on_creation<T>(vault: &mut Vault) {
     assert!(!table::contains(&vault.accepted_coins, type_name_str), ECoinAlreadySupported);
 
     table::add(&mut vault.accepted_coins, type_name_str, true);
+
+    treasury_events::emit_vault_coin_support_changed(vault.system, type_name_str, true);
 }
 
 // === Private functions ===

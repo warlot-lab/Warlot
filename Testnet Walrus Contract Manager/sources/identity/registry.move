@@ -5,7 +5,7 @@ module warlot::registry;
 
 use std::string::String;
 use sui::clock::Clock;
-use warlot::events;
+use warlot::identity_events;
 
 // === Constants ===
 
@@ -48,6 +48,32 @@ public fun get_system(registry: &Registry): ID {
     registry.system_details.system_id
 }
 
+// === Test-only helpers ===
+
+#[test_only]
+/// The one label this registry claims on chain.
+public fun public_username(registry: &Registry): String {
+    registry.public_username
+}
+
+#[test_only]
+/// When this registry was minted.
+public fun created_at(registry: &Registry): u64 {
+    registry.created_at
+}
+
+#[test_only]
+/// When this registry was last repointed.
+public fun updated_at(registry: &Registry): u64 {
+    registry.updated_at
+}
+
+#[test_only]
+/// When this registry's API key form stops being accepted.
+public fun decay_at(registry: &Registry): u64 {
+    registry.decay_at
+}
+
 // === Package functions ===
 
 /// Create a registry for the sender and transfer it to them.
@@ -73,17 +99,43 @@ public(package) fun create_registry(
         decay_at: clock.timestamp_ms() + API_DECAY,
     };
 
-    events::emit_new_user(user_object_id, object::id(&registry_state), ctx.sender());
+    identity_events::emit_user_registered(
+        system_id,
+        user_object_id,
+        object::id(&registry_state),
+        ctx.sender(),
+        registry_state.public_username,
+        registry_state.created_at,
+        registry_state.decay_at,
+    );
+
     transfer::transfer(registry_state, ctx.sender());
 }
 
 /// Replace the public username.
 public(package) fun update_username(registry: &mut Registry, new_username: String) {
     registry.public_username = new_username;
+
+    identity_events::emit_username_updated(
+        registry.system_details.system_id,
+        object::id(registry),
+        registry.user,
+        new_username,
+    );
 }
 
 /// Repoint the registry at another system.
 public(package) fun migrate_system(registry: &mut Registry, next_system_id: ID, clock: &Clock) {
+    let previous_system = registry.system_details.system_id;
+
     registry.system_details.system_id = next_system_id;
     registry.updated_at = clock.timestamp_ms();
+
+    identity_events::emit_registry_migrated(
+        next_system_id,
+        previous_system,
+        object::id(registry),
+        registry.user,
+        registry.updated_at,
+    );
 }

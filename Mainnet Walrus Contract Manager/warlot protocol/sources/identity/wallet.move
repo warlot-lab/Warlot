@@ -12,7 +12,7 @@ use sui::{
     dynamic_object_field as dof,
 };
 use wal::wal::WAL;
-use warlot::events;
+use warlot::identity_events;
 
 // === Errors ===
 
@@ -41,7 +41,7 @@ public struct Bank has key, store {
 // === Package functions ===
 
 /// Create a wallet for the sender with an empty bank attached.
-public(package) fun create_wallet(clock: &Clock, ctx: &mut TxContext): Wallet {
+public(package) fun create_wallet(system_id: ID, clock: &Clock, ctx: &mut TxContext): Wallet {
     let mut wallet = Wallet {
         id: object::new(ctx),
         owner: ctx.sender(),
@@ -52,7 +52,8 @@ public(package) fun create_wallet(clock: &Clock, ctx: &mut TxContext): Wallet {
 
     dof::add(&mut wallet.id, BANK_KEY, bank);
 
-    events::emit_wallet_created(object::id(&wallet), ctx.sender());
+    identity_events::emit_wallet_created(system_id, object::id(&wallet), ctx.sender(), wallet.created_at);
+
     wallet
 }
 
@@ -72,6 +73,7 @@ public(package) fun deposit_coin<T>(wallet: &mut Wallet, coin: Coin<T>) {
 /// Split `amount` out of `funds` into the wallet and return the new balance of `T`.
 public(package) fun deposit<T>(
     wallet: &mut Wallet,
+    system_id: ID,
     funds: &mut Coin<T>,
     amount: u64,
     ctx: &mut TxContext,
@@ -82,14 +84,30 @@ public(package) fun deposit<T>(
 
     deposit_coin<T>(wallet, deposit_coin);
 
-    events::emit_deposit(ctx.sender(), amount);
+    let new_balance = get_balance<T>(wallet);
 
-    get_balance<T>(wallet)
+    // The wallet holds many coin types under one object, so an untyped amount
+    // sums balances of different things into one meaningless number.
+    identity_events::emit_wallet_deposited(
+        system_id,
+        wallet.owner,
+        get_type_key<T>(),
+        amount,
+        new_balance,
+    );
+
+    new_balance
 }
 
 /// Withdraw a specific amount of `Coin<T>`.
-public(package) fun withdraw<T>(wallet: &mut Wallet, amount: u64, ctx: &mut TxContext): Coin<T> {
+public(package) fun withdraw<T>(
+    wallet: &mut Wallet,
+    system_id: ID,
+    amount: u64,
+    ctx: &mut TxContext,
+): Coin<T> {
     let type_key = get_type_key<T>();
+    let owner = wallet.owner;
     let bank = borrow_bank_mut(wallet);
 
     assert!(df::exists_(&bank.id, type_key), ENoBalance);
@@ -98,12 +116,21 @@ public(package) fun withdraw<T>(wallet: &mut Wallet, amount: u64, ctx: &mut TxCo
     assert!(balance::value(balance) >= amount, EInsufficientFunds);
 
     let split = balance::split(balance, amount);
+    let remaining = balance::value(balance);
+
+    identity_events::emit_wallet_withdrawn(system_id, owner, type_key, amount, remaining);
+
     coin::from_balance(split, ctx)
 }
 
 /// Withdraw the entire balance of `Coin<T>`.
-public(package) fun withdraw_all<T>(wallet: &mut Wallet, ctx: &mut TxContext): Coin<T> {
+public(package) fun withdraw_all<T>(
+    wallet: &mut Wallet,
+    system_id: ID,
+    ctx: &mut TxContext,
+): Coin<T> {
     let type_key = get_type_key<T>();
+    let owner = wallet.owner;
     let bank = borrow_bank_mut(wallet);
 
     assert!(df::exists_(&bank.id, type_key), ENoBalance);
@@ -112,6 +139,9 @@ public(package) fun withdraw_all<T>(wallet: &mut Wallet, ctx: &mut TxContext): C
     let total = balance::value(balance);
 
     let split = balance::split(balance, total);
+
+    identity_events::emit_wallet_withdrawn(system_id, owner, type_key, total, 0);
+
     coin::from_balance(split, ctx)
 }
 
@@ -139,8 +169,12 @@ public(package) fun get_owner(wallet: &Wallet): address {
 }
 
 /// Withdraw the wallet's entire WAL balance.
-public(package) fun get_coin_wal(wallet: &mut Wallet, ctx: &mut TxContext): Coin<WAL> {
-    withdraw_all<WAL>(wallet, ctx)
+public(package) fun get_coin_wal(
+    wallet: &mut Wallet,
+    system_id: ID,
+    ctx: &mut TxContext,
+): Coin<WAL> {
+    withdraw_all<WAL>(wallet, system_id, ctx)
 }
 
 // === Private functions ===

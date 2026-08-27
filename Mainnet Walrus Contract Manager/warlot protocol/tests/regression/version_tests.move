@@ -151,6 +151,7 @@ fun file_world(
     );
     let config_id = fixtures::shared_config(
         &mut wsys,
+        object::id(&sys),
         ALICE,
         fixtures::file_epoch_set(),
         option::some(CYCLES),
@@ -247,7 +248,7 @@ fun gate_mint_system() {
 fun gate_update_cost() {
     let mut sc = ts::begin(ALICE);
     let (mut sys, mut cap, funds, clk) = stale_admin(&mut sc);
-    entry_admin::update_cost(&mut cap, &mut sys, FEE, FEE, FEE, FEE);
+    entry_admin::update_cost(&mut cap, &mut sys, FEE, FEE, FEE, FEE, sc.ctx());
     finish_admin(sys, cap, funds, clk, sc);
 }
 
@@ -256,7 +257,7 @@ fun gate_update_cost() {
 fun gate_update_tier_table() {
     let mut sc = ts::begin(ALICE);
     let (mut sys, mut cap, funds, clk) = stale_admin(&mut sc);
-    entry_admin::update_tier_table(&mut cap, &mut sys, vector[1, 2, 7], 53);
+    entry_admin::update_tier_table(&mut cap, &mut sys, vector[1, 2, 7], 53, sc.ctx());
     finish_admin(sys, cap, funds, clk, sc);
 }
 
@@ -580,7 +581,7 @@ fun gate_renew_blob() {
     let mut sc = ts::begin(ALICE);
     let (sys, file, pass, mut config, holder, mut wsys, mut funds, clk) =
         file_world(&mut sc, true);
-    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut funds);
+    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut funds, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -621,11 +622,11 @@ fun a_stale_system_can_be_migrated_back() {
     let mut sc = ts::begin(ALICE);
     let (mut sys, mut cap, funds, clk) = stale_admin(&mut sc);
 
-    entry_admin::migrate_version(&mut cap, &mut sys);
+    entry_admin::migrate_version(&mut cap, &mut sys, sc.ctx());
     assert!(sys.get_system_version() == 1, 0);
 
     // And what the gate refused a moment ago now goes through.
-    entry_admin::update_cost(&mut cap, &mut sys, FEE, FEE, FEE, FEE);
+    entry_admin::update_cost(&mut cap, &mut sys, FEE, FEE, FEE, FEE, sc.ctx());
     assert!(sys.cost_to_update_name() == FEE, 1);
 
     finish_admin(sys, cap, funds, clk, sc);

@@ -23,13 +23,18 @@ use warlot::{blob_config::BlobConfig, renew, system_config::SystemConfig};
 /// The horizon is read from the config rather than taken from the caller. The
 /// term is what the owner bought; letting a renewer name a different one would
 /// let a stranger decide how much storage the owner's mandate is spent on.
+///
+/// The caller is recorded on every event this raises. Renewal being open to
+/// anyone makes "who paid to keep my data alive" a thing the chain owes the
+/// owner an answer to.
 public fun renew_blob(
     system_cfg: &SystemConfig,
     walrus_system: &mut System,
     config: &mut BlobConfig,
     payment: &mut Coin<WAL>,
+    ctx: &TxContext,
 ) {
     system_cfg.assert_version();
 
-    renew::renew_blob_cfg(config, walrus_system, payment);
+    renew::renew_blob_cfg(config, walrus_system, payment, object::id(system_cfg), ctx);
 }

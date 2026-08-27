@@ -51,6 +51,7 @@ fun a_batch_renews_every_config_exactly_once() {
         ids.push_back(
             fixtures::shared_config(
                 &mut wsys,
+                object::id(&sys),
                 ALICE,
                 SET,
                 option::some(CYCLES),
@@ -68,7 +69,7 @@ fun a_batch_renews_every_config_exactly_once() {
     sc.next_tx(CARL);
     ids.do_ref!(|id| {
         let mut config = ts::take_shared_by_id<BlobConfig>(&sc, *id);
-        entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut funds);
+        entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut funds, sc.ctx());
         ts::return_shared(config);
     });
 
@@ -79,7 +80,7 @@ fun a_batch_renews_every_config_exactly_once() {
         // One cycle spent, not zero and not two.
         assert!(config.cycle_limit().borrow() == CYCLES - 1, 0);
 
-        let blobs = blob_config::unwrap(config, sc.ctx());
+        let blobs = blob_config::unwrap(config, object::id(&sys), sc.ctx());
         blobs.do_ref!(|renewed| assert!(blob::storage(renewed).end_epoch() == SET, 1));
         destroy(blobs);
     });

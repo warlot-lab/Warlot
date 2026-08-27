@@ -5,12 +5,7 @@ module warlot::entry_admin;
 
 use sui::coin::Coin;
 use wal::wal::WAL;
-use warlot::{
-    admin_cap::{Self, AdminCap},
-    events,
-    system_config::{Self, SystemConfig},
-    vault,
-};
+use warlot::{admin_cap::{Self, AdminCap}, system_config::{Self, SystemConfig}, vault};
 
 // === Errors ===
 
@@ -34,11 +29,11 @@ public fun withdraw_system_wal(
     system_cfg.assert_version();
     assert_original_cap_for(admin_cap, object::id(system_cfg));
 
-    let system_id = object::id(system_cfg);
     let vault = system_cfg.get_vault_mut();
-    let withdrawn_coin = vault::withdraw<WAL>(vault, admin_cap, amount, ctx);
 
-    events::emit_system_withdraw(ctx.sender(), system_id, amount);
+    // The payout is announced from inside the vault, so a route added later
+    // cannot take value out of the treasury without saying so.
+    let withdrawn_coin = vault::withdraw<WAL>(vault, admin_cap, amount, ctx);
 
     transfer::public_transfer(withdrawn_coin, ctx.sender());
 }
@@ -54,13 +49,10 @@ public fun withdraw_system_coin<T>(
     system_cfg.assert_version();
     assert_original_cap_for(admin_cap, object::id(system_cfg));
 
-    let system_id = object::id(system_cfg);
     let vault = system_cfg.get_vault_mut();
 
     // Aborts with `ENoBalanceFound` when the vault holds none of this type.
     let withdrawn_coin = vault::withdraw<T>(vault, admin_cap, amount, ctx);
-
-    events::emit_system_withdraw(ctx.sender(), system_id, amount);
 
     transfer::public_transfer(withdrawn_coin, ctx.sender());
 }
@@ -120,17 +112,14 @@ public fun mint_system(
     );
 
     let new_system_id = object::id(&new_system);
-    events::emit_system_mint(new_system_id, object::id(old_system), ctx.sender());
 
     admin_cap.increase_total_system();
-    old_system.set_next_system(new_system_id);
+    old_system.set_next_system(new_system_id, ctx.sender());
 
     let successor_cap = admin_cap::new(new_system_id, admin_cap::state_original(), 0, ctx);
 
-    events::emit_admin_mint(object::id(&successor_cap), ctx.sender());
-
     transfer::public_share_object(new_system);
-    admin_cap::transfer_to(successor_cap, ctx.sender());
+    admin_cap::transfer_to(successor_cap, ctx.sender(), ctx);
 }
 
 /// Overwrite the registry modification fees.
@@ -141,6 +130,7 @@ public fun update_cost(
     cost_to_migrate_system: u64,
     cost_to_update_name: u64,
     cost_to_delete: u64,
+    ctx: &TxContext,
 ) {
     system.assert_version();
     assert_original_cap_for(admin_cap, object::id(system));
@@ -150,6 +140,7 @@ public fun update_cost(
         cost_to_migrate_system,
         cost_to_update_name,
         cost_to_delete,
+        ctx.sender(),
     );
 }
 
@@ -163,11 +154,12 @@ public fun update_tier_table(
     system: &mut SystemConfig,
     tier_table: vector<u32>,
     max_epochs_ahead: u32,
+    ctx: &TxContext,
 ) {
     system.assert_version();
     assert_original_cap_for(admin_cap, object::id(system));
 
-    system.set_tier_table(tier_table, max_epochs_ahead);
+    system.set_tier_table(tier_table, max_epochs_ahead, ctx.sender());
 }
 
 /// Raise the system to the package version.
@@ -175,10 +167,14 @@ public fun update_tier_table(
 /// The one entry point that must not assert the version, because a stale version
 /// is the condition it exists to clear. It asserts the opposite instead: the
 /// system is behind the package, so there is something to do.
-public fun migrate_version(admin_cap: &mut AdminCap, system: &mut SystemConfig) {
+public fun migrate_version(
+    admin_cap: &mut AdminCap,
+    system: &mut SystemConfig,
+    ctx: &TxContext,
+) {
     assert_original_cap_for(admin_cap, object::id(system));
 
-    system.update_version();
+    system.update_version(ctx.sender());
 }
 
 /// Mint a duplicate admin capability for `receiver`.
@@ -198,8 +194,7 @@ public fun mint_admin(
         ctx,
     );
 
-    events::emit_admin_mint(object::id(&new_cap), ctx.sender());
-    admin_cap::transfer_to(new_cap, receiver);
+    admin_cap::transfer_to(new_cap, receiver, ctx);
 }
 
 // === Private functions ===

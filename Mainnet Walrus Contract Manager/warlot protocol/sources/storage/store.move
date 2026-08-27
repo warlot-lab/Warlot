@@ -5,7 +5,7 @@ module warlot::store;
 
 use sui::clock::Clock;
 use walrus::blob::{Self, Blob};
-use warlot::{blob_config, events, system_config::SystemConfig, tier, user};
+use warlot::{blob_config, system_config::SystemConfig, tier, user};
 
 // === Errors ===
 
@@ -33,6 +33,7 @@ public(package) fun raw_store_blob(
     user::check_permission_add_blob(user::get_user(system_cfg, owner), ctx);
 
     let blob_setting = blob_config::new(
+        object::id(system_cfg),
         owner,
         blobs,
         epoch_set,
@@ -49,7 +50,7 @@ public(package) fun raw_store_blob(
     config_obj_id
 }
 
-/// Measure `raw_blobs`, announce the store, and take them into custody under `owner`.
+/// Measure `raw_blobs` and take them into custody under `owner`.
 public(package) fun store_blob_internal(
     system_cfg: &SystemConfig,
     raw_blobs: vector<Blob>,
@@ -65,31 +66,11 @@ public(package) fun store_blob_internal(
     let set = tier::validate(system_cfg, epoch_set);
 
     let mut size = 0;
-    let mut storage_size = 0;
-    let mut end_epoch = blob::end_epoch(&raw_blobs[0]);
-
-    let mut raw_blobs_id = vector<ID>[];
 
     // Bounded by the blobs the caller handed in, which the transaction carrying
-    // them already bounds.
-    raw_blobs.do_ref!(|blob_x| {
-        size = size + blob::size(blob_x);
-        storage_size = storage_size + blob::storage(blob_x).size();
-        raw_blobs_id.push_back(blob::object_id(blob_x));
-        if (end_epoch > blob::end_epoch(blob_x)) {
-            end_epoch = blob::end_epoch(blob_x)
-        };
-    });
-
-    events::emit_warlot_file_store(
-        owner,
-        raw_blobs_id,
-        size,
-        storage_size,
-        end_epoch,
-        set,
-        cycle_end,
-    );
+    // them already bounds. The store itself is announced from `blob_config::new`,
+    // where the config's id exists; this total is what the caller is handed back.
+    raw_blobs.do_ref!(|blob_x| size = size + blob::size(blob_x));
 
     let config_id = raw_store_blob(
         system_cfg,

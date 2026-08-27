@@ -117,6 +117,7 @@ public fun certified_blob(
 /// when it should not.
 public fun shared_config(
     walrus_system: &mut System,
+    system_id: ID,
     owner: address,
     epoch_set: u32,
     cycle_limit: Option<u64>,
@@ -128,6 +129,7 @@ public fun shared_config(
     let raw_blob = certified_blob(walrus_system, BLOB_SIZE, blob_epochs_ahead, payment, ctx);
 
     let config = blob_config::new(
+        system_id,
         owner,
         vector[raw_blob],
         epoch_set,
@@ -193,6 +195,9 @@ public fun file_cycles(): u64 { FILE_CYCLES }
 
 /// The unencoded size of every blob a fixture mints.
 public fun blob_size(): u64 { BLOB_SIZE }
+
+/// How much WAL a fixture coin is minted with.
+public fun test_wal(): u64 { TEST_WAL }
 
 /// How far past the current epoch a fixture blob's storage already reaches.
 public fun blob_epochs_ahead(): u32 { BLOB_EPOCHS_AHEAD }

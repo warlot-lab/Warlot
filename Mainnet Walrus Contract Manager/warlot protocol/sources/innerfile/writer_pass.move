@@ -1,6 +1,10 @@
 /// Mints and inspects `WriterPass`, the delegated authority to write to an inner file.
 module warlot::writer_pass;
 
+// === Imports ===
+
+use warlot::pass_events;
+
 // === Constants ===
 
 /// A pass whose duration is zero is treated as one the system does not decay.
@@ -29,9 +33,16 @@ public struct AdminPass has store, drop {
 // === Public functions ===
 
 /// Destroy a pass.
-public fun destroy_writer_pass(pass: WriterPass) {
-    let WriterPass { id, file_id: _, duration: _, admin_privilege: _ } = pass;
+///
+/// A pass lives in its holder's account and only they can destroy it, so this is
+/// the one announcement of authority ending by the holder's own hand rather than
+/// by the file owner's revocation.
+public fun destroy_writer_pass(pass: WriterPass, ctx: &TxContext) {
+    let pass_id = object::id(&pass);
+    let WriterPass { id, file_id, duration: _, admin_privilege: _ } = pass;
     id.delete();
+
+    pass_events::emit_writer_pass_destroyed(file_id, pass_id, ctx.sender());
 }
 
 // === View functions ===
@@ -80,7 +91,25 @@ public(package) fun new(
 
 /// Hand a pass to `writer`. The pass cannot be transferred from outside this
 /// module, so custody changes route through here.
-public(package) fun transfer_to(pass: WriterPass, writer: address) {
+///
+/// Announced here rather than at the mint, for the same reason the admin
+/// capability is: the holder is half of what a delegation of authority means.
+public(package) fun transfer_to(
+    pass: WriterPass,
+    writer: address,
+    system_id: ID,
+    ctx: &TxContext,
+) {
+    pass_events::emit_writer_pass_minted(
+        system_id,
+        pass.file_id,
+        object::id(&pass),
+        writer,
+        pass.duration,
+        option::is_some(&pass.admin_privilege),
+        ctx.sender(),
+    );
+
     transfer::transfer(pass, writer);
 }
 

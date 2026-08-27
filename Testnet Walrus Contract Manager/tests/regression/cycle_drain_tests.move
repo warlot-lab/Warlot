@@ -50,6 +50,7 @@ fun a_zero_term_is_refused() {
     // sell and zero is not one of them. The guard below is what stands behind that.
     let config_id = fixtures::shared_config(
         &mut wsys,
+        object::id(&sys),
         ALICE,
         0,
         option::some(CYCLES),
@@ -63,7 +64,7 @@ fun a_zero_term_is_refused() {
     let mut zero = coin::zero<WAL>(sc.ctx());
     let mut config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
 
-    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero);
+    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero, sc.ctx());
 
     destroy(config);
     destroy(zero);
@@ -90,6 +91,7 @@ fun a_renewal_that_does_no_work_spends_no_cycle() {
     // The blob is already paid past the horizon, so there is nothing to extend.
     let config_id = fixtures::shared_config(
         &mut wsys,
+        object::id(&sys),
         ALICE,
         SET,
         option::some(CYCLES),
@@ -105,7 +107,7 @@ fun a_renewal_that_does_no_work_spends_no_cycle() {
 
     let mut i = 0;
     while (i < ATTEMPTS) {
-        entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero);
+        entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero, sc.ctx());
         i = i + 1;
     };
 
@@ -135,6 +137,7 @@ fun an_exhausted_mandate_renews_nothing_and_aborts_nothing() {
     let mut funds = fixtures::wal(sc.ctx());
     let config_id = fixtures::shared_config(
         &mut wsys,
+        object::id(&sys),
         ALICE,
         SET,
         option::some(0),
@@ -148,13 +151,13 @@ fun an_exhausted_mandate_renews_nothing_and_aborts_nothing() {
     let mut zero = coin::zero<WAL>(sc.ctx());
     let mut config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
 
-    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero);
+    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut zero, sc.ctx());
 
     assert!(config.cycle_limit().borrow() == 0, 0);
     assert!(zero.value() == 0, 1);
 
     sc.next_tx(ALICE);
-    let blobs = blob_config::unwrap(config, sc.ctx());
+    let blobs = blob_config::unwrap(config, object::id(&sys), sc.ctx());
     blobs.do_ref!(|held| assert!(blob::storage(held).end_epoch() == SHORT_EPOCHS, 2));
 
     destroy(blobs);
@@ -180,6 +183,7 @@ fun an_unrelated_address_renews_another_users_blobs() {
     let mut alice_funds = fixtures::wal(sc.ctx());
     let config_id = fixtures::shared_config(
         &mut wsys,
+        object::id(&sys),
         ALICE,
         SET,
         option::some(CYCLES),
@@ -196,13 +200,13 @@ fun an_unrelated_address_renews_another_users_blobs() {
     let before = mallory_funds.value();
     let mut config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
 
-    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut mallory_funds);
+    entry_renew::renew_blob(&sys, &mut wsys, &mut config, &mut mallory_funds, sc.ctx());
 
     assert!(config.cycle_limit().borrow() == CYCLES - 1, 0);
     assert!(mallory_funds.value() < before, 1);
 
     sc.next_tx(ALICE);
-    let blobs = blob_config::unwrap(config, sc.ctx());
+    let blobs = blob_config::unwrap(config, object::id(&sys), sc.ctx());
     blobs.do_ref!(|renewed| assert!(blob::storage(renewed).end_epoch() == SET, 2));
 
     destroy(blobs);

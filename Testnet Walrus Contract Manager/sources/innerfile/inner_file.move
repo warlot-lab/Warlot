@@ -9,6 +9,7 @@ use warlot::{
     deny_list,
     draft::{Self, Draft, FileDraftHolder},
     file_data::FileData,
+    innerfile_events,
     issue::{Self, FileIssueMeta},
     writer_pass::{Self, WriterPass},
 };
@@ -157,6 +158,11 @@ public fun owner(inner_file: &InnerFile): address {
     inner_file.owner
 }
 
+/// When the rollback window last took a new revision.
+public fun last_modified(inner_file: &InnerFile): u64 {
+    inner_file.file_history.last_modified
+}
+
 /// How many drafts may stand open on this file at once.
 public fun writers_length(inner_file: &InnerFile): u8 {
     inner_file.writers_length
@@ -173,6 +179,14 @@ public fun root_change_config(inner_file: &InnerFile): Option<ID> {
 
 /// The deepest rollback window a file may ask for.
 public fun max_track_back(): u8 { MAX_TRACK_BACK }
+
+// === Test-only helpers ===
+
+#[test_only]
+/// When this file was created.
+public fun created_at_ms(inner_file: &InnerFile): u64 {
+    inner_file.created_at_ms
+}
 
 // === Package functions ===
 
@@ -214,6 +228,7 @@ public(package) fun new(
 public(package) fun share(
     mut inner_file: InnerFile,
     draft_epoch_duration: u32,
+    system_id: ID,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -227,6 +242,26 @@ public(package) fun share(
         &mut inner_file.id,
         ISSUEKEY,
         issue::create_file_issue_meta(clock, ctx),
+    );
+
+    // Announced at the share rather than at construction, because a file that is
+    // never shared is a file nobody can reach, and because the draft queue's own
+    // terms are only settled here.
+    let first_revision = &inner_file.file_history.track_back[0];
+
+    innerfile_events::emit_inner_file_created(
+        system_id,
+        object::id(&inner_file),
+        inner_file.owner,
+        first_revision.commit_by(),
+        inner_file.writers_length,
+        inner_file.file_history.track_back_length,
+        inner_file.file_history.warlot_state.epoch_set,
+        inner_file.file_history.warlot_state.cycle_end,
+        draft_epoch_duration,
+        inner_file.created_at_ms,
+        first_revision.commit(),
+        first_revision.blob_config_id(),
     );
 
     transfer::public_share_object(inner_file);
@@ -288,13 +323,19 @@ public(package) fun override_file_add(
 ///
 /// The cap was declared on the file from the beginning and enforced nowhere, so
 /// the queue was a shared structure any pass holder could grow without limit.
-public(package) fun pin_draft(inner_file: &mut InnerFile, draft: Draft, clock: &Clock) {
+public(package) fun pin_draft(
+    inner_file: &mut InnerFile,
+    draft: Draft,
+    clock: &Clock,
+    system_id: ID,
+) {
     let cap = inner_file.writers_length as u64;
+    let file_id = object::id(inner_file);
     let draft_holder = inner_file.get_draft_holder();
 
     assert!(draft::total_draft(draft_holder) < cap, EDraftLimitReached);
 
-    draft::pin_draft(draft_holder, draft, clock);
+    draft::pin_draft(draft_holder, draft, clock, system_id, file_id);
 }
 
 /// Record the known-good fallback, returning the revision it displaced if there
@@ -305,13 +346,44 @@ public(package) fun pin_draft(inner_file: &mut InnerFile, draft: Draft, clock: &
 public(package) fun swap_root_change(
     inner_file: &mut InnerFile,
     file_data: FileData,
+    system_id: ID,
 ): Option<FileData> {
-    option::swap_or_fill(&mut inner_file.file_history.root_change, file_data)
+    let file_id = object::id(inner_file);
+    let previous_blob_config = inner_file.root_change_config();
+
+    let commit = file_data.commit();
+    let commit_by = file_data.commit_by();
+    let blob_config_id = file_data.blob_config_id();
+
+    let displaced = option::swap_or_fill(&mut inner_file.file_history.root_change, file_data);
+
+    innerfile_events::emit_root_change_set(
+        system_id,
+        file_id,
+        commit,
+        commit_by,
+        blob_config_id,
+        previous_blob_config,
+    );
+
+    displaced
 }
 
 /// Take the known-good fallback out of the file.
-public(package) fun extract_root_change(inner_file: &mut InnerFile): FileData {
-    option::extract(&mut inner_file.file_history.root_change)
+public(package) fun extract_root_change(
+    inner_file: &mut InnerFile,
+    system_id: ID,
+    removed_by: address,
+): FileData {
+    let file_id = object::id(inner_file);
+    let removed = option::extract(&mut inner_file.file_history.root_change);
+
+    // Distinct from the revision retirement that follows it: a retirement fires
+    // wherever a revision loses its last reference, so on its own it cannot say
+    // whether the file still has a fallback.
+    innerfile_events::emit_root_change_removed(system_id, file_id, removed.blob_config_id(), removed_by);
+
+    removed
 }
 
 /// Mint the non-decaying, draft-bypassing pass a file's owner holds.

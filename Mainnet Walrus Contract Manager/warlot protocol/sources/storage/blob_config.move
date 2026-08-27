@@ -4,8 +4,8 @@ module warlot::blob_config;
 // === Imports ===
 
 use sui::clock::Clock;
-use walrus::blob::Blob;
-use warlot::events;
+use walrus::blob::{Self, Blob};
+use warlot::storage_events;
 
 // === Errors ===
 
@@ -73,6 +73,28 @@ public(package) fun has_cycles(blob_cfg: &BlobConfig): bool {
     *blob_cfg.cycle_limit.borrow() > 0
 }
 
+// === Test-only helpers ===
+
+#[test_only]
+/// The `FileMeta` naming this config, if one exists.
+public fun fileMeta_id(blob_cfg: &BlobConfig): Option<ID> {
+    blob_cfg.fileMeta_id
+}
+
+#[test_only]
+/// When this config took custody.
+public fun uploaded_on(blob_cfg: &BlobConfig): u64 {
+    blob_cfg.uploaded_on
+}
+
+#[test_only]
+/// The object ids of the blobs under this config's custody.
+public fun blob_ids(blob_cfg: &BlobConfig): vector<ID> {
+    let mut ids = vector<ID>[];
+    blob_cfg.blobs.do_ref!(|blob_x| ids.push_back(blob::object_id(blob_x)));
+    ids
+}
+
 // === Package functions ===
 
 /// Wrap `blobs` in a config owned by `owner` and carrying the given renewal mandate.
@@ -80,6 +102,7 @@ public(package) fun has_cycles(blob_cfg: &BlobConfig): bool {
 /// Construction is deliberately separate from `share`, so the caller can read the
 /// new config's id ,  or act on it ,  while it is still owned by the transaction.
 public(package) fun new(
+    system_id: ID,
     owner: address,
     blobs: vector<Blob>,
     epoch_set: u32,
@@ -88,7 +111,7 @@ public(package) fun new(
     clock: &Clock,
     ctx: &mut TxContext,
 ): BlobConfig {
-    BlobConfig {
+    let blob_cfg = BlobConfig {
         id: object::new(ctx),
         owner,
         blobs,
@@ -96,7 +119,47 @@ public(package) fun new(
         cycle_limit,
         fileMeta_id,
         uploaded_on: clock.timestamp_ms(),
-    }
+    };
+
+    // Announced here rather than on either upload path, because this is the one
+    // place where the config's id exists alongside the blobs it took custody of.
+    // An event raised before the config is built cannot name it, and renewal
+    // addresses configs ,  so a consumer indexing only blob ids has no way to
+    // construct a renewal call from its own records.
+    let mut blobs_obj_id = vector<ID>[];
+    let mut blob_sizes = vector<u64>[];
+    let mut size = 0;
+    let mut encoded_size = 0;
+    let mut end_epoch = blob::end_epoch(&blob_cfg.blobs[0]);
+
+    // Bounded by the blobs handed in, which the transaction carrying them bounds.
+    blob_cfg.blobs.do_ref!(|blob_x| {
+        blobs_obj_id.push_back(blob::object_id(blob_x));
+        blob_sizes.push_back(blob::size(blob_x));
+        size = size + blob::size(blob_x);
+        encoded_size = encoded_size + blob::storage(blob_x).size();
+        if (end_epoch > blob::end_epoch(blob_x)) {
+            end_epoch = blob::end_epoch(blob_x)
+        };
+    });
+
+    storage_events::emit_blob_stored(
+        system_id,
+        object::id(&blob_cfg),
+        owner,
+        ctx.sender(),
+        blobs_obj_id,
+        blob_sizes,
+        size,
+        encoded_size,
+        end_epoch,
+        epoch_set,
+        cycle_limit,
+        fileMeta_id,
+        blob_cfg.uploaded_on,
+    );
+
+    blob_cfg
 }
 
 /// Publish the config, making it reachable by any renewer.
@@ -131,18 +194,35 @@ public(package) fun consume_cycle(blob_cfg: &mut BlobConfig) {
 /// owner and a stranger, so every call site must already have established that
 /// the current owner consented or that the new owner is the party the content was
 /// approved by.
-public(package) fun transfer_ownership(blob_cfg: &mut BlobConfig, new_owner: address) {
+public(package) fun transfer_ownership(
+    blob_cfg: &mut BlobConfig,
+    system_id: ID,
+    new_owner: address,
+) {
+    let previous_owner = blob_cfg.owner;
+
     blob_cfg.owner = new_owner;
+
+    storage_events::emit_blob_config_owner_changed(
+        system_id,
+        object::id(blob_cfg),
+        previous_owner,
+        new_owner,
+    );
 }
 
 /// Destroy the config and return the blobs it held.
 ///
 /// The owner's exit is unconditional and has no repair step: the config is the
 /// only place custody was recorded, so deleting it is the whole operation.
-public(package) fun unwrap(blob_cfg: BlobConfig, ctx: &TxContext): vector<Blob> {
+public(package) fun unwrap(
+    blob_cfg: BlobConfig,
+    system_id: ID,
+    ctx: &TxContext,
+): vector<Blob> {
     assert!(ctx.sender() == blob_cfg.owner, ENotOwner);
 
-    let (_, blobs) = destroy(blob_cfg);
+    let (_, blobs) = destroy(blob_cfg, system_id);
 
     blobs
 }
@@ -154,14 +234,21 @@ public(package) fun unwrap(blob_cfg: BlobConfig, ctx: &TxContext): vector<Blob> 
 /// window is retired by whoever wrote the revision that displaced it. Returning
 /// the owner rather than taking a recipient is what keeps that safe ,  the caller
 /// chooses when the content is released and never where it goes.
-public(package) fun unwrap_for_owner(blob_cfg: BlobConfig): (address, vector<Blob>) {
-    destroy(blob_cfg)
+public(package) fun unwrap_for_owner(
+    blob_cfg: BlobConfig,
+    system_id: ID,
+): (address, vector<Blob>) {
+    destroy(blob_cfg, system_id)
 }
 
 // === Private functions ===
 
 /// Delete the config, announce it, and hand back its owner and its blobs.
-fun destroy(blob_cfg: BlobConfig): (address, vector<Blob>) {
+///
+/// Every exit path runs through here, so a consumer replaying the stream sees
+/// the row disappear however the config was consumed. A replay that only ever
+/// adds reconstructs a state that never existed.
+fun destroy(blob_cfg: BlobConfig, system_id: ID): (address, vector<Blob>) {
     let config_id = object::id(&blob_cfg);
     let BlobConfig {
         id,
@@ -174,7 +261,12 @@ fun destroy(blob_cfg: BlobConfig): (address, vector<Blob>) {
     } = blob_cfg;
     id.delete();
 
-    events::emit_withdraw_blob(owner, config_id);
+    let mut blobs_obj_id = vector<ID>[];
+
+    // Bounded by the blobs this config was created holding.
+    blobs.do_ref!(|blob_x| blobs_obj_id.push_back(blob::object_id(blob_x)));
+
+    storage_events::emit_blob_withdrawn(system_id, config_id, owner, blobs_obj_id);
 
     (owner, blobs)
 }

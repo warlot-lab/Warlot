@@ -10,6 +10,7 @@ module warlot::deny_list;
 // === Imports ===
 
 use sui::{dynamic_field as dfield, dynamic_object_field as ofields};
+use warlot::pass_events;
 
 // === Errors ===
 
@@ -83,12 +84,26 @@ public(package) fun deny(
     writer: address,
     period: u64,
     now_ms: u64,
+    system_id: ID,
+    file_id: ID,
+    denied_by: address,
 ) {
     assert!(period == 0 || period > now_ms, INVALIDTIME);
     if (dfield::exists_(&deny_obj.id, writer)) {
         // Re-denying an already denied writer moves their deadline; it does not
-        // add a denial, so the count stays where it is.
+        // add a denial, so the count stays where it is. The deadline moving is
+        // still a change, and is announced as one.
         *dfield::borrow_mut<address, u64>(&mut deny_obj.id, writer) = period;
+
+        pass_events::emit_writer_denied(
+            system_id,
+            file_id,
+            writer,
+            period,
+            denied_by,
+            deny_obj.numbers_of_deny,
+        );
+
         return
     };
 
@@ -96,13 +111,28 @@ public(package) fun deny(
 
     let old_d_o = deny_obj.numbers_of_deny;
     deny_obj.numbers_of_deny = 1 + old_d_o;
+
+    pass_events::emit_writer_denied(
+        system_id,
+        file_id,
+        writer,
+        period,
+        denied_by,
+        deny_obj.numbers_of_deny,
+    );
 }
 
 /// Drop `writer`'s denial, or do nothing when they hold none.
 ///
 /// Lifting a denial that was never recorded leaves the caller with exactly the
 /// state they asked for, so it is not an error.
-public(package) fun undeny(deny_obj: &mut DenyList, writer: address) {
+public(package) fun undeny(
+    deny_obj: &mut DenyList,
+    writer: address,
+    system_id: ID,
+    file_id: ID,
+    undenied_by: address,
+) {
     if (!dfield::exists_(&deny_obj.id, writer)) {
         return
     };
@@ -111,6 +141,16 @@ public(package) fun undeny(deny_obj: &mut DenyList, writer: address) {
 
     let old_d_o = deny_obj.numbers_of_deny;
     deny_obj.numbers_of_deny = old_d_o - 1;
+
+    // Only a denial that was actually there is announced. Announcing the no-op
+    // would report a state change that did not happen.
+    pass_events::emit_writer_undenied(
+        system_id,
+        file_id,
+        writer,
+        undenied_by,
+        deny_obj.numbers_of_deny,
+    );
 }
 
 /// Revoke the pass `pass_id`, permanently.
@@ -118,10 +158,18 @@ public(package) fun undeny(deny_obj: &mut DenyList, writer: address) {
 /// There is no counterpart that lifts this. A pass is revoked because it is in
 /// the wrong hands, and an unrevoke would hand whoever holds it a second chance.
 /// The owner mints a replacement instead.
-public(package) fun revoke_pass(deny_obj: &mut DenyList, pass_id: ID) {
+public(package) fun revoke_pass(
+    deny_obj: &mut DenyList,
+    pass_id: ID,
+    system_id: ID,
+    file_id: ID,
+    revoked_by: address,
+) {
     if (dfield::exists_<ID>(&deny_obj.id, pass_id)) {
         return
     };
 
     dfield::add<ID, bool>(&mut deny_obj.id, pass_id, true);
+
+    pass_events::emit_writer_pass_revoked(system_id, file_id, pass_id, revoked_by);
 }

@@ -30,11 +30,13 @@ public fun grant(
 ) {
     system_cfg.assert_version();
 
+    let system_id = object::id(system_cfg);
     let user_obj = user::get_user_mut(system_cfg, owner);
     assert!(user_obj.owner() == ctx.sender(), ENotAccountOwner);
 
     permission::create_permission_state(
         user_obj.uid_mut(),
+        system_id,
         owner,
         delegate,
         add_blob,
@@ -54,8 +56,9 @@ public fun revoke(
 ) {
     system_cfg.assert_version();
 
+    let system_id = object::id(system_cfg);
     let user_obj = user::get_user_mut(system_cfg, owner);
     assert!(user_obj.owner() == ctx.sender(), ENotAccountOwner);
 
-    permission::revoke_permission_state(user_obj.uid_mut(), owner, delegate);
+    permission::revoke_permission_state(user_obj.uid_mut(), system_id, owner, delegate);
 }

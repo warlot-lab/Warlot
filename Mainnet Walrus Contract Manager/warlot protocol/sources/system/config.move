@@ -10,11 +10,7 @@ use sui::{
     table_vec::{Self, TableVec},
 };
 use wal::wal::WAL;
-use warlot::{
-    admin_cap::{Self, AdminCap},
-    vault::{Self, Vault},
-    version,
-};
+use warlot::{admin_cap::{Self, AdminCap}, system_events, vault::{Self, Vault}, version};
 
 // === Errors ===
 
@@ -105,6 +101,11 @@ public fun cost_to_update_name(system_cfg: &SystemConfig): u64 {
 /// The version this system is gated at.
 public fun get_system_version(system_cfg: &SystemConfig): u64 {
     system_cfg.version
+}
+
+/// How many users are registered on this system.
+public fun users(system_cfg: &SystemConfig): u64 {
+    system_cfg.users
 }
 
 /// The storage terms this system sells, in epochs, strictly ascending.
@@ -199,10 +200,16 @@ public(package) fun uid_mut(system_cfg: &mut SystemConfig): &mut UID {
 }
 
 /// Raise the system to the package version.
-public(package) fun update_version(system_cfg: &mut SystemConfig) {
+public(package) fun update_version(system_cfg: &mut SystemConfig, migrated_by: address) {
     assert!(system_cfg.version < version::get_version(), EVersionNotOlder);
 
     system_cfg.version = version::get_version();
+
+    system_events::emit_system_version_migrated(
+        object::id(system_cfg),
+        system_cfg.version,
+        migrated_by,
+    );
 }
 
 /// Overwrite the registry modification fees.
@@ -216,11 +223,21 @@ public(package) fun set_costs(
     cost_to_migrate_system: u64,
     cost_to_update_name: u64,
     cost_to_delete: u64,
+    changed_by: address,
 ) {
     system.user_modification_cfg.cost_change_apikey_forms = cost_change_apikey_forms;
     system.user_modification_cfg.cost_to_migrate_system = cost_to_migrate_system;
     system.user_modification_cfg.cost_to_update_name = cost_to_update_name;
     system.user_modification_cfg.cost_to_delete = cost_to_delete;
+
+    system_events::emit_system_fees_changed(
+        object::id(system),
+        cost_change_apikey_forms,
+        cost_to_migrate_system,
+        cost_to_update_name,
+        cost_to_delete,
+        changed_by,
+    );
 }
 
 /// Replace the storage terms this system sells and the horizon they sit inside.
@@ -232,16 +249,30 @@ public(package) fun set_tier_table(
     system_cfg: &mut SystemConfig,
     tier_table: vector<u32>,
     max_epochs_ahead: u32,
+    changed_by: address,
 ) {
     assert_tier_table(&tier_table, max_epochs_ahead);
 
     system_cfg.tier_table = tier_table;
     system_cfg.max_epochs_ahead = max_epochs_ahead;
+
+    system_events::emit_system_tiers_changed(
+        object::id(system_cfg),
+        tier_table,
+        max_epochs_ahead,
+        changed_by,
+    );
 }
 
 /// Record `new_system_id` as the system minted after `system_cfg`.
-public(package) fun set_next_system(system_cfg: &mut SystemConfig, new_system_id: ID) {
+public(package) fun set_next_system(
+    system_cfg: &mut SystemConfig,
+    new_system_id: ID,
+    minted_by: address,
+) {
     option::fill(&mut system_cfg.mint_cap.next_system, new_system_id);
+
+    system_events::emit_system_succeeded(object::id(system_cfg), new_system_id, minted_by);
 }
 
 /// Build a system descending from `previous_system`, with its treasury and user
@@ -295,6 +326,20 @@ public(package) fun new(
         table::new<address, u64>(ctx),
     );
 
+    system_events::emit_system_created(
+        object::id(&system_cfg),
+        previous_system,
+        ctx.sender(),
+        system_cfg.version,
+        system_cfg.warlot_allowed_address,
+        system_cfg.tier_table,
+        system_cfg.max_epochs_ahead,
+        cost_change_apikey_forms,
+        cost_to_migrate_system,
+        cost_to_update_name,
+        cost_to_delete,
+    );
+
     system_cfg
 }
 
@@ -337,7 +382,7 @@ fun init(ctx: &mut TxContext) {
     );
 
     transfer::public_share_object(system_cfg);
-    admin_cap::transfer_to(admin, ctx.sender());
+    admin_cap::transfer_to(admin, ctx.sender(), ctx);
 }
 
 // === Test-only helpers ===

@@ -49,7 +49,7 @@ public fun all_register_user_publicly(
     );
 
     // Tracks the blob configs this user adopts from outside the protocol.
-    foreign_meta::create_meta(ctx);
+    foreign_meta::create_meta(object::id(system_cfg), ctx);
 
     user::add_user(system_cfg, new_user, ctx);
 }
@@ -71,7 +71,7 @@ public fun all_register_user_with_system_permission(
         ctx,
     );
 
-    foreign_meta::create_meta(ctx);
+    foreign_meta::create_meta(object::id(system_cfg), ctx);
 
     user::add_user(system_cfg, new_user, ctx);
 }

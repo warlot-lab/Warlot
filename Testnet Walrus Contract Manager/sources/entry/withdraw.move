@@ -20,7 +20,7 @@ public fun self_withdraw_blob(
 
     let owner = config.owner();
 
-    blob_config::unwrap(config, ctx).do!(|blob| {
+    blob_config::unwrap(config, object::id(system_cfg), ctx).do!(|blob| {
         transfer::public_transfer(blob, owner);
     })
 }

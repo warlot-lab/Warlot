@@ -4,7 +4,7 @@ module warlot::draft;
 // === Imports ===
 
 use sui::{clock::Clock, dynamic_object_field as ofields};
-use warlot::file_data::FileData;
+use warlot::{draft_events, file_data::FileData};
 
 // === Errors ===
 
@@ -95,14 +95,43 @@ public(package) fun create_draft(
 ///
 /// The index only ever moves forward, including across deletions, so an index
 /// that has been used once never names a different draft later.
-public(package) fun pin_draft(draft_holder: &mut FileDraftHolder, draft: Draft, clock: &Clock) {
+public(package) fun pin_draft(
+    draft_holder: &mut FileDraftHolder,
+    draft: Draft,
+    clock: &Clock,
+    system_id: ID,
+    file_id: ID,
+) {
     let old_total_draft = draft_holder.total_draft;
     let available_index_point = draft_holder.available_index;
+
+    let draft_id = object::id(&draft);
+    let writer_pass = draft.writer_pass;
+    let issue = draft.issue;
+    let proposed = draft.file.borrow();
+    let commit = proposed.commit();
+    let commit_by = proposed.commit_by();
+    let blob_config_id = proposed.blob_config_id();
+
     ofields::add<u64, Draft>(&mut draft_holder.id, available_index_point, draft);
 
     draft_holder.last_modified = clock.timestamp_ms();
     draft_holder.available_index = available_index_point + 1;
     draft_holder.total_draft = old_total_draft + 1;
+
+    draft_events::emit_draft_pinned(
+        system_id,
+        file_id,
+        draft_id,
+        available_index_point,
+        writer_pass,
+        issue,
+        commit,
+        commit_by,
+        blob_config_id,
+        draft_holder.total_draft,
+        draft_holder.last_modified,
+    );
 }
 
 /// Take the revision out of the draft at `draft_index` and delete the draft.
@@ -110,6 +139,9 @@ public(package) fun resolve_draft_to_file(
     draft_holder: &mut FileDraftHolder,
     draft_index: u64,
     clock: &Clock,
+    system_id: ID,
+    file_id: ID,
+    merged_by: address,
 ): FileData {
     assert!(ofields::exists_(&draft_holder.id, draft_index), INVALIDDRAFTINDEX);
     let old_total_draft = draft_holder.total_draft;
@@ -120,7 +152,21 @@ public(package) fun resolve_draft_to_file(
     let draft = ofields::remove<u64, Draft>(&mut draft_holder.id, draft_index);
     let Draft { id, writer_pass: _, issue: _, file } = draft;
     id.delete();
-    option::destroy_some(file)
+
+    let accepted = option::destroy_some(file);
+
+    draft_events::emit_draft_merged(
+        system_id,
+        file_id,
+        draft_index,
+        merged_by,
+        accepted.commit(),
+        accepted.blob_config_id(),
+        draft_holder.total_draft,
+        draft_holder.last_modified,
+    );
+
+    accepted
 }
 
 /// Take the revision out of the most recently pinned draft and delete it.
@@ -132,6 +178,9 @@ public(package) fun resolve_draft_to_file(
 public(package) fun fetch_and_delete_latest_draft(
     draft_holder: &mut FileDraftHolder,
     clock: &Clock,
+    system_id: ID,
+    file_id: ID,
+    merged_by: address,
 ): FileData {
     assert!(draft_holder.available_index > 0, ENoDraftPinned);
 
@@ -140,6 +189,9 @@ public(package) fun fetch_and_delete_latest_draft(
         draft_holder,
         latest,
         clock,
+        system_id,
+        file_id,
+        merged_by,
     )
 }
 
@@ -154,6 +206,9 @@ public(package) fun delete_draft(
     draft_holder: &mut FileDraftHolder,
     draft: u64,
     clock: &Clock,
+    system_id: ID,
+    file_id: ID,
+    deleted_by: address,
 ): Option<FileData> {
     assert!(ofields::exists_(&draft_holder.id, draft), INVALIDDRAFT);
     let draft_obj = ofields::remove<u64, Draft>(&mut draft_holder.id, draft);
@@ -162,6 +217,15 @@ public(package) fun delete_draft(
     draft_holder.last_modified = clock.timestamp_ms();
     let old_total_draft = draft_holder.total_draft;
     draft_holder.total_draft = old_total_draft - 1;
+
+    draft_events::emit_draft_deleted(
+        system_id,
+        file_id,
+        draft,
+        deleted_by,
+        draft_holder.total_draft,
+        draft_holder.last_modified,
+    );
 
     file
 }
@@ -178,6 +242,9 @@ public(package) fun clear_drafts(
     from_index: u64,
     to_index: u64,
     clock: &Clock,
+    system_id: ID,
+    file_id: ID,
+    deleted_by: address,
 ): vector<FileData> {
     assert!(from_index < to_index, EInvalidDraftRange);
 
@@ -186,7 +253,7 @@ public(package) fun clear_drafts(
 
     while (i < to_index) {
         if (ofields::exists_(&draft_holder.id, i)) {
-            let proposed = delete_draft(draft_holder, i, clock);
+            let proposed = delete_draft(draft_holder, i, clock, system_id, file_id, deleted_by);
             revisions.push_back(option::destroy_some(proposed));
         };
         i = i + 1;

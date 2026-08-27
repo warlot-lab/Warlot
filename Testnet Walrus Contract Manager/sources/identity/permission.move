@@ -4,7 +4,7 @@ module warlot::permission;
 // === Imports ===
 
 use sui::{dynamic_object_field as ofields, table::{Self, Table}};
-use warlot::events;
+use warlot::identity_events;
 
 // === Errors ===
 
@@ -32,21 +32,56 @@ public struct SubPermission has store {
     can_compact: bool,
 }
 
+// === Test-only helpers ===
+
+#[test_only]
+/// Whether `delegate` holds a row in `user_uid`'s delegation table.
+public fun has_delegate(user_uid: &UID, delegate: address): bool {
+    let sub_permission = ofields::borrow<vector<u8>, Table<address, SubPermission>>(
+        user_uid,
+        ACCEPTANCE_KEY,
+    );
+
+    sub_permission.contains(delegate)
+}
+
+#[test_only]
+/// Every capability bit `delegate` holds, in declaration order.
+public fun delegate_bits(user_uid: &UID, delegate: address): (bool, bool, bool, bool, bool) {
+    let sub_permission = ofields::borrow<vector<u8>, Table<address, SubPermission>>(
+        user_uid,
+        ACCEPTANCE_KEY,
+    );
+    let row = sub_permission.borrow(delegate);
+
+    (
+        row.add_blob_to_address,
+        row.create_inner_file,
+        row.create_writer_pass,
+        row.can_init_db,
+        row.can_compact,
+    )
+}
+
 // === Package functions ===
 
 /// Attach an empty delegation table to `user_uid`, granting every bit to
 /// `delegate` when one is supplied.
 public(package) fun create_table(
     user_uid: &mut UID,
+    system_id: ID,
+    owner: address,
     delegate: Option<address>,
     ctx: &mut TxContext,
 ) {
     let mut sub_permission: Table<address, SubPermission> = table::new(ctx);
 
     if (option::is_some<address>(&delegate)) {
+        let delegate_address = option::destroy_some<address>(delegate);
+
         table::add<address, SubPermission>(
             &mut sub_permission,
-            option::destroy_some<address>(delegate),
+            delegate_address,
             SubPermission {
                 add_blob_to_address: true,
                 create_inner_file: true,
@@ -54,7 +89,21 @@ public(package) fun create_table(
                 can_init_db: true,
                 can_compact: true,
             },
-        )
+        );
+
+        // A registration that opens with a full delegation is a delegation, and
+        // is announced as one. Without this the only silent grant in the
+        // protocol would be the one made before the user has done anything.
+        identity_events::emit_permission_granted(
+            system_id,
+            owner,
+            delegate_address,
+            true,
+            true,
+            true,
+            true,
+            true,
+        );
     } else {
         option::destroy_none<address>(delegate)
     };
@@ -96,6 +145,7 @@ public(package) fun check_can_init_db(user_uid: &UID, owner: address, ctx: &TxCo
 /// can be attributed to the account it was made on rather than to the sender.
 public(package) fun create_permission_state(
     user_uid: &mut UID,
+    system_id: ID,
     owner: address,
     privilege_address: address,
     add_blob_to_address: bool,
@@ -130,7 +180,8 @@ public(package) fun create_permission_state(
         );
     };
 
-    events::emit_permission_granted(
+    identity_events::emit_permission_granted(
+        system_id,
         owner,
         privilege_address,
         add_blob_to_address,
@@ -150,6 +201,7 @@ public(package) fun create_permission_state(
 /// abort is one that can fail at the moment it is most needed.
 public(package) fun revoke_permission_state(
     user_uid: &mut UID,
+    system_id: ID,
     owner: address,
     privilege_address: address,
 ) {
@@ -168,7 +220,7 @@ public(package) fun revoke_permission_state(
         } = sub_permission.remove(privilege_address);
     };
 
-    events::emit_permission_revoked(owner, privilege_address);
+    identity_events::emit_permission_revoked(system_id, owner, privilege_address);
 }
 
 // === Private functions ===

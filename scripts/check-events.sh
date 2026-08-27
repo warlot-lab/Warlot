@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+#
+# The contract between the event stream and everything that reads it.
+#
+# `public(package)` functions raise no unused-function warning, so an emitter can
+# sit with no call site indefinitely and nobody finds out. That is exactly what
+# happened to three of them. This is the check that makes it impossible, and it
+# runs in CI rather than being left to review.
+#
+# Static only: no Move toolchain, no network. Exits non-zero on the first failure.
+
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MAINNET="$ROOT/Mainnet Walrus Contract Manager/warlot protocol"
+TESTNET="$ROOT/Testnet Walrus Contract Manager"
+
+failures=0
+
+fail() { printf '  FAIL  %s\n' "$1"; failures=$((failures + 1)); }
+pass() { printf '  ok    %s\n' "$1"; }
+
+# ---------------------------------------------------------------------------
+# 1. Every emitter has at least one call site.
+# ---------------------------------------------------------------------------
+echo "== emitter coverage =="
+for pkg in "$MAINNET" "$TESTNET"; do
+    label="$(basename "$(dirname "$pkg")")"
+    [ "$label" = "$(basename "$ROOT")" ] && label="$(basename "$pkg")"
+
+    orphans=0
+    while read -r emitter; do
+        [ -z "$emitter" ] && continue
+        sites=$(grep -rho "\b${emitter}(" "$pkg/sources" \
+                  --include='*.move' 2>/dev/null \
+                | grep -cv '^$')
+        declared=$(grep -rho "fun ${emitter}(" "$pkg/sources/events" \
+                     --include='*.move' 2>/dev/null | wc -l)
+        callers=$((sites - declared))
+        if [ "$callers" -lt 1 ]; then
+            fail "$label: $emitter has no call site"
+            orphans=$((orphans + 1))
+        else
+            printf '  ok    %-42s %d call site(s)\n' "$emitter" "$callers"
+        fi
+    done < <(grep -rhoE '^public\(package\) fun (emit_[a-z0-9_]+)\(' \
+                "$pkg/sources/events" --include='*.move' \
+             | sed -E 's/^public\(package\) fun //; s/\($//')
+
+    [ "$orphans" -eq 0 ] && pass "$label: every emitter is called"
+done
+
+# ---------------------------------------------------------------------------
+# 2. Every event type is declared under sources/events/, and nowhere else.
+#
+# This is what lets one package-scoped event-type filter return the whole
+# stream. An event declared in a domain module would still be emitted and would
+# still be indexed by a package filter, but it would sit outside the surface the
+# consumer contract in docs/events.md describes, so it is refused here.
+# ---------------------------------------------------------------------------
+echo "== event declarations =="
+for pkg in "$MAINNET" "$TESTNET"; do
+    label="$(basename "$pkg")"
+    stray=$(grep -rln 'event::emit' "$pkg/sources" --include='*.move' 2>/dev/null \
+            | grep -v '/sources/events/' || true)
+    if [ -n "$stray" ]; then
+        fail "$label: event::emit outside sources/events/:"
+        printf '        %s\n' $stray
+    else
+        pass "$label: every event::emit is inside sources/events/"
+    fi
+done
+
+# ---------------------------------------------------------------------------
+# 3. The event modules import nothing internal, so they can never cycle.
+# ---------------------------------------------------------------------------
+echo "== events imports =="
+for pkg in "$MAINNET" "$TESTNET"; do
+    label="$(basename "$pkg")"
+    internal=$(grep -rn 'use warlot::' "$pkg/sources/events" --include='*.move' || true)
+    if [ -n "$internal" ]; then
+        fail "$label: an event module imports from inside the package:"
+        printf '        %s\n' "$internal"
+    else
+        pass "$label: event modules import nothing internal"
+    fi
+done
+
+# ---------------------------------------------------------------------------
+# 4. No bare-integer abort anywhere in sources.
+# ---------------------------------------------------------------------------
+echo "== named aborts =="
+for pkg in "$MAINNET" "$TESTNET"; do
+    label="$(basename "$pkg")"
+    bare=$(grep -rnE 'assert!\([^;]*,[[:space:]]*[0-9]+[[:space:]]*\)' \
+             "$pkg/sources" --include='*.move' || true)
+    if [ -n "$bare" ]; then
+        fail "$label: bare-integer assert!:"
+        printf '        %s\n' "$bare"
+    else
+        pass "$label: every abort is a named constant"
+    fi
+done
+
+# ---------------------------------------------------------------------------
+# 5. Both packages stay byte-identical in sources/ and tests/.
+# ---------------------------------------------------------------------------
+echo "== packages identical =="
+for dir in sources tests; do
+    if diff -r "$MAINNET/$dir" "$TESTNET/$dir" > /dev/null 2>&1; then
+        pass "$dir/ is identical across both packages"
+    else
+        fail "$dir/ differs between the packages:"
+        diff -r "$MAINNET/$dir" "$TESTNET/$dir" | sed 's/^/        /'
+    fi
+done
+
+echo
+if [ "$failures" -eq 0 ]; then
+    echo "All event checks passed."
+else
+    echo "$failures check(s) failed."
+fi
+exit "$((failures > 0))"

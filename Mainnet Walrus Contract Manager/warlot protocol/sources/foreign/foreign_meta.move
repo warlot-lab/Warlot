@@ -4,6 +4,7 @@ module warlot::foreign_meta;
 // === Imports ===
 
 use sui::dynamic_field as dfield;
+use warlot::storage_events;
 
 // === Constants ===
 
@@ -31,10 +32,24 @@ public(package) fun verify_peak(foreign_meta: &ForeignMeta): u64 {
     vector::length(dfield::borrow<u64, vector<ID>>(&foreign_meta.id, foreign_meta.current_index))
 }
 
+// === Test-only helpers ===
+
+#[test_only]
+/// The vector currently being appended to.
+public fun current_index(foreign_meta: &ForeignMeta): u64 {
+    foreign_meta.current_index
+}
+
+#[test_only]
+/// How many configs this index records.
+public fun total_blob_config(foreign_meta: &ForeignMeta): u64 {
+    foreign_meta.total_blob_config
+}
+
 // === Package functions ===
 
 /// Create an index for the sender and transfer it to them.
-public(package) fun create_meta(ctx: &mut TxContext) {
+public(package) fun create_meta(system_id: ID, ctx: &mut TxContext) {
     let current_index = 0;
     let total_blob_config = 0;
     let mut new_meta = ForeignMeta {
@@ -45,12 +60,20 @@ public(package) fun create_meta(ctx: &mut TxContext) {
 
     dfield::add<u64, vector<ID>>(&mut new_meta.id, current_index, vector::empty<ID>());
 
+    storage_events::emit_foreign_meta_created(system_id, object::id(&new_meta), ctx.sender());
+
     transfer::transfer(new_meta, ctx.sender());
 }
 
 /// Record `config_blob_list`, starting a new vector when appending would push the
 /// current one past its bound.
-public(package) fun add_foreign_blob(foreign_meta: &mut ForeignMeta, config_blob_list: vector<ID>) {
+public(package) fun add_foreign_blob(
+    foreign_meta: &mut ForeignMeta,
+    system_id: ID,
+    owner: address,
+    adopted_by: address,
+    config_blob_list: vector<ID>,
+) {
     let vec_len = vector::length(
         dfield::borrow<u64, vector<ID>>(&foreign_meta.id, foreign_meta.current_index),
     );
@@ -60,6 +83,11 @@ public(package) fun add_foreign_blob(foreign_meta: &mut ForeignMeta, config_blob
     // Start a new vector when the incoming list alone exceeds the bound, or when
     // the combined size would exceed it and the current vector is already three
     // quarters full. Otherwise append.
+    // An empty list is the loop's tail case and changes nothing, so it is not
+    // announced ,  an event that reports no state change is one a replay has to
+    // learn to ignore.
+    let announced = config_blob_list;
+
     if (
         (config_len > AVG_LEN)
         || ((config_len + vec_len) > AVG_LEN) && vec_len > (3 * AVG_LEN / 4)
@@ -68,12 +96,24 @@ public(package) fun add_foreign_blob(foreign_meta: &mut ForeignMeta, config_blob
         dfield::add<u64, vector<ID>>(
             &mut foreign_meta.id,
             foreign_meta.current_index,
-            config_blob_list,
+            announced,
         );
     } else {
         vector::append(
             dfield::borrow_mut<u64, vector<ID>>(&mut foreign_meta.id, foreign_meta.current_index),
-            config_blob_list,
+            announced,
+        );
+    };
+
+    if (config_len > 0) {
+        storage_events::emit_foreign_blobs_adopted(
+            system_id,
+            object::id(foreign_meta),
+            owner,
+            adopted_by,
+            foreign_meta.current_index,
+            announced,
+            foreign_meta.total_blob_config,
         );
     }
 }

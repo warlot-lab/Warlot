@@ -12,6 +12,7 @@ use sui::{
     table_vec::{Self, TableVec},
 };
 use warlot::{
+    identity_events,
     permission,
     registry,
     system_config::{Self, SystemConfig},
@@ -104,7 +105,7 @@ public(package) fun create_user(
     add_walot_permission: Option<address>,
     ctx: &mut TxContext,
 ): User {
-    let safe_vault: Wallet = wallet::create_wallet(clock, ctx);
+    let safe_vault: Wallet = wallet::create_wallet(system_id, clock, ctx);
 
     let mut new_user = User {
         id: object::new(ctx),
@@ -112,7 +113,15 @@ public(package) fun create_user(
         wallet: safe_vault,
     };
 
-    permission::create_table(&mut new_user.id, add_walot_permission, ctx);
+    let owner = new_user.owner;
+
+    permission::create_table(
+        &mut new_user.id,
+        system_id,
+        owner,
+        add_walot_permission,
+        ctx,
+    );
 
     registry::create_registry(
         public_username,
@@ -131,11 +140,20 @@ public(package) fun add_user(system_cfg: &mut SystemConfig, user: User, ctx: &Tx
     let new_user = ctx.sender();
     assert!(!ofields::exists_(system_config::uid(system_cfg), new_user), EUserExist);
 
+    let user_id = object::id(&user);
+
     index_push_user(system_cfg, new_user);
 
     ofields::add<address, User>(system_config::uid_mut(system_cfg), new_user, user);
 
     system_config::increase_user_count(system_cfg);
+
+    identity_events::emit_user_joined_system(
+        object::id(system_cfg),
+        new_user,
+        user_id,
+        system_cfg.users(),
+    );
 }
 
 /// Detach `user` from the system and remove them from the index.
@@ -147,7 +165,16 @@ public(package) fun remove_user(system_cfg: &mut SystemConfig, user: address): U
     // `dynamic_object_field` wraps its keys, so a record attached with it has to be
     // detached with it; `dynamic_field` looks in a different key space and finds
     // nothing.
-    ofields::remove<address, User>(system_config::uid_mut(system_cfg), user)
+    let removed = ofields::remove<address, User>(system_config::uid_mut(system_cfg), user);
+
+    identity_events::emit_user_left_system(
+        object::id(system_cfg),
+        user,
+        object::id(&removed),
+        system_cfg.users(),
+    );
+
+    removed
 }
 
 /// Mutable access to a registered user.

@@ -19,10 +19,11 @@ public fun deposit_coin(
 ): u64 {
     system_cfg.assert_version();
 
+    let system_id = object::id(system_cfg);
     let user = user::get_user_mut(system_cfg, ctx.sender());
     let wallet_state = user.get_wallet();
 
-    wallet_state.deposit(coin, amount, ctx)
+    wallet_state.deposit(system_id, coin, amount, ctx)
 }
 
 /// Move `amount` of WAL out of the sender's internal wallet and hand it back to them.
@@ -34,8 +35,9 @@ public fun deposit_coin(
 public fun withdraw_wal(system_cfg: &mut SystemConfig, amount: u64, ctx: &mut TxContext) {
     system_cfg.assert_version();
 
+    let system_id = object::id(system_cfg);
     let user = user::get_user_mut(system_cfg, ctx.sender());
-    let coin = wallet::withdraw<WAL>(user.get_wallet(), amount, ctx);
+    let coin = wallet::withdraw<WAL>(user.get_wallet(), system_id, amount, ctx);
 
     transfer::public_transfer(coin, ctx.sender());
 }
@@ -45,8 +47,9 @@ public fun withdraw_wal(system_cfg: &mut SystemConfig, amount: u64, ctx: &mut Tx
 public fun withdraw_all_wal(system_cfg: &mut SystemConfig, ctx: &mut TxContext) {
     system_cfg.assert_version();
 
+    let system_id = object::id(system_cfg);
     let user = user::get_user_mut(system_cfg, ctx.sender());
-    let coin = wallet::withdraw_all<WAL>(user.get_wallet(), ctx);
+    let coin = wallet::withdraw_all<WAL>(user.get_wallet(), system_id, ctx);
 
     transfer::public_transfer(coin, ctx.sender());
 }

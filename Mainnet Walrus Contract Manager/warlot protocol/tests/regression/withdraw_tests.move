@@ -104,6 +104,7 @@ fun a_stranger_cannot_withdraw() {
     let mut funds = fixtures::wal(sc.ctx());
     let config_id = fixtures::shared_config(
         &mut wsys,
+        object::id(&sys),
         ALICE,
         SET,
         option::some(CYCLES),

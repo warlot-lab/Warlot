@@ -1,6 +1,10 @@
 /// Mints and inspects `AdminCap`, the capability that guards privileged system operations.
 module warlot::admin_cap;
 
+// === Imports ===
+
+use warlot::system_events;
+
 // === Constants ===
 
 /// The original admin key, minted once at `init`.
@@ -67,7 +71,20 @@ public(package) fun new(
 
 /// Hand a capability to `receiver`. The capability cannot be transferred from
 /// outside this module, so custody changes route through here.
-public(package) fun transfer_to(admin_cap: AdminCap, receiver: address) {
+///
+/// The announcement is made here rather than at the mint, because a capability
+/// nobody holds is not authority over anything: the holder is part of what has
+/// to be announced, and this is the one place it is known.
+public(package) fun transfer_to(admin_cap: AdminCap, receiver: address, ctx: &TxContext) {
+    system_events::emit_admin_cap_minted(
+        admin_cap.system_config_id,
+        object::id(&admin_cap),
+        admin_cap.state,
+        admin_cap.total_system,
+        receiver,
+        ctx.sender(),
+    );
+
     transfer::transfer(admin_cap, receiver);
 }
 

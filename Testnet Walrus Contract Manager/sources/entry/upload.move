@@ -4,9 +4,8 @@ module warlot::entry_upload;
 // === Imports ===
 
 use sui::clock::Clock;
-use walrus::blob::{Self, Blob};
+use walrus::blob::Blob;
 use warlot::{
-    events,
     foreign_meta::{Self, ForeignMeta},
     registry::Registry,
     store,
@@ -56,6 +55,8 @@ public fun foreign_blob_add(
     assert!(blobs.length() <= MAX_ADOPTION_BATCH, EBatchTooLarge);
 
     let set = tier::validate(system_cfg, epoch_set);
+    let system_id = object::id(system_cfg);
+    let owner = registry.get_user();
 
     let mut meta_peak = foreign_meta::verify_peak(user_foreign_meta);
     let avg_len = foreign_meta::avg_len();
@@ -66,16 +67,8 @@ public fun foreign_blob_add(
     while (!blobs.is_empty()) {
         let raw_blob = blobs.pop_back();
 
-        events::emit_managed_blobs(
-            registry.get_user(),
-            blob::object_id(&raw_blob),
-            blob::size(&raw_blob),
-            blob::storage(&raw_blob).size(),
-            blob::end_epoch(&raw_blob),
-            set,
-            cycle_end,
-        );
-
+        // The adoption itself is announced from the config's construction, which
+        // is the only place the config's id exists.
         vector::push_back(
             &mut config_list,
             store::raw_store_blob(
@@ -84,7 +77,7 @@ public fun foreign_blob_add(
                 set,
                 cycle_end,
                 option::none(),
-                registry.get_user(),
+                owner,
                 clock,
                 ctx,
             ),
@@ -93,12 +86,24 @@ public fun foreign_blob_add(
         meta_peak = meta_peak + 1;
 
         if (meta_peak == avg_len) {
-            foreign_meta::add_foreign_blob(user_foreign_meta, config_list);
+            foreign_meta::add_foreign_blob(
+                user_foreign_meta,
+                system_id,
+                owner,
+                ctx.sender(),
+                config_list,
+            );
             config_list = vector::empty<ID>();
             meta_peak = 0;
         }
     };
-    foreign_meta::add_foreign_blob(user_foreign_meta, config_list);
+    foreign_meta::add_foreign_blob(
+        user_foreign_meta,
+        system_id,
+        owner,
+        ctx.sender(),
+        config_list,
+    );
 
     blobs.destroy_empty()
 }
