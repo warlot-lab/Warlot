@@ -70,11 +70,18 @@ Verified against live Sui mainnet GraphQL on 2026-08-26.
 | `std::string::String` | string |
 | `Option<T>` | `T`, or `null` |
 | `vector<T>` | array of `T` |
-| `vector<u8>` | **unconfirmed** ,  see below |
+| `vector<u8>` | **base64 string** ,  not an array; see below |
 
-`vector<u8>` is the one shape no live event was found to settle. It affects every
-`commit` field. `docs/event-schema.json` shows it as an array of numbers and says
-so; a real capture settles it once the package is published.
+`vector<u8>` is a **special case** and it is now settled. It does not follow the
+`vector<T>` rule above: it comes back as a **base64 string**, not as an array of
+numbers and not as hex. A 32-byte commit sent as `00112233445566778899aabbccddeeff`
+twice reads back as `"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8="`. Confirmed on a
+published testnet package across six events and five transactions, read both from
+the executing client and re-fetched from the fullnode.
+
+This affects every `commit` field, and `previous_commit` on `HeadAdvanced`. **A
+decoder must base64-decode them.** `vector<u16>` and `vector<ID>` are unaffected and
+are still arrays.
 
 `docs/event-schema.json` carries one `parsedJson` example per event type, in the
 same shapes.

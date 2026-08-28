@@ -1,5 +1,5 @@
 {
-  "_note": "Generated from the Move declarations under sources/events/, with the JSON encoding rules verified against live Sui mainnet GraphQL on 2026-08-26. These are the shapes an off-chain decoder must accept, not a capture from a published Warlot package ,  the package is not published yet, and a real capture is s6's to take once it is.",
+  "_note": "Generated from the Move declarations under sources/events/, with the JSON encoding rules verified against live Sui mainnet GraphQL on 2026-08-26. These are the shapes an off-chain decoder must accept. The vector<u8> encoding was settled in s6 against published testnet package 0x109fba1479e19843b2b6ed8d225b9fb341c85cc274ca5ae90bcf40242f0c7a0b, on six live events read back both from the executing client and from the fullnode; every other rule still comes from the 2026-08-26 mainnet GraphQL run.",
   "_encoding": {
     "bool": "JSON boolean",
     "u8 / u16 / u32": "JSON number",
@@ -9,7 +9,7 @@
     "std::string::String": "JSON string",
     "Option<T>": "T's encoding, or null when none",
     "vector<T>": "JSON array of T's encoding",
-    "vector<u8>": "UNCONFIRMED. Shown as an array of numbers here; no live event carrying a vector<u8> was found to settle it against. Affects every `commit` field. Settle in s6."
+    "vector<u8>": "CONFIRMED (s6, testnet). Base64 JSON string, NOT an array of numbers. A 32-byte commit sent as 00112233445566778899aabbccddeeff twice reads back as \"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8=\". This is a special case: vector<u16> and vector<ID> are still arrays. A decoder must base64-decode every `commit`, `previous_commit` and any other vector<u8> field."
   },
   "_filters": {
     "grpc": "EventTypeFilter { event_type: \"<PACKAGE>\" } returns every event the protocol raises, whichever module declares it.",
@@ -73,13 +73,7 @@
         "draft_index": "1024",
         "writer_pass": "0x811ac1b9085a2c7da0c8f82b5b7197bc7efd436fb5b7df5f7794750c2e09ab31",
         "issue": "0xc071e2596bc11b7d71804b635668ee312fd98762c2d6f69064347fa5e344fae9",
-        "commit": [
-          0,
-          0,
-          0,
-          0,
-          "... 32 bytes total"
-        ],
+        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "commit_by": "0x7a5376820b30eb578b951d8bec3942a9096c9b9af741a034973a07bb404f424b",
         "blob_config_id": "0x310ed36943d4437e8b4deeae6054ea74f534aa61c5c1b87caaa45b2b7bf18d3f",
         "total_draft": "1024",
@@ -128,13 +122,7 @@
         "file_id": "0xaff67d06d3d06408e96cbf3fef47cc7a507846087048979712537ad4a9384cab",
         "draft_index": "1024",
         "merged_by": "0x816867960d31e81cc8af0c4c84421799041d0c6d3680ecb9abad8c397b9ebf33",
-        "commit": [
-          0,
-          0,
-          0,
-          0,
-          "... 32 bytes total"
-        ],
+        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "blob_config_id": "0xb705b006ffcf75214c4515a4b262846d9c08249e9d0ccceee48e872ca9ab8f55",
         "total_draft": "1024",
         "last_modified": "1024"
@@ -567,13 +555,7 @@
         "cycle_end": "1024",
         "draft_epoch_duration": 13,
         "created_at_ms": "1024",
-        "commit": [
-          0,
-          0,
-          0,
-          0,
-          "... 32 bytes total"
-        ],
+        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "blob_config_id": "0x6cd3c0bc95c907cc8ce8941688fc6d7c48338d7236a50ad008b40db2d190b72e"
       }
     },
@@ -621,22 +603,10 @@
       "parsedJson": {
         "system_id": "0x75c4c9a21bb16d650c59ba57ac193ce41593d1a3b734a0be9f026639e11c1c6d",
         "file_id": "0xd4a3c271fd0f3f48a830982afc11ab1ed1a08121b107cc1894c981dadd707990",
-        "commit": [
-          0,
-          0,
-          0,
-          0,
-          "... 32 bytes total"
-        ],
+        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "commit_by": "0x7a5376820b30eb578b951d8bec3942a9096c9b9af741a034973a07bb404f424b",
         "blob_config_id": "0x241e52a6a06f2506fd36f0e876248a422c0068b59f6cbd92a15368162d31a1ce",
-        "previous_commit": [
-          0,
-          0,
-          0,
-          0,
-          "... 32 bytes total"
-        ],
+        "previous_commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "previous_blob_config": "0x5fb045572a6d1666083902843ac7bbddb94304964e2fedbd2a6bef4e13ad3845",
         "window_depth": "1024",
         "last_modified": "1024"
@@ -675,13 +645,7 @@
         "system_id": "0x2a081c9b08aca70690cf48286eb4b7588dbd5a751d71a96f5a258c0d1834a69d",
         "file_id": "0xbc487dc2a208b07fb9c6ddb72cc97a4968d8894d180a4c0d42e81b434996b416",
         "blob_config": "0x20527430fcb3543712e5ede2ba6305dbfcff52c4c8edbef1df13e337e23e9a98",
-        "commit": [
-          0,
-          0,
-          0,
-          0,
-          "... 32 bytes total"
-        ],
+        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "commit_by": "0x7a5376820b30eb578b951d8bec3942a9096c9b9af741a034973a07bb404f424b",
         "released": true
       }
@@ -718,13 +682,7 @@
       "parsedJson": {
         "system_id": "0xd1f726db05bf823221220c00d14353ef9de3358a08d636370f76bdc8ea7b69aa",
         "file_id": "0x4fbecf5f5a39eb70571df7218828afe117ca5eae3316e9d6f0cdf232f5f741c0",
-        "commit": [
-          0,
-          0,
-          0,
-          0,
-          "... 32 bytes total"
-        ],
+        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "commit_by": "0x7a5376820b30eb578b951d8bec3942a9096c9b9af741a034973a07bb404f424b",
         "blob_config_id": "0x62a4477291901642706e303d856b22f00e2fa4ccfa6c7014422619d580bf7ec4",
         "previous_blob_config": "0xe49b1a1c819ff0f83fb399bc8d7b022f8df2043d90e578dd97724db074d29b91"
