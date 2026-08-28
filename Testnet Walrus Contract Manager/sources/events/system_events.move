@@ -24,7 +24,6 @@ public struct SystemCreated has copy, drop, store {
     previous_system: ID,
     minted_by: address,
     version: u64,
-    warlot_allowed_address: address,
     tier_table: vector<u32>,
     max_epochs_ahead: u32,
     cost_change_apikey_forms: u64,
@@ -80,6 +79,44 @@ public struct AdminCapMinted has copy, drop, store {
     minted_by: address,
 }
 
+/// A capability was given a slot it did not hold before.
+///
+/// The slot is the whole of the grant a backend key holds at the system level:
+/// the id it names, when it stops being accepted, and whether it may ask to skip
+/// a file's draft queue. Moving the capability to another wallet raises nothing
+/// here, because nothing here changes.
+public struct SystemOperatorEnrolled has copy, drop, store {
+    system_id: ID,
+    admin_cap: ID,
+    until_ms: u64,
+    may_bypass_draft: bool,
+    enrolled_by: address,
+}
+
+/// A slot a capability already held was given new terms.
+///
+/// Distinct from the enrolment for the same reason the two calls are: a consumer
+/// reading "enrolled" for a deadline being moved would record a key arriving that
+/// had been there all along.
+public struct SystemOperatorRefreshed has copy, drop, store {
+    system_id: ID,
+    admin_cap: ID,
+    until_ms: u64,
+    may_bypass_draft: bool,
+    refreshed_by: address,
+}
+
+/// A capability lost its slot in the system's operator set.
+///
+/// Raised only where a slot was actually removed. Retiring an id that holds none
+/// is a no-op and announces nothing, so a retirement in the stream is always a
+/// retirement that happened.
+public struct SystemOperatorRetired has copy, drop, store {
+    system_id: ID,
+    admin_cap: ID,
+    retired_by: address,
+}
+
 // === Package functions ===
 
 /// Announce a newly created system.
@@ -88,7 +125,6 @@ public(package) fun emit_system_created(
     previous_system: ID,
     minted_by: address,
     version: u64,
-    warlot_allowed_address: address,
     tier_table: vector<u32>,
     max_epochs_ahead: u32,
     cost_change_apikey_forms: u64,
@@ -101,7 +137,6 @@ public(package) fun emit_system_created(
         previous_system,
         minted_by,
         version,
-        warlot_allowed_address,
         tier_table,
         max_epochs_ahead,
         cost_change_apikey_forms,
@@ -178,6 +213,49 @@ public(package) fun emit_admin_cap_minted(
     })
 }
 
+/// Announce a capability taking a slot it did not hold.
+public(package) fun emit_system_operator_enrolled(
+    system_id: ID,
+    admin_cap: ID,
+    until_ms: u64,
+    may_bypass_draft: bool,
+    enrolled_by: address,
+) {
+    event::emit(SystemOperatorEnrolled {
+        system_id,
+        admin_cap,
+        until_ms,
+        may_bypass_draft,
+        enrolled_by,
+    })
+}
+
+/// Announce a held slot being given new terms.
+public(package) fun emit_system_operator_refreshed(
+    system_id: ID,
+    admin_cap: ID,
+    until_ms: u64,
+    may_bypass_draft: bool,
+    refreshed_by: address,
+) {
+    event::emit(SystemOperatorRefreshed {
+        system_id,
+        admin_cap,
+        until_ms,
+        may_bypass_draft,
+        refreshed_by,
+    })
+}
+
+/// Announce an operator slot retired.
+public(package) fun emit_system_operator_retired(
+    system_id: ID,
+    admin_cap: ID,
+    retired_by: address,
+) {
+    event::emit(SystemOperatorRetired { system_id, admin_cap, retired_by })
+}
+
 // === Test-only readers ===
 
 // One reader per event, returning every field in declaration order. A test that
@@ -192,7 +270,6 @@ public fun read_system_created(e: &SystemCreated): (
     ID,
     address,
     u64,
-    address,
     vector<u32>,
     u32,
     u64,
@@ -205,7 +282,6 @@ public fun read_system_created(e: &SystemCreated): (
         previous_system: _previous_system,
         minted_by: _minted_by,
         version: _version,
-        warlot_allowed_address: _warlot_allowed_address,
         tier_table: _tier_table,
         max_epochs_ahead: _max_epochs_ahead,
         cost_change_apikey_forms: _cost_change_apikey_forms,
@@ -219,7 +295,6 @@ public fun read_system_created(e: &SystemCreated): (
         *_previous_system,
         *_minted_by,
         *_version,
-        *_warlot_allowed_address,
         *_tier_table,
         *_max_epochs_ahead,
         *_cost_change_apikey_forms,
@@ -301,4 +376,44 @@ public fun read_admin_cap_minted(e: &AdminCapMinted): (ID, ID, u8, u8, address, 
     } = e;
 
     (*_system_id, *_admin_cap, *_state, *_total_system, *_recipient, *_minted_by)
+}
+
+#[test_only]
+/// Every field of `SystemOperatorEnrolled`, in declaration order.
+public fun read_system_operator_enrolled(e: &SystemOperatorEnrolled): (ID, ID, u64, bool, address) {
+    let SystemOperatorEnrolled {
+        system_id: _system_id,
+        admin_cap: _admin_cap,
+        until_ms: _until_ms,
+        may_bypass_draft: _may_bypass_draft,
+        enrolled_by: _enrolled_by,
+    } = e;
+
+    (*_system_id, *_admin_cap, *_until_ms, *_may_bypass_draft, *_enrolled_by)
+}
+
+#[test_only]
+/// Every field of `SystemOperatorRefreshed`, in declaration order.
+public fun read_system_operator_refreshed(e: &SystemOperatorRefreshed): (ID, ID, u64, bool, address) {
+    let SystemOperatorRefreshed {
+        system_id: _system_id,
+        admin_cap: _admin_cap,
+        until_ms: _until_ms,
+        may_bypass_draft: _may_bypass_draft,
+        refreshed_by: _refreshed_by,
+    } = e;
+
+    (*_system_id, *_admin_cap, *_until_ms, *_may_bypass_draft, *_refreshed_by)
+}
+
+#[test_only]
+/// Every field of `SystemOperatorRetired`, in declaration order.
+public fun read_system_operator_retired(e: &SystemOperatorRetired): (ID, ID, address) {
+    let SystemOperatorRetired {
+        system_id: _system_id,
+        admin_cap: _admin_cap,
+        retired_by: _retired_by,
+    } = e;
+
+    (*_system_id, *_admin_cap, *_retired_by)
 }

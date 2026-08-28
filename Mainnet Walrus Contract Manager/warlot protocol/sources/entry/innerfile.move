@@ -6,12 +6,15 @@ module warlot::entry_innerfile;
 use sui::clock::Clock;
 use walrus::blob::Blob;
 use warlot::{
+    admin_cap::AdminCap,
     blob_config::{Self, BlobConfig},
+    credential::{Self, Credential},
     deny_list,
     draft,
     eviction,
     file_data::{Self, FileData},
     inner_file::{Self, InnerFile},
+    operator::{Self, OperatorAuth},
     project_object::{Self, ProjectHolder},
     store,
     system_config::SystemConfig,
@@ -33,6 +36,11 @@ const EInvalidPassDuration: vector<u8> = b"A DELEGATED PASS MUST EXPIRE AT A FUT
 const ENotOwnersConfig: vector<u8> = b"THIS CONFIG IS NOT HELD BY THE OWNER OF THIS FILE";
 #[error]
 const EWrongDraftConfig: vector<u8> = b"THIS CONFIG IS NOT THE ONE THE MERGED DRAFT NAMES";
+#[error]
+const ENoAddBlobGrant: vector<u8> =
+    b"A WRITER PASS CANNOT BE MINTED TO AN ADDRESS THAT MAY NOT STORE FOR THE OWNER";
+#[error]
+const ENotDenied: vector<u8> = b"THIS WRITER IS NOT DENIED ON THIS FILE";
 
 // === Public functions ===
 
@@ -44,6 +52,13 @@ const EWrongDraftConfig: vector<u8> = b"THIS CONFIG IS NOT THE ONE THE MERGED DR
 /// be in the future, which is also what keeps it away from the sentinel that
 /// marks a pass non-decaying: a delegate acting on someone else's behalf is
 /// given authority with an end date, never authority without one.
+///
+/// `operators_allowed` and `operators_may_bypass_draft` are the owner's terms for
+/// system operators on this one file, taken here so a file can be born closed
+/// rather than needing a second transaction to shut it. Open is the ordinary
+/// answer, because admitting operators at all is a decision the account owner
+/// already made when they granted the role; these are the per-file escape hatch
+/// from it.
 public fun create_file(
     system_cfg: &SystemConfig,
     owner: address,
@@ -55,65 +70,80 @@ public fun create_file(
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
     should_include_pass: bool,
     pass_duration: u64,
     ctx: &mut TxContext,
 ): ID {
     system_cfg.assert_version();
 
-    let system_id = object::id(system_cfg);
-
-    let first_revision = process_blob(
+    create_file_core(
         system_cfg,
-        blobs,
-        epoch_set,
-        cycle_end,
-        owner,
-        commit,
-        ctx.sender(),
-        clock,
-        ctx,
-    );
-
-    let owners_obj = user::get_user(system_cfg, owner);
-
-    user::check_permission_inner_file(owners_obj, ctx);
-
-    let new_inner_file = inner_file::new(
         owner,
         writers_length,
         track_back_length,
+        blobs,
         epoch_set,
         cycle_end,
-        first_revision,
         clock,
+        commit,
+        draft_epoch_duration,
+        operators_allowed,
+        operators_may_bypass_draft,
+        option::none(),
+        should_include_pass,
+        pass_duration,
         ctx,
-    );
+    )
+}
 
-    let new_inner_file_id = object::id(&new_inner_file);
+/// The same creation, made on the strength of an operator credential rather than
+/// a grant against the sender's address.
+///
+/// It mints the operator no pass. The owner's own non-decaying pass is minted
+/// either way ,  it always was, on both sides of `should_include_pass` ,  and an
+/// operator does not need one: the credential is what authorises the write, and a
+/// pass minted to a rotating key would have to be re-minted per file per key,
+/// which is the cost this whole path exists to remove.
+public fun create_file_as_operator(
+    system_cfg: &SystemConfig,
+    admin_cap: &AdminCap,
+    owner: address,
+    writers_length: u8,
+    track_back_length: u8,
+    blobs: vector<Blob>,
+    epoch_set: u32,
+    cycle_end: u64,
+    clock: &Clock,
+    commit: vector<u8>,
+    draft_epoch_duration: u32,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    ctx: &mut TxContext,
+): ID {
+    system_cfg.assert_version();
 
-    let immortal_pass = inner_file::new_owner_pass(new_inner_file_id, owner, ctx);
+    let auth = authorise_operator(system_cfg, admin_cap, clock);
 
-    // A file created on someone else's behalf leaves the creator able to perform
-    // restricted operations on it.
-    if (should_include_pass && owner != ctx.sender()) {
-        user::check_permission_writer_pass(owners_obj, ctx);
-        assert!(pass_duration > clock.timestamp_ms(), EInvalidPassDuration);
-
-        let temp_pass = writer_pass::new(
-            new_inner_file_id,
-            pass_duration,
-            option::some(writer_pass::new_admin_pass(owner)),
-            ctx,
-        );
-
-        writer_pass::transfer_to(temp_pass, ctx.sender(), system_id, ctx);
-    };
-
-    inner_file::share(new_inner_file, draft_epoch_duration, system_id, ctx);
-    writer_pass::transfer_to(immortal_pass, owner, system_id, ctx);
-
-    new_inner_file_id
+    create_file_core(
+        system_cfg,
+        owner,
+        writers_length,
+        track_back_length,
+        blobs,
+        epoch_set,
+        cycle_end,
+        clock,
+        commit,
+        draft_epoch_duration,
+        operators_allowed,
+        operators_may_bypass_draft,
+        option::some(auth),
+        false,
+        0,
+        ctx,
+    )
 }
 
 /// Create a file and name it as `project_id`'s database.
@@ -130,13 +160,15 @@ public fun initialize_project_file(
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
     should_include_pass: bool,
     pass_duration: u64,
     ctx: &mut TxContext,
 ) {
     system_cfg.assert_version();
 
-    let new_inner_file_id = create_file(
+    let new_inner_file_id = create_file_core(
         system_cfg,
         owner,
         writers_length,
@@ -147,18 +179,99 @@ public fun initialize_project_file(
         clock,
         commit,
         draft_epoch_duration,
+        operators_allowed,
+        operators_may_bypass_draft,
+        option::none(),
         should_include_pass,
         pass_duration,
         ctx,
     );
 
     let owners_obj = user::get_user(system_cfg, owner);
-    user::check_permission_can_init_db(owners_obj, ctx);
+    user::check_permission_can_init_db(owners_obj, option::none(), ctx);
 
     project_object::init_db(project_holder, project_id, new_inner_file_id, owner);
 }
 
-/// Deny `writer` until `period`, or indefinitely when `period` is zero.
+/// The same initialisation, made on the strength of an operator credential.
+public fun initialize_project_file_as_operator(
+    project_holder: &mut ProjectHolder,
+    project_id: ID,
+    system_cfg: &SystemConfig,
+    admin_cap: &AdminCap,
+    owner: address,
+    writers_length: u8,
+    track_back_length: u8,
+    blobs: vector<Blob>,
+    epoch_set: u32,
+    cycle_end: u64,
+    clock: &Clock,
+    commit: vector<u8>,
+    draft_epoch_duration: u32,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
+
+    let auth = authorise_operator(system_cfg, admin_cap, clock);
+
+    let new_inner_file_id = create_file_core(
+        system_cfg,
+        owner,
+        writers_length,
+        track_back_length,
+        blobs,
+        epoch_set,
+        cycle_end,
+        clock,
+        commit,
+        draft_epoch_duration,
+        operators_allowed,
+        operators_may_bypass_draft,
+        option::some(auth),
+        false,
+        0,
+        ctx,
+    );
+
+    let owners_obj = user::get_user(system_cfg, owner);
+    user::check_permission_can_init_db(owners_obj, option::some(auth), ctx);
+
+    project_object::init_db(project_holder, project_id, new_inner_file_id, owner);
+}
+
+/// Replace this file's terms for system operators.
+///
+/// Owner-only and gated on the sender, not on a pass. A pass that could flip
+/// these would let an operator that has been shut out re-admit itself, and the
+/// bypass bit an admin sets on an operator's slot cannot reach past this one: a
+/// write skips the draft queue only if the slot and the file both say so, so
+/// refusing here is final.
+public fun set_operator_policy(
+    system_cfg: &SystemConfig,
+    inner_file: &mut InnerFile,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
+    assert!(inner_file.owner() == ctx.sender(), ENotFileOwner);
+
+    inner_file.set_operator_policy(
+        operators_allowed,
+        operators_may_bypass_draft,
+        object::id(system_cfg),
+        ctx.sender(),
+    );
+}
+
+/// Deny `writer`, who is not already denied, until `period` ,  or indefinitely
+/// when `period` is zero.
+///
+/// Refuses a writer who already holds a denial; moving an existing deadline is
+/// `redeny_writer`. The two are separate so that reaching for the blunt
+/// instrument cannot quietly shorten a denial the owner meant to leave alone.
 public fun deny_writer(
     system_cfg: &SystemConfig,
     file: &mut InnerFile,
@@ -172,8 +285,36 @@ public fun deny_writer(
     let now_ms = clock.timestamp_ms();
     let system_id = object::id(system_cfg);
     let file_id = object::id(file);
+    // Read before the borrow: attaching the list on first use takes `ctx`
+    // mutably, and the sender cannot be read out of it while it is held.
+    let denied_by = ctx.sender();
+    let deny_obj = deny_list::borrow_mut_or_attach(file.uid_mut(), ctx);
+    deny_list::deny(deny_obj, writer, period, now_ms, system_id, file_id, denied_by);
+}
+
+/// Move `writer`'s existing denial to `period`, or to indefinite when zero.
+///
+/// Refuses a writer who holds no denial, so moving a deadline cannot silently
+/// make one. A file with no deny list denies nobody, and is refused for the same
+/// reason rather than being given one to hold the change in.
+public fun redeny_writer(
+    system_cfg: &SystemConfig,
+    file: &mut InnerFile,
+    writer: address,
+    period: u64,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
+    assert!(file.owner() == ctx.sender(), ENotFileOwner);
+    assert!(file.has_deny_list(), ENotDenied);
+
+    let now_ms = clock.timestamp_ms();
+    let system_id = object::id(system_cfg);
+    let file_id = object::id(file);
+    let denied_by = ctx.sender();
     let deny_obj = deny_list::borrow_mut(file.uid_mut());
-    deny_list::deny(deny_obj, writer, period, now_ms, system_id, file_id, ctx.sender());
+    deny_list::redeny(deny_obj, writer, period, now_ms, system_id, file_id, denied_by);
 }
 
 /// Lift `writer`'s denial.
@@ -185,6 +326,11 @@ public fun remove_deny_writer(
 ) {
     system_cfg.assert_version();
     assert!(file.owner() == ctx.sender(), ENotFileOwner);
+
+    // A file that has never denied anybody denies this writer too, so there is
+    // nothing to lift and no reason to give the file a deny list to hold it in.
+    if (!file.has_deny_list()) return;
+
     let system_id = object::id(system_cfg);
     let file_id = object::id(file);
     let deny_obj = deny_list::borrow_mut(file.uid_mut());
@@ -199,6 +345,10 @@ public fun remove_deny_writer(
 /// account and stops being accepted. Denying the delegate's address is the
 /// blunter instrument and does not replace this one ,  a pass can be handed on,
 /// and an address can hold more than one.
+///
+/// The record is keyed by `ID` and is blind to what the id names, so this is also
+/// how an owner refuses one operator's capability on one file without waiting for
+/// the admin to retire its slot everywhere.
 public fun revoke_pass(
     system_cfg: &SystemConfig,
     file: &mut InnerFile,
@@ -209,8 +359,9 @@ public fun revoke_pass(
     assert!(file.owner() == ctx.sender(), ENotFileOwner);
     let system_id = object::id(system_cfg);
     let file_id = object::id(file);
-    let deny_obj = deny_list::borrow_mut(file.uid_mut());
-    deny_list::revoke_pass(deny_obj, pass_id, system_id, file_id, ctx.sender());
+    let revoked_by = ctx.sender();
+    let deny_obj = deny_list::borrow_mut_or_attach(file.uid_mut(), ctx);
+    deny_list::revoke_pass(deny_obj, pass_id, system_id, file_id, revoked_by);
 }
 
 /// Write straight into the file's history, bypassing the draft queue.
@@ -220,9 +371,13 @@ public fun revoke_pass(
 /// `evicted` carries the config named by the revision this write pushes out of
 /// the window, and is empty when the window still has room. See
 /// `eviction::advance_history` for when each is required.
+///
+/// Owner-only, so it has no operator sibling: the owner check is strictly
+/// stronger than any credential could be, and an operator that could satisfy it
+/// would be the file's owner.
 public fun force_write_innerfile(
     inner_file: &mut InnerFile,
-    writer_pass: &mut WriterPass,
+    writer_pass: &WriterPass,
     clock: &Clock,
     system_cfg: &SystemConfig,
     blobs: vector<Blob>,
@@ -242,6 +397,7 @@ public fun force_write_innerfile(
         inner_file.owner(),
         commit,
         ctx.sender(),
+        option::none(),
         clock,
         ctx,
     );
@@ -258,7 +414,7 @@ public fun force_write_innerfile(
 /// per file that no reachable function ever wrote to.
 public fun write_(
     inner_file: &mut InnerFile,
-    writer_pass: &mut WriterPass,
+    writer_pass: &WriterPass,
     to_draft: bool,
     issue: Option<ID>,
     clock: &Clock,
@@ -271,47 +427,73 @@ public fun write_(
     system_cfg.assert_version();
     inner_file.verify_pass(ctx.sender(), writer_pass, clock);
 
-    // A draft's blobs stay with the writer who pushed them; a merge's belong to
-    // the file's owner.
-    let store_to: address = {
-        if (to_draft) {
-            ctx.sender()
-        } else {
-            inner_file.owner()
-        }
-    };
-
-    let file_data: FileData = process_blob(
+    write_core(
+        inner_file,
+        credential::from_pass(writer_pass),
+        writer_pass.has_admin_privilege(),
+        to_draft,
+        issue,
+        clock,
         system_cfg,
         blobs,
-        inner_file.epoch_set(),
-        inner_file.cycle_end(),
-        store_to,
         commit,
-        ctx.sender(),
-        clock,
+        evicted,
+        option::none(),
         ctx,
-    );
+    )
+}
 
-    let system_id = object::id(system_cfg);
+/// The same write, made on the strength of an operator credential rather than a
+/// pass minted on this file.
+///
+/// The only one of the seven pass-taking calls that gains a sibling. The other
+/// six assert that the sender is the file's owner, so a credential adds nothing
+/// to them: an operator that could satisfy that assert would be the owner.
+///
+/// `to_draft` is a request rather than an instruction here. An operator asking to
+/// skip the queue is routed into it anyway unless its own slot **and** this file
+/// both carry the bypass ,  the owner's refusal is not something an admin can
+/// grant its way past. A pass without the privilege is refused outright instead,
+/// which is the behaviour that path has always had and keeps.
+///
+/// A write that ends in the queue is custodied by whoever pushed it, exactly as a
+/// pass holder's draft is, so the routing carries the storage cost away from the
+/// owner along with the content. That means a signing key whose writes can be
+/// queued must itself be a registered user. A key that always bypasses never
+/// stores under its own address and needs no registration at all.
+public fun write_as_operator(
+    inner_file: &mut InnerFile,
+    admin_cap: &AdminCap,
+    to_draft: bool,
+    issue: Option<ID>,
+    clock: &Clock,
+    system_cfg: &SystemConfig,
+    blobs: vector<Blob>,
+    commit: vector<u8>,
+    evicted: vector<BlobConfig>,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
 
-    if (!to_draft) {
-        assert!(writer_pass.has_admin_privilege(), ACCESSDENIED);
-        eviction::advance_history(inner_file, file_data, evicted, clock, system_id);
-        return
-    };
+    let auth = authorise_operator(system_cfg, admin_cap, clock);
+    inner_file.verify_operator(ctx.sender(), &auth, clock);
 
-    // A draft displaces nothing, so it can retire nothing.
-    eviction::assert_no_config(evicted);
+    let may_bypass = auth.auth_may_bypass_draft() && inner_file.operators_may_bypass_draft();
 
-    let file_draft = draft::create_draft(
-        object::id(writer_pass),
+    write_core(
+        inner_file,
+        credential::from_operator(admin_cap),
+        may_bypass,
+        to_draft,
         issue,
-        option::some(file_data),
+        clock,
+        system_cfg,
+        blobs,
+        commit,
+        evicted,
+        option::some(auth),
         ctx,
-    );
-
-    inner_file.pin_draft(file_draft, clock, system_id);
+    )
 }
 
 /// Record a revision as the file's known-good fallback.
@@ -323,7 +505,7 @@ public fun write_(
 public fun set_root_change(
     system_cfg: &SystemConfig,
     inner_file: &mut InnerFile,
-    writer_pass: &mut WriterPass,
+    writer_pass: &WriterPass,
     commit: vector<u8>,
     config: &BlobConfig,
     clock: &Clock,
@@ -360,7 +542,7 @@ public fun set_root_change(
 public fun remove_root_change(
     system_cfg: &SystemConfig,
     inner_file: &mut InnerFile,
-    writer_pass: &mut WriterPass,
+    writer_pass: &WriterPass,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -391,7 +573,7 @@ public fun remove_root_change(
 public fun merge_draft_into_file(
     system_cfg: &SystemConfig,
     inner_file: &mut InnerFile,
-    writer_pass: &mut WriterPass,
+    writer_pass: &WriterPass,
     draft_config: &mut BlobConfig,
     draft_index: u64,
     merge_latest: bool,
@@ -446,7 +628,7 @@ public fun merge_draft_into_file(
 public fun delete_draft(
     system_cfg: &SystemConfig,
     inner_file: &mut InnerFile,
-    writer_pass: &mut WriterPass,
+    writer_pass: &WriterPass,
     draft_index: u64,
     clock: &Clock,
     ctx: &mut TxContext,
@@ -480,7 +662,7 @@ public fun delete_draft(
 public fun clear_drafts(
     system_cfg: &SystemConfig,
     inner_file: &mut InnerFile,
-    writer_pass: &mut WriterPass,
+    writer_pass: &WriterPass,
     from_index: u64,
     to_index: u64,
     clock: &Clock,
@@ -514,6 +696,16 @@ public fun clear_drafts(
 }
 
 /// Mint a writer pass for `writer`, with or without the draft-queue bypass.
+///
+/// Refused unless `writer` may already store blobs under the file's owner. A pass
+/// alone cannot write into a file's history ,  the store underneath it checks
+/// `add_blob` as well ,  so a pass minted to an address without that grant is a
+/// pass that fails at its first use and says nothing about why at the mint.
+/// Failing here is legible; failing at the first write is not.
+///
+/// It is a refusal and never an auto-grant. Conferring `add_blob` on the
+/// recipient would widen a delegation past what the caller asked for, so the
+/// order is load-bearing: grant `add_blob`, then mint.
 public fun create_pass(
     system_cfg: &SystemConfig,
     file: &InnerFile,
@@ -524,13 +716,9 @@ public fun create_pass(
 ) {
     system_cfg.assert_version();
     assert!(file.owner() == ctx.sender(), ENotFileOwner);
-    let admin_pass = {
-        if (admin_pass) {
-            option::some(writer_pass::new_admin_pass(file.owner()))
-        } else {
-            option::none()
-        }
-    };
+
+    let owners_obj = user::get_user(system_cfg, file.owner());
+    assert!(user::grants_add_blob(owners_obj, writer), ENoAddBlobGrant);
 
     let pass = writer_pass::new(object::id(file), duration, admin_pass, ctx);
 
@@ -538,6 +726,173 @@ public fun create_pass(
 }
 
 // === Private functions ===
+
+/// Abort unless the sender holds a live operator credential for this system, and
+/// hand back the proof that they do.
+fun authorise_operator(
+    system_cfg: &SystemConfig,
+    admin_cap: &AdminCap,
+    clock: &Clock,
+): OperatorAuth {
+    operator::authorise(
+        system_cfg.operator_set(),
+        admin_cap,
+        object::id(system_cfg),
+        clock.timestamp_ms(),
+    )
+}
+
+/// Store `blobs` as a file's first revision and share the file.
+fun create_file_core(
+    system_cfg: &SystemConfig,
+    owner: address,
+    writers_length: u8,
+    track_back_length: u8,
+    blobs: vector<Blob>,
+    epoch_set: u32,
+    cycle_end: u64,
+    clock: &Clock,
+    commit: vector<u8>,
+    draft_epoch_duration: u32,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    operator: Option<OperatorAuth>,
+    should_include_pass: bool,
+    pass_duration: u64,
+    ctx: &mut TxContext,
+): ID {
+    let system_id = object::id(system_cfg);
+
+    let first_revision = process_blob(
+        system_cfg,
+        blobs,
+        epoch_set,
+        cycle_end,
+        owner,
+        commit,
+        ctx.sender(),
+        operator,
+        clock,
+        ctx,
+    );
+
+    let owners_obj = user::get_user(system_cfg, owner);
+
+    user::check_permission_inner_file(owners_obj, operator, ctx);
+
+    let new_inner_file = inner_file::new(
+        owner,
+        writers_length,
+        track_back_length,
+        epoch_set,
+        cycle_end,
+        operators_allowed,
+        operators_may_bypass_draft,
+        draft_epoch_duration,
+        first_revision,
+        clock,
+        ctx,
+    );
+
+    let new_inner_file_id = object::id(&new_inner_file);
+
+    let immortal_pass = inner_file::new_owner_pass(new_inner_file_id, ctx);
+
+    // A file created on someone else's behalf leaves the creator able to perform
+    // restricted operations on it.
+    if (should_include_pass && owner != ctx.sender()) {
+        user::check_permission_writer_pass(owners_obj, operator, ctx);
+        assert!(pass_duration > clock.timestamp_ms(), EInvalidPassDuration);
+
+        let temp_pass = writer_pass::new(new_inner_file_id, pass_duration, true, ctx);
+
+        writer_pass::transfer_to(temp_pass, ctx.sender(), system_id, ctx);
+    };
+
+    inner_file::share(new_inner_file, system_id);
+    writer_pass::transfer_to(immortal_pass, owner, system_id, ctx);
+
+    new_inner_file_id
+}
+
+/// Take one revision from `credential`, into the file's history or into its draft
+/// queue.
+///
+/// `may_bypass` is whether the credential itself permits skipping the queue: for
+/// a pass, its admin privilege; for an operator, its slot's bypass bit **and**
+/// the file's own, so an owner who refused the bypass cannot be overridden by an
+/// admin who granted it.
+///
+/// What a refused bypass does differs by kind, deliberately. A pass without the
+/// privilege asking to skip the queue is refused, which is what it has always
+/// done. An operator without it is routed into the queue instead, because the
+/// owner's answer to an operator is *where the write goes*, not whether it
+/// happens ,  that routing is the whole content of `operators_may_bypass_draft`.
+///
+/// A routed write carries the sender's custody rather than the owner's, and
+/// retires nothing, so a caller that asked to skip the queue and passed the
+/// config for the revision it would have evicted is refused by name.
+fun write_core(
+    inner_file: &mut InnerFile,
+    credential: Credential,
+    may_bypass: bool,
+    to_draft: bool,
+    issue: Option<ID>,
+    clock: &Clock,
+    system_cfg: &SystemConfig,
+    blobs: vector<Blob>,
+    commit: vector<u8>,
+    evicted: vector<BlobConfig>,
+    operator: Option<OperatorAuth>,
+    ctx: &mut TxContext,
+) {
+    let mut queue = to_draft;
+
+    if (!to_draft) {
+        if (credential.is_operator()) {
+            queue = !may_bypass;
+        } else {
+            assert!(may_bypass, ACCESSDENIED);
+        };
+    };
+
+    // A draft's blobs stay with the writer who pushed them; a merge's belong to
+    // the file's owner.
+    let store_to: address = {
+        if (queue) {
+            ctx.sender()
+        } else {
+            inner_file.owner()
+        }
+    };
+
+    let file_data: FileData = process_blob(
+        system_cfg,
+        blobs,
+        inner_file.epoch_set(),
+        inner_file.cycle_end(),
+        store_to,
+        commit,
+        ctx.sender(),
+        operator,
+        clock,
+        ctx,
+    );
+
+    let system_id = object::id(system_cfg);
+
+    if (!queue) {
+        eviction::advance_history(inner_file, file_data, evicted, clock, system_id);
+        return
+    };
+
+    // A draft displaces nothing, so it can retire nothing.
+    eviction::assert_no_config(evicted);
+
+    let file_draft = draft::create_draft(issue, option::some(file_data), ctx);
+
+    inner_file.pin_draft(file_draft, credential, clock, system_id, ctx);
+}
 
 /// Store `blobs` under `store_to` and record the result as one revision.
 fun process_blob(
@@ -548,6 +903,7 @@ fun process_blob(
     store_to: address,
     commit: vector<u8>,
     commit_by: address,
+    operator: Option<OperatorAuth>,
     clock: &Clock,
     ctx: &mut TxContext,
 ): FileData {
@@ -557,6 +913,7 @@ fun process_blob(
         epoch_set,
         cycle_end,
         store_to,
+        operator,
         clock,
         ctx,
     );

@@ -6,7 +6,9 @@ module warlot::entry_upload;
 use sui::clock::Clock;
 use walrus::blob::Blob;
 use warlot::{
+    admin_cap::AdminCap,
     foreign_meta::{Self, ForeignMeta},
+    operator::{Self, OperatorAuth},
     registry::Registry,
     store,
     system_config::SystemConfig,
@@ -42,7 +44,72 @@ public fun foreign_blob_add(
     user_foreign_meta: &mut ForeignMeta,
     cycle_end: u64,
     epoch_set: u32,
+    blobs: vector<Blob>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    adopt(
+        registry,
+        system_cfg,
+        user_foreign_meta,
+        cycle_end,
+        epoch_set,
+        blobs,
+        option::none(),
+        clock,
+        ctx,
+    )
+}
+
+/// The same adoption, made on the strength of an operator credential rather than
+/// a grant against the sender's address.
+///
+/// The sibling exists because `Option<&AdminCap>` is not a type Move will
+/// accept, so the credential cannot be an optional argument to the call above.
+public fun foreign_blob_add_as_operator(
+    registry: &Registry,
+    system_cfg: &SystemConfig,
+    admin_cap: &AdminCap,
+    user_foreign_meta: &mut ForeignMeta,
+    cycle_end: u64,
+    epoch_set: u32,
+    blobs: vector<Blob>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
+
+    let auth = operator::authorise(
+        system_cfg.operator_set(),
+        admin_cap,
+        object::id(system_cfg),
+        clock.timestamp_ms(),
+    );
+
+    adopt(
+        registry,
+        system_cfg,
+        user_foreign_meta,
+        cycle_end,
+        epoch_set,
+        blobs,
+        option::some(auth),
+        clock,
+        ctx,
+    )
+}
+
+// === Private functions ===
+
+/// Take `blobs` into custody under the registry's owner, one config per blob.
+fun adopt(
+    registry: &Registry,
+    system_cfg: &SystemConfig,
+    user_foreign_meta: &mut ForeignMeta,
+    cycle_end: u64,
+    epoch_set: u32,
     mut blobs: vector<Blob>,
+    operator: Option<OperatorAuth>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -77,6 +144,7 @@ public fun foreign_blob_add(
                 set,
                 cycle_end,
                 owner,
+                operator,
                 clock,
                 ctx,
             ),

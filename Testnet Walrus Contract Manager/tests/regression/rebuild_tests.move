@@ -39,6 +39,7 @@ use warlot::{
     fixtures,
     foreign_meta::{Self, ForeignMeta},
     inner_file::{Self, InnerFile},
+    operator,
     permission,
     registry::{Self, Registry},
     replay,
@@ -143,6 +144,7 @@ fun rebuild_matches_chain() {
         SET,
         CYCLES,
         ALICE,
+        option::none(),
         &clk,
         sc.ctx(),
     );
@@ -157,6 +159,7 @@ fun rebuild_matches_chain() {
         SET,
         CYCLES,
         ALICE,
+        option::none(),
         &clk,
         sc.ctx(),
     );
@@ -208,6 +211,8 @@ fun rebuild_matches_chain() {
         &clk,
         fixtures::commit_for(b"r0"),
         FILE_DRAFT_EPOCHS,
+        true,
+        true,
         false,
         0,
         sc.ctx(),
@@ -385,7 +390,7 @@ fun rebuild_matches_chain() {
     assert!(system_row.system_previous() == object::id_from_address(@0x0), 0);
     assert!(system_row.system_next().is_none(), 1);
     assert!(system_row.system_version() == sys.get_system_version(), 2);
-    assert!(system_row.system_warlot_address() == sys.get_warlot_address(), 3);
+    assert!(system_row.system_operator_caps() == operator::operator_ids(sys.operator_set()), 3);
     assert!(system_row.system_tier_table() == *sys.tier_table(), 4);
     assert!(system_row.system_max_epochs_ahead() == sys.max_epochs_ahead(), 5);
 
@@ -433,11 +438,17 @@ fun rebuild_matches_chain() {
     assert!(l_add == c_add && l_file == c_file, 29);
     assert!(l_pass == c_pass && l_db == c_db && l_compact == c_compact, 30);
 
-    // Bob's registration handed the system's own delegate every bit, before Bob
-    // had done anything.
-    assert!(ledger.delegation_live(BOB, sys.get_warlot_address()), 31);
+    // Bob's registration handed the system operator role every bit, before Bob
+    // had done anything. The grant names no address, so both sides are asked
+    // whether the role is held rather than which key holds it.
+    assert!(ledger.operator_role_live(BOB), 31);
     let bob_user = user::get_user(&sys, BOB);
-    assert!(permission::has_delegate(bob_user.uid(), sys.get_warlot_address()), 32);
+    assert!(permission::has_operator_role(bob_user.uid()), 32);
+    let (r_add, r_file, r_pass, r_db, r_compact) = ledger.operator_role_bits(BOB);
+    let (b_add, b_file, b_pass, b_db, b_compact) =
+        permission::operator_role_bits(bob_user.uid());
+    assert!(r_add == b_add && r_file == b_file, 84);
+    assert!(r_pass == b_pass && r_db == b_db && r_compact == b_compact, 85);
 
     // Deposits minus withdrawals, against the balance the wallet holds.
     let expected_wallet = alice_row.user_wallet_wal();

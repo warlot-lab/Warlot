@@ -16,6 +16,10 @@ use warlot::pass_events;
 
 #[error]
 const INVALIDTIME: vector<u8> = b"enter valid time";
+#[error]
+const EAlreadyDenied: vector<u8> = b"THIS WRITER IS ALREADY DENIED ON THIS FILE";
+#[error]
+const ENotDenied: vector<u8> = b"THIS WRITER IS NOT DENIED ON THIS FILE";
 
 // === Constants ===
 
@@ -34,6 +38,10 @@ const DENYLISTKEY: vector<u8> = b"deny list";
 /// fields, and the running count that used to sit here was written on every
 /// change and read by nothing. A consumer that wants the count counts the
 /// `WriterDenied` and `WriterUndenied` events.
+///
+/// It is attached on the first denial rather than at the file's creation. Most
+/// files never deny anybody, and an empty list still costs an object header and
+/// a field entry.
 public struct DenyList has key, store {
     id: UID,
 }
@@ -57,11 +65,12 @@ public(package) fun is_pass_revoked(deny_obj: &DenyList, pass_id: ID): bool {
 
 // === Package functions ===
 
-/// Attach an empty deny list to `file_uid`.
-public(package) fun attach(file_uid: &mut UID, ctx: &mut TxContext) {
-    let default_deny_list = DenyList { id: object::new(ctx) };
-
-    ofields::add<vector<u8>, DenyList>(file_uid, DENYLISTKEY, default_deny_list);
+/// Whether `file_uid` has ever had a deny list attached.
+///
+/// A file that has never denied anybody and never revoked a pass holds none, so
+/// every read has to ask this first.
+public(package) fun attached(file_uid: &UID): bool {
+    ofields::exists_<vector<u8>>(file_uid, DENYLISTKEY)
 }
 
 /// The deny list attached to `file_uid`.
@@ -74,7 +83,28 @@ public(package) fun borrow_mut(file_uid: &mut UID): &mut DenyList {
     ofields::borrow_mut<vector<u8>, DenyList>(file_uid, DENYLISTKEY)
 }
 
-/// Deny `writer` until `period`, or indefinitely when `period` is zero.
+/// Mutable access to `file_uid`'s deny list, attaching an empty one first if the
+/// file has never held one.
+///
+/// Only the three calls that record something reach for this. Lifting a denial
+/// that was never made does not, so a file cannot be given a deny list by
+/// somebody asking it to forget one.
+public(package) fun borrow_mut_or_attach(file_uid: &mut UID, ctx: &mut TxContext): &mut DenyList {
+    if (!ofields::exists_<vector<u8>>(file_uid, DENYLISTKEY)) {
+        ofields::add<vector<u8>, DenyList>(file_uid, DENYLISTKEY, DenyList { id: object::new(ctx) });
+    };
+
+    ofields::borrow_mut<vector<u8>, DenyList>(file_uid, DENYLISTKEY)
+}
+
+/// Deny `writer`, who is not already denied, until `period` ,  or indefinitely
+/// when `period` is zero.
+///
+/// Refuses a writer who already holds a denial. Making a denial and moving one
+/// are different acts on this record: a denial made against a writer who already
+/// had one would overwrite their deadline, so an owner reaching for the blunt
+/// instrument could shorten a denial they meant to leave alone, and see the same
+/// success either way. Moving a deadline is `redeny`.
 public(package) fun deny(
     deny_obj: &mut DenyList,
     writer: address,
@@ -85,18 +115,31 @@ public(package) fun deny(
     denied_by: address,
 ) {
     assert!(period == 0 || period > now_ms, INVALIDTIME);
-    if (dfield::exists_(&deny_obj.id, writer)) {
-        // Re-denying an already denied writer moves their deadline; it does not
-        // add a denial, so the count stays where it is. The deadline moving is
-        // still a change, and is announced as one.
-        *dfield::borrow_mut<address, u64>(&mut deny_obj.id, writer) = period;
-
-        pass_events::emit_writer_denied(system_id, file_id, writer, period, denied_by);
-
-        return
-    };
+    assert!(!dfield::exists_(&deny_obj.id, writer), EAlreadyDenied);
 
     dfield::add<address, u64>(&mut deny_obj.id, writer, period);
+
+    pass_events::emit_writer_denied(system_id, file_id, writer, period, denied_by);
+}
+
+/// Move an existing denial's deadline to `period`, or to indefinite when zero.
+///
+/// Refuses a writer who holds no denial, so moving a deadline cannot silently
+/// create one. It adds no denial, so the count the events carry stays where it
+/// is; the deadline moving is still a change and is announced as one.
+public(package) fun redeny(
+    deny_obj: &mut DenyList,
+    writer: address,
+    period: u64,
+    now_ms: u64,
+    system_id: ID,
+    file_id: ID,
+    denied_by: address,
+) {
+    assert!(period == 0 || period > now_ms, INVALIDTIME);
+    assert!(dfield::exists_(&deny_obj.id, writer), ENotDenied);
+
+    *dfield::borrow_mut<address, u64>(&mut deny_obj.id, writer) = period;
 
     pass_events::emit_writer_denied(system_id, file_id, writer, period, denied_by);
 }

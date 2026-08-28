@@ -5,7 +5,13 @@ module warlot::system_config;
 
 use sui::dynamic_object_field as ofields;
 use wal::wal::WAL;
-use warlot::{admin_cap::{Self, AdminCap}, system_events, vault::{Self, Vault}, version};
+use warlot::{
+    admin_cap::{Self, AdminCap},
+    operator::{Self, OperatorSet},
+    system_events,
+    vault::{Self, Vault},
+    version
+};
 
 // === Errors ===
 
@@ -46,8 +52,14 @@ const SYSTEM_VAULT: vector<u8> = b"system_vault";
 /// The shared object holding the protocol's configuration and treasury.
 public struct SystemConfig has key, store {
     id: UID,
-    /// The delegate offered to users at registration.
-    warlot_allowed_address: address,
+    /// The capabilities this system accepts as backend operator credentials.
+    ///
+    /// Replaces the single `warlot_allowed_address` this field used to hold. That
+    /// address was fixed at `mint_system` and had no setter, so a system
+    /// supported exactly one backend key: a second signing wallet held nothing,
+    /// and a lost first key could not be rotated without every user re-granting
+    /// by hand.
+    operators: OperatorSet,
     /// The upgrade gate. Equal to the package version while the system is current.
     version: u64,
     /// Enforces that systems are minted in a single chain.
@@ -102,6 +114,11 @@ public fun max_epochs_ahead(system_cfg: &SystemConfig): u32 {
     system_cfg.max_epochs_ahead
 }
 
+/// The capabilities this system accepts as backend operator credentials.
+public fun operator_set(system_cfg: &SystemConfig): &OperatorSet {
+    &system_cfg.operators
+}
+
 /// The fee charged to delete a registry.
 public fun cost_to_delete(system_cfg: &SystemConfig): u64 {
     system_cfg.user_modification_cfg.cost_to_delete
@@ -121,11 +138,6 @@ public fun assert_version(system_cfg: &SystemConfig) {
 public fun get_system_balance<T>(system_cfg: &SystemConfig): u64 {
     let vault = ofields::borrow<vector<u8>, Vault>(&system_cfg.id, SYSTEM_VAULT);
     vault::balance_of<T>(vault)
-}
-
-/// The default delegate this system offers at registration.
-public(package) fun get_warlot_address(system_cfg: &SystemConfig): address {
-    system_cfg.warlot_allowed_address
 }
 
 /// The fee charged to migrate to another system.
@@ -221,6 +233,63 @@ public(package) fun set_tier_table(
     );
 }
 
+/// Give `admin_cap` a slot in the operator set it does not already hold.
+public(package) fun enrol_operator(
+    system_cfg: &mut SystemConfig,
+    admin_cap: ID,
+    until_ms: u64,
+    may_bypass_draft: bool,
+    now_ms: u64,
+    enrolled_by: address,
+) {
+    operator::enrol(&mut system_cfg.operators, admin_cap, until_ms, may_bypass_draft, now_ms);
+
+    system_events::emit_system_operator_enrolled(
+        object::id(system_cfg),
+        admin_cap,
+        until_ms,
+        may_bypass_draft,
+        enrolled_by,
+    );
+}
+
+/// Replace the terms of a slot `admin_cap` already holds.
+public(package) fun refresh_operator(
+    system_cfg: &mut SystemConfig,
+    admin_cap: ID,
+    until_ms: u64,
+    may_bypass_draft: bool,
+    now_ms: u64,
+    refreshed_by: address,
+) {
+    operator::refresh(&mut system_cfg.operators, admin_cap, until_ms, may_bypass_draft, now_ms);
+
+    system_events::emit_system_operator_refreshed(
+        object::id(system_cfg),
+        admin_cap,
+        until_ms,
+        may_bypass_draft,
+        refreshed_by,
+    );
+}
+
+/// Drop `admin_cap`'s slot in the operator set.
+///
+/// Announced only when a slot was there to drop, so the stream never reports a
+/// retirement that did not happen. Retiring an id that holds no slot leaves the
+/// caller with the state they asked for and is not an error.
+public(package) fun retire_operator(
+    system_cfg: &mut SystemConfig,
+    admin_cap: ID,
+    retired_by: address,
+) {
+    if (!operator::remove(&mut system_cfg.operators, admin_cap)) {
+        return
+    };
+
+    system_events::emit_system_operator_retired(object::id(system_cfg), admin_cap, retired_by);
+}
+
 /// Record `new_system_id` as the system minted after `system_cfg`.
 public(package) fun set_next_system(
     system_cfg: &mut SystemConfig,
@@ -248,7 +317,10 @@ public(package) fun new(
 
     let mut system_cfg = SystemConfig {
         id: object::new(ctx),
-        warlot_allowed_address: ctx.sender(),
+        // A system opens with no operator. The capability minted beside it is an
+        // original, and an original is refused as a credential, so the hot key
+        // has to be minted and enrolled deliberately.
+        operators: operator::empty(),
         // The field is the upgrade gate, not a position in the mint chain: a system
         // is born at the version of the package that minted it, or it is born
         // unusable.
@@ -276,7 +348,6 @@ public(package) fun new(
         previous_system,
         ctx.sender(),
         system_cfg.version,
-        system_cfg.warlot_allowed_address,
         system_cfg.tier_table,
         system_cfg.max_epochs_ahead,
         cost_change_apikey_forms,

@@ -174,6 +174,8 @@ public fun inner_file(
         clock,
         commit,
         FILE_DRAFT_EPOCHS,
+        true,
+        true,
         false,
         0,
         ctx,

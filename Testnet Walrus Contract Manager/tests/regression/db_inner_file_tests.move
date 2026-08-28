@@ -254,6 +254,8 @@ fun init_db(
         clk,
         fixtures::commit_for(b"the database"),
         DRAFT_EPOCHS,
+        true,
+        true,
         false,
         0,
         sc.ctx(),

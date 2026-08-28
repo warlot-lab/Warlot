@@ -2,6 +2,12 @@
 /// runs out, the address holding it is denied, or the pass itself is revoked. A
 /// pass the system does not decay is exempt from the first and from neither of
 /// the others.
+///
+/// It also cannot be minted on its own. A pass alone never sufficed to write into
+/// a file's history ,  the store underneath it checks `add_blob` too ,  and the
+/// mint said nothing about that, so the pass granted strictly less than it
+/// appeared to. The last two tests pin the refusal that closed it, in both
+/// directions.
 #[test_only]
 module warlot::writer_pass_tests;
 
@@ -59,6 +65,10 @@ fun expires() {
 
     sc.next_tx(ALICE);
     let file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    // A pass alone cannot write; the store underneath it checks `add_blob` too.
+    // So the grant comes first and the mint second, and `create_pass` refuses
+    // that order being reversed.
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
     entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
@@ -105,6 +115,10 @@ fun immortal_is_deniable() {
     // A pass the system does not decay, held by an address the owner then denies.
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    // A pass alone cannot write; the store underneath it checks `add_blob` too.
+    // So the grant comes first and the mint second, and `create_pass` refuses
+    // that order being reversed.
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
     entry_innerfile::create_pass(
         &sys,
         &file,
@@ -161,6 +175,10 @@ fun revoked_pass_refused() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    // A pass alone cannot write; the store underneath it checks `add_blob` too.
+    // So the grant comes first and the mint second, and `create_pass` refuses
+    // that order being reversed.
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
     entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
@@ -240,6 +258,8 @@ fun delegated_pass_has_duration() {
         fixtures::commit_for(b"first"),
         1,
         true,
+        true,
+        true,
         PASS_EXPIRY_MS,
         sc.ctx(),
     );
@@ -294,6 +314,8 @@ fun a_delegated_pass_cannot_be_immortal() {
         fixtures::commit_for(b"first"),
         1,
         true,
+        true,
+        true,
         writer_pass::immortal_duration(),
         sc.ctx(),
     );
@@ -301,6 +323,108 @@ fun a_delegated_pass_cannot_be_immortal() {
     destroy(funds);
     destroy(wsys);
     clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
+    sc.end();
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::entry_innerfile::ENoAddBlobGrant)]
+fun a_pass_cannot_be_minted_to_an_address_that_cannot_store() {
+    let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut sys = sc.take_shared<SystemConfig>();
+    let clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
+    let file_id = fixtures::inner_file(
+        &mut wsys,
+        &mut sys,
+        ALICE,
+        b"alice",
+        fixtures::commit_for(b"first"),
+        &mut funds,
+        &clk,
+        sc.ctx(),
+    );
+
+    // Bob holds nothing on Alice's account. The pass would mint, and then fail at
+    // its first write with an error naming a grant nobody mentioned at the mint.
+    sc.next_tx(ALICE);
+    let file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, sc.ctx());
+
+    destroy(funds);
+    destroy(wsys);
+    clock::destroy_for_testing(clk);
+    ts::return_shared(file);
+    ts::return_shared(sys);
+    sc.end();
+}
+
+#[test]
+fun a_granted_recipient_gets_a_pass_and_can_use_it() {
+    let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut sys = sc.take_shared<SystemConfig>();
+    let clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
+    let file_id = fixtures::inner_file(
+        &mut wsys,
+        &mut sys,
+        ALICE,
+        b"alice",
+        fixtures::commit_for(b"first"),
+        &mut funds,
+        &clk,
+        sc.ctx(),
+    );
+
+    // The order the refusal makes load-bearing: grant, then mint.
+    sc.next_tx(ALICE);
+    let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
+    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, sc.ctx());
+
+    sc.next_tx(BOB);
+    let bob_pass = sc.take_from_sender<WriterPass>();
+    let revision = fixtures::certified_blob(
+        &mut wsys,
+        fixtures::blob_size(),
+        fixtures::blob_epochs_ahead(),
+        &mut funds,
+        sc.ctx(),
+    );
+
+    // And the pass now grants what it appears to: the write lands.
+    entry_innerfile::write_(
+        &mut file,
+        &bob_pass,
+        false,
+        option::none(),
+        &clk,
+        &sys,
+        vector[revision],
+        fixtures::commit_for(b"second"),
+        vector[],
+        sc.ctx(),
+    );
+
+    assert!(file.track_back().length() == 2, 0);
+
+    destroy(bob_pass);
+    destroy(funds);
+    destroy(wsys);
+    clock::destroy_for_testing(clk);
+    ts::return_shared(file);
     ts::return_shared(sys);
     sc.end();
 }

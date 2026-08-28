@@ -320,6 +320,12 @@ fun merge_reparents() {
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
     let mut owner_pass = sc.take_from_sender<WriterPass>();
+    // Bob only ever drafts here, and a draft's content is stored under Bob, so
+    // he does not need to be able to store under Alice to do it. `create_pass`
+    // asks for the grant anyway: it refuses any pass minted to an address that
+    // cannot store for the owner, without asking which half of the pass the
+    // recipient means to use.
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
     entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);

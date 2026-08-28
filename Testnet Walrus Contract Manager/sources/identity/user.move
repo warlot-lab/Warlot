@@ -7,6 +7,7 @@ use std::string::String;
 use sui::{clock::Clock, dynamic_object_field as ofields};
 use warlot::{
     identity_events,
+    operator::OperatorAuth,
     permission,
     registry,
     system_config::{Self, SystemConfig},
@@ -34,23 +35,49 @@ public struct User has key, store {
 // === Public functions ===
 
 /// Assert the sender may store blobs under `user_obj`.
-public fun check_permission_add_blob(user_obj: &User, ctx: &TxContext) {
-    permission::check_add_blob(&user_obj.id, user_obj.owner, ctx);
+///
+/// `operator` is the proof that the sender presented a live operator credential,
+/// and is `none` on every path where none was offered. It is carried rather than
+/// resolved here because the capability is an argument to the entry point and
+/// this is several frames below it.
+public fun check_permission_add_blob(
+    user_obj: &User,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+) {
+    permission::check_add_blob(&user_obj.id, user_obj.owner, operator, ctx);
 }
 
 /// Assert the sender may create inner files owned by `user_obj`.
-public fun check_permission_inner_file(user_obj: &User, ctx: &TxContext) {
-    permission::check_inner_file(&user_obj.id, user_obj.owner, ctx);
+public fun check_permission_inner_file(
+    user_obj: &User,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+) {
+    permission::check_inner_file(&user_obj.id, user_obj.owner, operator, ctx);
 }
 
 /// Assert the sender may mint writer passes on `user_obj`'s files.
-public fun check_permission_writer_pass(user_obj: &User, ctx: &TxContext) {
-    permission::check_writer_pass(&user_obj.id, user_obj.owner, ctx);
+public fun check_permission_writer_pass(
+    user_obj: &User,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+) {
+    permission::check_writer_pass(&user_obj.id, user_obj.owner, operator, ctx);
 }
 
 /// Assert the sender may initialise `user_obj`'s database.
-public fun check_permission_can_init_db(user_obj: &User, ctx: &TxContext) {
-    permission::check_can_init_db(&user_obj.id, user_obj.owner, ctx);
+public fun check_permission_can_init_db(
+    user_obj: &User,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+) {
+    permission::check_can_init_db(&user_obj.id, user_obj.owner, operator, ctx);
+}
+
+/// Whether `writer` holds an address-keyed grant to store blobs under `user_obj`.
+public(package) fun grants_add_blob(user_obj: &User, writer: address): bool {
+    permission::grants_add_blob(&user_obj.id, user_obj.owner, writer)
 }
 
 // === View functions ===
@@ -89,14 +116,14 @@ public(package) fun get_wallet(user: &mut User): &mut Wallet {
 
 // === Package functions ===
 
-/// Build a user with an empty wallet, an empty delegation table granting every
-/// bit to `add_walot_permission` when supplied, and a registry transferred to
-/// the sender.
+/// Build a user with an empty wallet, an empty delegation table granting the
+/// operator role every bit when `grant_operator_role` is set, and a registry
+/// transferred to the sender.
 public(package) fun create_user(
     public_username: String,
     system_id: ID,
     clock: &Clock,
-    add_walot_permission: Option<address>,
+    grant_operator_role: bool,
     ctx: &mut TxContext,
 ): User {
     let safe_vault: Wallet = wallet::create_wallet(system_id, clock, ctx);
@@ -113,7 +140,7 @@ public(package) fun create_user(
         &mut new_user.id,
         system_id,
         owner,
-        add_walot_permission,
+        grant_operator_role,
         ctx,
     );
 

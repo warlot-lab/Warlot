@@ -3,7 +3,7 @@ module warlot::entry_admin;
 
 // === Imports ===
 
-use sui::coin::Coin;
+use sui::{clock::Clock, coin::Coin};
 use wal::wal::WAL;
 use warlot::{admin_cap::{Self, AdminCap}, system_config::{Self, SystemConfig}, vault};
 
@@ -195,6 +195,87 @@ public fun mint_admin(
     );
 
     admin_cap::transfer_to(new_cap, receiver, ctx);
+}
+
+/// Give `operator_cap` a slot in the system's operator set until `until_ms`.
+///
+/// The slot is named by capability **id**, not by the address holding it, so
+/// moving the capability to another wallet costs nothing here. Only enrolling,
+/// refreshing or retiring a slot is a transaction.
+///
+/// The id is taken rather than the capability object, because the capability is
+/// already in the backend's hands by the time a slot is wanted, and requiring
+/// the admin to hold both would mean minting and enrolling could never be
+/// separated. Nothing is trusted about the id as a result: `operator::authorise`
+/// re-checks at every use that the capability presented is a duplicate and names
+/// this system.
+///
+/// Refuses an id that already holds a slot. Extending one is `refresh_operator`,
+/// and the two are separate because an enrolment that quietly became an extension
+/// would move a live key's deadline while the admin believed they were onboarding
+/// a new one.
+public fun enrol_operator(
+    system_cfg: &mut SystemConfig,
+    admin_cap: &AdminCap,
+    operator_cap: ID,
+    until_ms: u64,
+    may_bypass_draft: bool,
+    clock: &Clock,
+    ctx: &TxContext,
+) {
+    system_cfg.assert_version();
+    assert_original_cap_for(admin_cap, object::id(system_cfg));
+
+    system_cfg.enrol_operator(
+        operator_cap,
+        until_ms,
+        may_bypass_draft,
+        clock.timestamp_ms(),
+        ctx.sender(),
+    );
+}
+
+/// Replace the terms of a slot `operator_cap` already holds.
+///
+/// How a deadline is moved without a gap in which the backend cannot sign, and
+/// the only way to change a slot's bypass bit. Refuses an id holding no slot, so
+/// a refresh cannot silently enrol a key that was retired out from under it.
+public fun refresh_operator(
+    system_cfg: &mut SystemConfig,
+    admin_cap: &AdminCap,
+    operator_cap: ID,
+    until_ms: u64,
+    may_bypass_draft: bool,
+    clock: &Clock,
+    ctx: &TxContext,
+) {
+    system_cfg.assert_version();
+    assert_original_cap_for(admin_cap, object::id(system_cfg));
+
+    system_cfg.refresh_operator(
+        operator_cap,
+        until_ms,
+        may_bypass_draft,
+        clock.timestamp_ms(),
+        ctx.sender(),
+    );
+}
+
+/// Drop `operator_cap`'s slot in the system's operator set.
+///
+/// Retiring an id that holds no slot is not an error. This is the call that pulls
+/// a leaked key, and one that can abort is one that can fail inside the batch
+/// pulling it.
+public fun retire_operator(
+    system_cfg: &mut SystemConfig,
+    admin_cap: &AdminCap,
+    operator_cap: ID,
+    ctx: &TxContext,
+) {
+    system_cfg.assert_version();
+    assert_original_cap_for(admin_cap, object::id(system_cfg));
+
+    system_cfg.retire_operator(operator_cap, ctx.sender());
 }
 
 // === Private functions ===

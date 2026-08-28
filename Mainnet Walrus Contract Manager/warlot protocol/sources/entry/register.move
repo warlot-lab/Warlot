@@ -44,7 +44,7 @@ public fun all_register_user_publicly(
         public_username,
         object::id(system_cfg),
         clock,
-        option::none(),
+        false,
         ctx,
     );
 
@@ -54,7 +54,13 @@ public fun all_register_user_publicly(
     user::add_user(system_cfg, new_user, ctx);
 }
 
-/// Register the sender, granting the system's default delegate every capability bit.
+/// Register the sender, granting the system operator role every capability bit.
+///
+/// The grant names no address. It reaches whichever capability the system's
+/// operator set holds at the time of the call, so a backend key added, retired
+/// or rotated afterwards inherits or loses it with no further write against this
+/// user. The address this used to name was fixed at `mint_system` and had no
+/// setter, which is what made a key rotation an O(users) migration.
 public fun all_register_user_with_system_permission(
     system_cfg: &mut SystemConfig,
     public_username: String,
@@ -67,7 +73,7 @@ public fun all_register_user_with_system_permission(
         public_username,
         object::id(system_cfg),
         clock,
-        option::some(system_cfg.get_warlot_address()),
+        true,
         ctx,
     );
 

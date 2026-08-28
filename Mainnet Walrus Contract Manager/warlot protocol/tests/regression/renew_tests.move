@@ -47,6 +47,7 @@ fun tier_rejected() {
         OFF_LADDER,
         CYCLES,
         ALICE,
+        option::none(),
         &clk,
         sc.ctx(),
     );

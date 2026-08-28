@@ -112,6 +112,28 @@ public struct PermissionRevoked has copy, drop, store {
     delegate: address,
 }
 
+/// A user delegated capability bits to the system operator role.
+///
+/// The counterpart to `PermissionGranted`, naming no address: the grant is to
+/// whichever capability the system's operator set holds at the time of the call,
+/// so a backend key that is added, retired or rotated later inherits or loses it
+/// with no further act by the user.
+public struct OperatorRoleGranted has copy, drop, store {
+    system_id: ID,
+    owner: address,
+    add_blob_to_address: bool,
+    create_inner_file: bool,
+    create_writer_pass: bool,
+    can_init_db: bool,
+    can_compact: bool,
+}
+
+/// A user withdrew every capability bit from the system operator role.
+public struct OperatorRoleRevoked has copy, drop, store {
+    system_id: ID,
+    owner: address,
+}
+
 // === Package functions ===
 
 /// Announce a newly registered user.
@@ -230,6 +252,32 @@ public(package) fun emit_permission_granted(
 /// Announce a withdrawn delegation.
 public(package) fun emit_permission_revoked(system_id: ID, owner: address, delegate: address) {
     event::emit(PermissionRevoked { system_id, owner, delegate })
+}
+
+/// Announce a delegation to the operator role.
+public(package) fun emit_operator_role_granted(
+    system_id: ID,
+    owner: address,
+    add_blob_to_address: bool,
+    create_inner_file: bool,
+    create_writer_pass: bool,
+    can_init_db: bool,
+    can_compact: bool,
+) {
+    event::emit(OperatorRoleGranted {
+        system_id,
+        owner,
+        add_blob_to_address,
+        create_inner_file,
+        create_writer_pass,
+        can_init_db,
+        can_compact,
+    })
+}
+
+/// Announce a withdrawn delegation to the operator role.
+public(package) fun emit_operator_role_revoked(system_id: ID, owner: address) {
+    event::emit(OperatorRoleRevoked { system_id, owner })
 }
 
 // === Test-only readers ===
@@ -392,4 +440,44 @@ public fun read_permission_revoked(e: &PermissionRevoked): (ID, address, address
     } = e;
 
     (*_system_id, *_owner, *_delegate)
+}
+
+#[test_only]
+/// Every field of `OperatorRoleGranted`, in declaration order.
+public fun read_operator_role_granted(e: &OperatorRoleGranted): (
+    ID,
+    address,
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+) {
+    let OperatorRoleGranted {
+        system_id: _system_id,
+        owner: _owner,
+        add_blob_to_address: _add_blob_to_address,
+        create_inner_file: _create_inner_file,
+        create_writer_pass: _create_writer_pass,
+        can_init_db: _can_init_db,
+        can_compact: _can_compact,
+    } = e;
+
+    (
+        *_system_id,
+        *_owner,
+        *_add_blob_to_address,
+        *_create_inner_file,
+        *_create_writer_pass,
+        *_can_init_db,
+        *_can_compact,
+    )
+}
+
+#[test_only]
+/// Every field of `OperatorRoleRevoked`, in declaration order.
+public fun read_operator_role_revoked(e: &OperatorRoleRevoked): (ID, address) {
+    let OperatorRoleRevoked { system_id: _system_id, owner: _owner } = e;
+
+    (*_system_id, *_owner)
 }

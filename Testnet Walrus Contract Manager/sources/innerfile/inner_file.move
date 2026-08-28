@@ -6,10 +6,12 @@ module warlot::inner_file;
 
 use sui::{clock::Clock, dynamic_object_field as ofields};
 use warlot::{
+    credential::Credential,
     deny_list,
     draft::{Self, Draft, FileDraftHolder},
     file_data::FileData,
     innerfile_events,
+    operator::{Self, OperatorAuth},
     writer_pass::{Self, WriterPass},
 };
 
@@ -27,6 +29,10 @@ const INVALIDTRACKBACKLENGTH: vector<u8> = b"provide a valid track back len data
 const EDraftLimitReached: vector<u8> = b"THIS FILE ALREADY HOLDS AS MANY OPEN DRAFTS AS IT ALLOWS";
 #[error]
 const EPassRevoked: vector<u8> = b"this pass has been revoked by the file owner";
+#[error]
+const EOperatorsRefused: vector<u8> = b"THIS FILE'S OWNER DOES NOT ADMIT SYSTEM OPERATORS";
+#[error]
+const ENoDraftQueue: vector<u8> = b"THIS FILE HAS NEVER HELD A DRAFT";
 
 // === Constants ===
 
@@ -50,6 +56,26 @@ public struct InnerFile has key, store {
     owner: address,
     /// How many drafts may stand open on this file at once.
     writers_length: u8,
+    /// Whether a system operator's credential may write this file at all.
+    ///
+    /// Set by the owner and by nobody else, and gated on the sender rather than
+    /// on a pass: a pass that could flip it would let an operator re-admit
+    /// itself. The account-level grant of the operator role has already happened
+    /// by the time a file exists, so this is the pin that shuts one file against
+    /// it.
+    operators_allowed: bool,
+    /// Whether a system operator's writes may go straight into this file's
+    /// history rather than into the draft queue.
+    ///
+    /// Both this and the operator's own slot have to carry the bypass for a write
+    /// to skip the queue. The owner wins: an admin granting bypass on the slot
+    /// cannot override a file whose owner refused it here.
+    operators_may_bypass_draft: bool,
+    /// How many epochs a draft on this file lives for.
+    ///
+    /// Held here rather than only on the queue, because the queue is built on the
+    /// first draft and the terms have to survive until then.
+    draft_epoch_duration: u32,
     file_history: FileTrack,
     created_at_ms: u64,
 }
@@ -93,19 +119,31 @@ public fun verify_pass(file: &InnerFile, writer: address, writer_pass: &WriterPa
         DECAYEXCEEDED,
     );
 
-    let deny_obj = deny_list::borrow(&file.id);
+    assert_not_refused(file, writer, object::id(writer_pass), current_time);
+}
 
-    if (deny_list::contains(deny_obj, writer)) {
-        // A denial recorded with a period of zero holds indefinitely; any other
-        // period holds until the clock passes it.
-        let user_deny_period = deny_list::period(deny_obj, writer);
-        assert!(
-            !(user_deny_period == 0 || user_deny_period > current_time),
-            INVALIDWRITER,
-        );
-    };
+/// Assert an operator credential authorises `writer` to modify this file.
+///
+/// Sibling to `verify_pass`, and deliberately not a replacement for it. Three
+/// conditions rather than four: there is no "is this pass for this file" check,
+/// because a capability names a system and not a file, and the file-level answer
+/// is `operators_allowed` instead. The other two are the same record read the
+/// same way ,  the owner's denial of an address reaches a capability holder
+/// exactly as it reaches a pass holder, and the revoked-id space the deny list
+/// keeps is keyed by `ID` and does not care which kind of object an id names.
+///
+/// The credential's own expiry and its right to act for this account are settled
+/// before this is reached: `operator::authorise` against the system's set, and
+/// the operator role against the account owner's grant.
+public fun verify_operator(
+    file: &InnerFile,
+    writer: address,
+    auth: &OperatorAuth,
+    clock: &Clock,
+) {
+    assert!(file.operators_allowed, EOperatorsRefused);
 
-    assert!(!deny_list::is_pass_revoked(deny_obj, object::id(writer_pass)), EPassRevoked);
+    assert_not_refused(file, writer, auth.auth_cap_id(), clock.timestamp_ms());
 }
 
 // === View functions ===
@@ -120,8 +158,10 @@ public fun has_root_change(inner_file: &InnerFile): bool {
     inner_file.file_history.root_change.is_some()
 }
 
-/// Whether the pass `pass_id` has been revoked on this file.
+/// Whether the pass or capability `pass_id` has been revoked on this file.
 public fun is_pass_revoked(inner_file: &InnerFile, pass_id: ID): bool {
+    if (!deny_list::attached(&inner_file.id)) return false;
+
     deny_list::is_pass_revoked(deny_list::borrow(&inner_file.id), pass_id)
 }
 
@@ -174,6 +214,27 @@ public fun root_change_config(inner_file: &InnerFile): Option<ID> {
     option::some(inner_file.file_history.root_change.borrow().blob_config_id())
 }
 
+/// Whether a system operator's credential may write this file at all.
+public fun operators_allowed(inner_file: &InnerFile): bool { inner_file.operators_allowed }
+
+/// Whether a system operator's writes may skip this file's draft queue.
+public fun operators_may_bypass_draft(inner_file: &InnerFile): bool {
+    inner_file.operators_may_bypass_draft
+}
+
+/// How many epochs a draft on this file lives for.
+public fun draft_epoch_duration(inner_file: &InnerFile): u32 { inner_file.draft_epoch_duration }
+
+/// Whether this file holds a draft queue yet.
+public fun has_draft_queue(inner_file: &InnerFile): bool {
+    ofields::exists_<vector<u8>>(&inner_file.id, FILEDRAFTKEY)
+}
+
+/// Whether this file holds a deny list yet.
+public fun has_deny_list(inner_file: &InnerFile): bool {
+    deny_list::attached(&inner_file.id)
+}
+
 /// The deepest rollback window a file may ask for.
 public fun max_track_back(): u8 { MAX_TRACK_BACK }
 
@@ -194,6 +255,9 @@ public(package) fun new(
     track_back_length: u8,
     epoch_set: u32,
     cycle_end: u64,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    draft_epoch_duration: u32,
     first_revision: FileData,
     clock: &Clock,
     ctx: &mut TxContext,
@@ -207,6 +271,9 @@ public(package) fun new(
         id: object::new(ctx),
         owner,
         writers_length,
+        operators_allowed,
+        operators_may_bypass_draft,
+        draft_epoch_duration,
         file_history: FileTrack {
             root_change: option::none(),
             track_back_length,
@@ -221,23 +288,16 @@ public(package) fun new(
     }
 }
 
-/// Attach the deny list and the draft queue, then share the file.
-public(package) fun share(
-    mut inner_file: InnerFile,
-    draft_epoch_duration: u32,
-    system_id: ID,
-    ctx: &mut TxContext,
-) {
-    deny_list::attach(&mut inner_file.id, ctx);
-    ofields::add<vector<u8>, FileDraftHolder>(
-        &mut inner_file.id,
-        FILEDRAFTKEY,
-        draft::create_draft_holder(draft_epoch_duration, ctx),
-    );
-
+/// Share the file.
+///
+/// The deny list and the draft queue are no longer built here. Both are dynamic
+/// object fields ,  two objects each, counting the field entry ,  and most files
+/// never deny anybody and never take a draft. They are attached by the first call
+/// that puts something in them, which is a change to when they are created and to
+/// nothing else about them.
+public(package) fun share(inner_file: InnerFile, system_id: ID) {
     // Announced at the share rather than at construction, because a file that is
-    // never shared is a file nobody can reach, and because the draft queue's own
-    // terms are only settled here.
+    // never shared is a file nobody can reach.
     let first_revision = &inner_file.file_history.track_back[0];
 
     innerfile_events::emit_inner_file_created(
@@ -249,13 +309,40 @@ public(package) fun share(
         inner_file.file_history.track_back_length,
         inner_file.file_history.warlot_state.epoch_set,
         inner_file.file_history.warlot_state.cycle_end,
-        draft_epoch_duration,
+        inner_file.draft_epoch_duration,
+        inner_file.operators_allowed,
+        inner_file.operators_may_bypass_draft,
         inner_file.created_at_ms,
         first_revision.commit(),
         first_revision.blob_config_id(),
     );
 
     transfer::public_share_object(inner_file);
+}
+
+/// Replace both operator bits, and announce them.
+///
+/// Wholesale rather than one at a time, the same way an address delegation is
+/// set, so one call always leaves the file holding exactly what the owner named.
+/// The caller is responsible for the owner check ,  it is made at the entry
+/// point, against the sender.
+public(package) fun set_operator_policy(
+    inner_file: &mut InnerFile,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    system_id: ID,
+    set_by: address,
+) {
+    inner_file.operators_allowed = operators_allowed;
+    inner_file.operators_may_bypass_draft = operators_may_bypass_draft;
+
+    innerfile_events::emit_file_operator_policy_set(
+        system_id,
+        object::id(inner_file),
+        operators_allowed,
+        operators_may_bypass_draft,
+        set_by,
+    );
 }
 
 /// The file's UID, so sibling modules can reach the objects attached to it.
@@ -268,8 +355,14 @@ public(package) fun uid_mut(inner_file: &mut InnerFile): &mut UID {
     &mut inner_file.id
 }
 
-/// The file's draft queue.
+/// The file's draft queue, or an abort if it has never held a draft.
+///
+/// The four calls that resolve or drop drafts reach for this. A file with no
+/// queue has no draft to resolve, so refusing by name here says the same thing
+/// the index lookup used to say and says it one step earlier.
 public(package) fun get_draft_holder(inner_file: &mut InnerFile): &mut FileDraftHolder {
+    assert!(ofields::exists_<vector<u8>>(&inner_file.id, FILEDRAFTKEY), ENoDraftQueue);
+
     ofields::borrow_mut<vector<u8>, FileDraftHolder>(&mut inner_file.id, FILEDRAFTKEY)
 }
 
@@ -312,16 +405,28 @@ public(package) fun override_file_add(
 public(package) fun pin_draft(
     inner_file: &mut InnerFile,
     draft: Draft,
+    credential: Credential,
     clock: &Clock,
     system_id: ID,
+    ctx: &mut TxContext,
 ) {
     let cap = inner_file.writers_length as u64;
     let file_id = object::id(inner_file);
+    let draft_epoch_duration = inner_file.draft_epoch_duration;
+
+    if (!ofields::exists_<vector<u8>>(&inner_file.id, FILEDRAFTKEY)) {
+        ofields::add<vector<u8>, FileDraftHolder>(
+            &mut inner_file.id,
+            FILEDRAFTKEY,
+            draft::create_draft_holder(draft_epoch_duration, ctx),
+        );
+    };
+
     let draft_holder = inner_file.get_draft_holder();
 
     assert!(draft::total_draft(draft_holder) < cap, EDraftLimitReached);
 
-    draft::pin_draft(draft_holder, draft, clock, system_id, file_id);
+    draft::pin_draft(draft_holder, draft, credential, clock, system_id, file_id);
 }
 
 /// Record the known-good fallback, returning the revision it displaced if there
@@ -373,15 +478,31 @@ public(package) fun extract_root_change(
 }
 
 /// Mint the non-decaying, draft-bypassing pass a file's owner holds.
-public(package) fun new_owner_pass(
-    file_id: ID,
-    owner: address,
-    ctx: &mut TxContext,
-): WriterPass {
-    writer_pass::new(
-        file_id,
-        writer_pass::immortal_duration(),
-        option::some(writer_pass::new_admin_pass(owner)),
-        ctx,
-    )
+public(package) fun new_owner_pass(file_id: ID, ctx: &mut TxContext): WriterPass {
+    writer_pass::new(file_id, writer_pass::immortal_duration(), true, ctx)
+}
+
+// === Private functions ===
+
+/// Abort if the file's owner has refused `writer`, or has revoked `credential_id`.
+///
+/// The half of a credential check that does not depend on which kind of
+/// credential was presented. A file that has never denied anybody and never
+/// revoked anything holds no deny list at all, and refuses nobody.
+fun assert_not_refused(file: &InnerFile, writer: address, credential_id: ID, now_ms: u64) {
+    if (!deny_list::attached(&file.id)) return;
+
+    let deny_obj = deny_list::borrow(&file.id);
+
+    if (deny_list::contains(deny_obj, writer)) {
+        // A denial recorded with a period of zero holds indefinitely; any other
+        // period holds until the clock passes it.
+        let user_deny_period = deny_list::period(deny_obj, writer);
+        assert!(
+            !(user_deny_period == 0 || user_deny_period > now_ms),
+            INVALIDWRITER,
+        );
+    };
+
+    assert!(!deny_list::is_pass_revoked(deny_obj, credential_id), EPassRevoked);
 }

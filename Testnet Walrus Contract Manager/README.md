@@ -62,9 +62,9 @@ in `entry/` carries an `entry_` prefix.
 | `entry/upload.move` | `entry_upload` | Adopt externally-sourced blobs into renewal management |
 | `entry/renew.move` | `entry_renew` | Renew one blob config, one call per config in a block |
 | `entry/withdraw.move` | `entry_withdraw` | Return a user's blobs to them |
-| `entry/permission.move` | `entry_permission` | Grant and revoke a delegate's capability bits |
+| `entry/permission.move` | `entry_permission` | Grant, replace and revoke a delegate's or the operator role's capability bits |
 | `entry/innerfile.move` | `entry_innerfile` | Create a file, write to it, merge a draft, mint a pass |
-| `entry/admin.move` | `entry_admin` | Treasury withdrawal, fee changes, system and cap minting |
+| `entry/admin.move` | `entry_admin` | Treasury withdrawal, fee changes, system and cap minting, the operator set |
 | `events/system_events.move` | `system_events` | System configuration, lineage and capability events |
 | `events/treasury_events.move` | `treasury_events` | Treasury custody events |
 | `events/identity_events.move` | `identity_events` | Registration, wallet and delegation events |
@@ -75,11 +75,12 @@ in `entry/` carries an `entry_` prefix.
 | `events/product_events.move` | `product_events` | Project holder, project, database and commitment events |
 | `system/config.move` | `system_config` | Version, fees, mint lineage and treasury |
 | `system/admin_cap.move` | `admin_cap` | Mint and inspect the admin capability |
+| `system/operator.move` | `operator` | The capabilities a system accepts as backend credentials |
 | `system/vault.move` | `vault` | Custody the protocol's multi-coin treasury |
 | `system/version.move` | `version` | The package version and its gate |
 | `identity/registry.move` | `registry` | The owned object binding a user to a system |
 | `identity/user.move` | `user` | The per-user state container attached to `SystemConfig` |
-| `identity/permission.move` | `permission` | Store, write and check delegated capability bits |
+| `identity/permission.move` | `permission` | Store, write and check the bits delegated to an address or to the operator role |
 | `identity/wallet.move` | `wallet` | Hold, receive and release a user's coin balances |
 | `storage/blob_config.move` | `blob_config` | The shared object holding blobs and their mandate |
 | `storage/store.move` | `store` | Take blobs into custody as shared configs |
@@ -88,6 +89,7 @@ in `entry/` carries an `entry_` prefix.
 | `innerfile/inner_file.move` | `inner_file` | The authoritative head, rollback window and fallback |
 | `innerfile/file_data.move` | `file_data` | One revision: its commit, author and blob config |
 | `innerfile/writer_pass.move` | `writer_pass` | Delegated write authority |
+| `innerfile/credential.move` | `credential` | Which authority one write was made under |
 | `innerfile/deny_list.move` | `deny_list` | Revocation of writers |
 | `innerfile/draft.move` | `draft` | Proposals awaiting the owner's merge |
 | `innerfile/commit.move` | `commit` | The Merkle root a revision commits to |

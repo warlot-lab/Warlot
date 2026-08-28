@@ -24,12 +24,16 @@ use warlot::{
     fixtures,
     identity_events::{UserJoinedSystem, UserLeftSystem},
     inner_file::InnerFile,
+    operator,
     registry::Registry,
     system_config::SystemConfig,
     system_events::{
         AdminCapMinted,
         SystemCreated,
         SystemFeesChanged,
+        SystemOperatorEnrolled,
+        SystemOperatorRefreshed,
+        SystemOperatorRetired,
         SystemSucceeded,
         SystemTiersChanged,
         SystemVersionMigrated
@@ -88,7 +92,7 @@ fun system_config_untouched() {
     let system: &SystemConfig = &sys;
 
     let version = system.get_system_version();
-    let warlot_address = system.get_warlot_address();
+    let operators = operator::operator_count(system.operator_set());
     let tiers = *system.tier_table();
     let horizon = system.max_epochs_ahead();
     let apikey_fee = system.cost_change_apikey_forms();
@@ -138,6 +142,8 @@ fun system_config_untouched() {
         &clk,
         fixtures::commit_for(b"first"),
         DRAFT_EPOCHS,
+        true,
+        true,
         false,
         0,
         sc.ctx(),
@@ -175,7 +181,7 @@ fun system_config_untouched() {
 
     // --- nothing on the object moved --------------------------------------
     assert!(system.get_system_version() == version, 40);
-    assert!(system.get_warlot_address() == warlot_address, 41);
+    assert!(operator::operator_count(system.operator_set()) == operators, 41);
     assert!(*system.tier_table() == tiers, 42);
     assert!(system.max_epochs_ahead() == horizon, 43);
     assert!(system.cost_change_apikey_forms() == apikey_fee, 44);
@@ -219,4 +225,7 @@ fun assert_system_silent(code: u64) {
     assert!(event::events_by_type<VaultCoinSupportChanged>().is_empty(), code + 8);
     assert!(event::events_by_type<UserJoinedSystem>().is_empty(), code + 9);
     assert!(event::events_by_type<UserLeftSystem>().is_empty(), code + 10);
+    assert!(event::events_by_type<SystemOperatorEnrolled>().is_empty(), code + 11);
+    assert!(event::events_by_type<SystemOperatorRefreshed>().is_empty(), code + 12);
+    assert!(event::events_by_type<SystemOperatorRetired>().is_empty(), code + 13);
 }

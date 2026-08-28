@@ -38,6 +38,8 @@ use warlot::{
     draft_events::{Self, DraftDeleted, DraftMerged, DraftPinned},
     identity_events::{
         Self,
+        OperatorRoleGranted,
+        OperatorRoleRevoked,
         PermissionGranted,
         PermissionRevoked,
         RegistryMigrated,
@@ -51,6 +53,7 @@ use warlot::{
     },
     innerfile_events::{
         Self,
+        FileOperatorPolicySet,
         HeadAdvanced,
         InnerFileCreated,
         RevisionRetired,
@@ -81,6 +84,9 @@ use warlot::{
         AdminCapMinted,
         SystemCreated,
         SystemFeesChanged,
+        SystemOperatorEnrolled,
+        SystemOperatorRefreshed,
+        SystemOperatorRetired,
         SystemSucceeded,
         SystemTiersChanged,
         SystemVersionMigrated
@@ -91,6 +97,11 @@ use warlot::{
 // === Errors ===
 
 const EUnknownEventType: u64 = 0;
+
+/// The address a delegation row carries when it is the operator role rather than
+/// a grant to a named key. The role names no address, so the reconstruction needs
+/// a key of its own for it, and the zero address is one no signer can hold.
+const OPERATOR_ROLE: address = @0x0;
 const ENoSuchRow: u64 = 1;
 
 // === Structs ===
@@ -101,7 +112,6 @@ public struct SystemRow has drop {
     previous_system: ID,
     next_system: Option<ID>,
     version: u64,
-    warlot_allowed_address: address,
     tier_table: vector<u32>,
     max_epochs_ahead: u32,
     cost_change_apikey_forms: u64,
@@ -115,6 +125,10 @@ public struct SystemRow has drop {
     vault_wal: u64,
     accepted_coins: vector<String>,
     admin_caps: vector<ID>,
+    /// The operator slots the stream shows live, and their terms.
+    operator_caps: vector<ID>,
+    operator_until: vector<u64>,
+    operator_bypass: vector<bool>,
 }
 
 /// One user, as the stream describes them.
@@ -137,6 +151,10 @@ public struct UserRow has drop {
 }
 
 /// One delegation row.
+///
+/// `delegate` is the address the bits were granted to, and is the zero address on
+/// the row that carries the operator role ,  which names no address by design, so
+/// the stream has nothing else to key it by.
 public struct PermRow has drop {
     system_id: ID,
     owner: address,
@@ -179,6 +197,8 @@ public struct FileRow has drop {
     track_back_length: u8,
     epoch_set: u32,
     cycle_end: u64,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
     created_at_ms: u64,
     last_modified: u64,
     window_commits: vector<vector<u8>>,
@@ -327,6 +347,27 @@ public fun delegation_bits(
     )
 }
 
+/// Whether the stream still shows the operator role holding capabilities on
+/// `owner`.
+public fun operator_role_live(ledger: &Ledger, owner: address): bool {
+    ledger.delegation_live(owner, OPERATOR_ROLE)
+}
+
+/// The capability bits the stream shows the operator role holding on `owner`.
+public fun operator_role_bits(ledger: &Ledger, owner: address): (bool, bool, bool, bool, bool) {
+    ledger.delegation_bits(owner, OPERATOR_ROLE)
+}
+
+/// Whether the stream shows `file_id` admitting operators, and whether it lets
+/// them skip the draft queue.
+public fun file_operator_policy(ledger: &Ledger, file_id: ID): (bool, bool) {
+    let i = ledger.files.find_index!(|row| row.file_id == file_id);
+    assert!(i.is_some(), ENoSuchRow);
+    let row = &ledger.files[i.destroy_some()];
+
+    (row.operators_allowed, row.operators_may_bypass_draft)
+}
+
 /// How many writers the stream shows `file_id` denying.
 public fun denials_live(ledger: &Ledger, file_id: ID): u64 {
     let mut count = 0;
@@ -382,7 +423,22 @@ public fun system_tier_table(row: &SystemRow): vector<u32> { row.tier_table }
 
 public fun system_max_epochs_ahead(row: &SystemRow): u32 { row.max_epochs_ahead }
 
-public fun system_warlot_address(row: &SystemRow): address { row.warlot_allowed_address }
+/// The capability ids the stream shows holding an operator slot.
+public fun system_operator_caps(row: &SystemRow): vector<ID> { row.operator_caps }
+
+/// Whether the stream shows `admin_cap` holding an operator slot.
+public fun system_has_operator(row: &SystemRow, admin_cap: ID): bool {
+    row.operator_caps.contains(&admin_cap)
+}
+
+/// The terms the stream shows for one operator slot.
+public fun system_operator_terms(row: &SystemRow, admin_cap: ID): (u64, bool) {
+    let i = row.operator_caps.find_index!(|cap| *cap == admin_cap);
+    assert!(i.is_some(), ENoSuchRow);
+    let i = i.destroy_some();
+
+    (row.operator_until[i], row.operator_bypass[i])
+}
 
 public fun system_costs(row: &SystemRow): (u64, u64, u64, u64) {
     (
@@ -548,7 +604,6 @@ fun apply_system(ledger: &mut Ledger) {
             previous_system,
             _minted_by,
             version,
-            warlot_allowed_address,
             tier_table,
             max_epochs_ahead,
             cost_change_apikey_forms,
@@ -562,7 +617,6 @@ fun apply_system(ledger: &mut Ledger) {
             previous_system,
             next_system: option::none(),
             version,
-            warlot_allowed_address,
             tier_table,
             max_epochs_ahead,
             cost_change_apikey_forms,
@@ -573,6 +627,9 @@ fun apply_system(ledger: &mut Ledger) {
             vault_wal: 0,
             accepted_coins: vector[],
             admin_caps: vector[],
+            operator_caps: vector[],
+            operator_until: vector[],
+            operator_bypass: vector[],
         });
         ledger.applied = ledger.applied + 1;
     });
@@ -612,6 +669,49 @@ fun apply_system(ledger: &mut Ledger) {
         let (system_id, admin_cap, _state, _total, _recipient, _minted_by) =
             system_events::read_admin_cap_minted(e);
         ledger.system_mut(system_id).admin_caps.push_back(admin_cap);
+        ledger.applied = ledger.applied + 1;
+    });
+
+    event::events_by_type<SystemOperatorEnrolled>().do_ref!(|e| {
+        let (system_id, admin_cap, until_ms, may_bypass_draft, _enrolled_by) =
+            system_events::read_system_operator_enrolled(e);
+        let row = ledger.system_mut(system_id);
+
+        // An enrolment always takes a slot the id did not hold. The chain refuses
+        // the other case by name, so a replay that quietly updated in place here
+        // would be reproducing a system that does not exist.
+        assert!(row.operator_caps.find_index!(|cap| *cap == admin_cap).is_none(), ENoSuchRow);
+
+        row.operator_caps.push_back(admin_cap);
+        row.operator_until.push_back(until_ms);
+        row.operator_bypass.push_back(may_bypass_draft);
+        ledger.applied = ledger.applied + 1;
+    });
+
+    event::events_by_type<SystemOperatorRefreshed>().do_ref!(|e| {
+        let (system_id, admin_cap, until_ms, may_bypass_draft, _refreshed_by) =
+            system_events::read_system_operator_refreshed(e);
+        let row = ledger.system_mut(system_id);
+
+        let held = row.operator_caps.find_index!(|cap| *cap == admin_cap);
+        assert!(held.is_some(), ENoSuchRow);
+
+        let i = held.destroy_some();
+        *&mut row.operator_until[i] = until_ms;
+        *&mut row.operator_bypass[i] = may_bypass_draft;
+        ledger.applied = ledger.applied + 1;
+    });
+
+    event::events_by_type<SystemOperatorRetired>().do_ref!(|e| {
+        let (system_id, admin_cap, _retired_by) = system_events::read_system_operator_retired(e);
+        let row = ledger.system_mut(system_id);
+        let held = row.operator_caps.find_index!(|cap| *cap == admin_cap);
+        if (held.is_some()) {
+            let i = held.destroy_some();
+            row.operator_caps.remove(i);
+            row.operator_until.remove(i);
+            row.operator_bypass.remove(i);
+        };
         ledger.applied = ledger.applied + 1;
     });
 }
@@ -789,6 +889,56 @@ fun apply_identity(ledger: &mut Ledger) {
         };
         ledger.applied = ledger.applied + 1;
     });
+
+    event::events_by_type<OperatorRoleGranted>().do_ref!(|e| {
+        let (
+            system_id,
+            owner,
+            add_blob_to_address,
+            create_inner_file,
+            create_writer_pass,
+            can_init_db,
+            can_compact,
+        ) = identity_events::read_operator_role_granted(e);
+
+        let held = ledger
+            .permissions
+            .find_index!(|row| row.owner == owner && row.delegate == OPERATOR_ROLE);
+
+        if (held.is_some()) {
+            let row = &mut ledger.permissions[held.destroy_some()];
+            row.add_blob_to_address = add_blob_to_address;
+            row.create_inner_file = create_inner_file;
+            row.create_writer_pass = create_writer_pass;
+            row.can_init_db = can_init_db;
+            row.can_compact = can_compact;
+            row.live = true;
+        } else {
+            ledger.permissions.push_back(PermRow {
+                system_id,
+                owner,
+                delegate: OPERATOR_ROLE,
+                add_blob_to_address,
+                create_inner_file,
+                create_writer_pass,
+                can_init_db,
+                can_compact,
+                live: true,
+            });
+        };
+        ledger.applied = ledger.applied + 1;
+    });
+
+    event::events_by_type<OperatorRoleRevoked>().do_ref!(|e| {
+        let (_system_id, owner) = identity_events::read_operator_role_revoked(e);
+        let held = ledger
+            .permissions
+            .find_index!(|row| row.owner == owner && row.delegate == OPERATOR_ROLE);
+        if (held.is_some()) {
+            ledger.permissions[held.destroy_some()].live = false;
+        };
+        ledger.applied = ledger.applied + 1;
+    });
 }
 
 fun apply_storage(ledger: &mut Ledger) {
@@ -901,6 +1051,8 @@ fun apply_innerfile(ledger: &mut Ledger) {
             epoch_set,
             cycle_end,
             _draft_epoch_duration,
+            operators_allowed,
+            operators_may_bypass_draft,
             created_at_ms,
             commit,
             blob_config_id,
@@ -915,6 +1067,8 @@ fun apply_innerfile(ledger: &mut Ledger) {
             track_back_length,
             epoch_set,
             cycle_end,
+            operators_allowed,
+            operators_may_bypass_draft,
             created_at_ms,
             last_modified: created_at_ms,
             window_commits: vector[commit],
@@ -929,9 +1083,30 @@ fun apply_innerfile(ledger: &mut Ledger) {
         ledger.applied = ledger.applied + 1;
     });
 
+    event::events_by_type<FileOperatorPolicySet>().do_ref!(|e| {
+        let (_s, file_id, operators_allowed, operators_may_bypass_draft, _set_by) =
+            innerfile_events::read_file_operator_policy_set(e);
+        let row = ledger.file_mut(file_id);
+        row.operators_allowed = operators_allowed;
+        row.operators_may_bypass_draft = operators_may_bypass_draft;
+        ledger.applied = ledger.applied + 1;
+    });
+
     event::events_by_type<DraftPinned>().do_ref!(|e| {
-        let (_s, file_id, _draft_id, draft_index, _pass, _issue, _c, _by, _cfg, _t, last_modified) =
-            draft_events::read_draft_pinned(e);
+        let (
+            _s,
+            file_id,
+            _draft_id,
+            draft_index,
+            _credential,
+            _credential_kind,
+            _issue,
+            _c,
+            _by,
+            _cfg,
+            _t,
+            last_modified,
+        ) = draft_events::read_draft_pinned(e);
         let row = ledger.file_mut(file_id);
         row.total_draft = row.total_draft + 1;
         row.available_index = draft_index + 1;

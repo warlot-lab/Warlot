@@ -62,6 +62,7 @@ fun owner_withdraws_every_config() {
             SET,
             CYCLES,
             ALICE,
+            option::none(),
             &clk,
             sc.ctx(),
         );

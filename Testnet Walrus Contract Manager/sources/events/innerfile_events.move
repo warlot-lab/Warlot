@@ -28,9 +28,22 @@ public struct InnerFileCreated has copy, drop, store {
     epoch_set: u32,
     cycle_end: u64,
     draft_epoch_duration: u32,
+    /// Whether a system operator's credential may write this file at all.
+    operators_allowed: bool,
+    /// Whether a system operator's writes may skip this file's draft queue.
+    operators_may_bypass_draft: bool,
     created_at_ms: u64,
     commit: vector<u8>,
     blob_config_id: ID,
+}
+
+/// A file's owner replaced both operator bits.
+public struct FileOperatorPolicySet has copy, drop, store {
+    system_id: ID,
+    file_id: ID,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    set_by: address,
 }
 
 /// A revision became the file's head.
@@ -96,6 +109,8 @@ public(package) fun emit_inner_file_created(
     epoch_set: u32,
     cycle_end: u64,
     draft_epoch_duration: u32,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
     created_at_ms: u64,
     commit: vector<u8>,
     blob_config_id: ID,
@@ -110,9 +125,28 @@ public(package) fun emit_inner_file_created(
         epoch_set,
         cycle_end,
         draft_epoch_duration,
+        operators_allowed,
+        operators_may_bypass_draft,
         created_at_ms,
         commit,
         blob_config_id,
+    })
+}
+
+/// Announce a file's operator bits being replaced.
+public(package) fun emit_file_operator_policy_set(
+    system_id: ID,
+    file_id: ID,
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    set_by: address,
+) {
+    event::emit(FileOperatorPolicySet {
+        system_id,
+        file_id,
+        operators_allowed,
+        operators_may_bypass_draft,
+        set_by,
     })
 }
 
@@ -208,6 +242,8 @@ public fun read_inner_file_created(e: &InnerFileCreated): (
     u32,
     u64,
     u32,
+    bool,
+    bool,
     u64,
     vector<u8>,
     ID,
@@ -222,6 +258,8 @@ public fun read_inner_file_created(e: &InnerFileCreated): (
         epoch_set: _epoch_set,
         cycle_end: _cycle_end,
         draft_epoch_duration: _draft_epoch_duration,
+        operators_allowed: _operators_allowed,
+        operators_may_bypass_draft: _operators_may_bypass_draft,
         created_at_ms: _created_at_ms,
         commit: _commit,
         blob_config_id: _blob_config_id,
@@ -237,6 +275,8 @@ public fun read_inner_file_created(e: &InnerFileCreated): (
         *_epoch_set,
         *_cycle_end,
         *_draft_epoch_duration,
+        *_operators_allowed,
+        *_operators_may_bypass_draft,
         *_created_at_ms,
         *_commit,
         *_blob_config_id,
@@ -322,4 +362,30 @@ public fun read_root_change_removed(e: &RootChangeRemoved): (ID, ID, ID, address
     } = e;
 
     (*_system_id, *_file_id, *_blob_config_id, *_removed_by)
+}
+
+#[test_only]
+/// Every field of `FileOperatorPolicySet`, in declaration order.
+public fun read_file_operator_policy_set(e: &FileOperatorPolicySet): (
+    ID,
+    ID,
+    bool,
+    bool,
+    address,
+) {
+    let FileOperatorPolicySet {
+        system_id: _system_id,
+        file_id: _file_id,
+        operators_allowed: _operators_allowed,
+        operators_may_bypass_draft: _operators_may_bypass_draft,
+        set_by: _set_by,
+    } = e;
+
+    (
+        *_system_id,
+        *_file_id,
+        *_operators_allowed,
+        *_operators_may_bypass_draft,
+        *_set_by,
+    )
 }

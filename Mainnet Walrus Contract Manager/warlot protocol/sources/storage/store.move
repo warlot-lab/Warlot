@@ -5,7 +5,7 @@ module warlot::store;
 
 use sui::clock::Clock;
 use walrus::blob::{Self, Blob};
-use warlot::{blob_config, system_config::SystemConfig, tier, user};
+use warlot::{blob_config, operator::OperatorAuth, system_config::SystemConfig, tier, user};
 
 // === Errors ===
 
@@ -20,16 +20,22 @@ const ENoBlobs: vector<u8> = b"A STORE MUST CARRY AT LEAST ONE BLOB";
 /// delegation table that decides whether a sender other than `owner` may store on
 /// their behalf; custody itself lives on the config, so an upload changes no state
 /// shared with any other user.
+///
+/// `operator` carries the proof that the sender presented a live operator
+/// credential, and is `none` wherever none was offered. It is threaded down here
+/// rather than resolved here because the capability is an argument to the entry
+/// point, and `Option<&AdminCap>` is not a type Move will accept.
 public(package) fun raw_store_blob(
     system_cfg: &SystemConfig,
     blobs: vector<Blob>,
     epoch_set: u32,
     cycle_limit: u64,
     owner: address,
+    operator: Option<OperatorAuth>,
     clock: &Clock,
     ctx: &mut TxContext,
 ): ID {
-    user::check_permission_add_blob(user::get_user(system_cfg, owner), ctx);
+    user::check_permission_add_blob(user::get_user(system_cfg, owner), operator, ctx);
 
     let blob_setting = blob_config::new(
         object::id(system_cfg),
@@ -55,6 +61,7 @@ public(package) fun store_blob_internal(
     epoch_set: u32,
     cycle_end: u64,
     owner: address,
+    operator: Option<OperatorAuth>,
     clock: &Clock,
     ctx: &mut TxContext,
 ): (ID, u64) {
@@ -75,6 +82,7 @@ public(package) fun store_blob_internal(
         set,
         cycle_end,
         owner,
+        operator,
         clock,
         ctx,
     );

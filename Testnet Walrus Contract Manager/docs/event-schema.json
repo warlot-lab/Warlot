@@ -38,8 +38,12 @@
           "move_type": "u64"
         },
         {
-          "name": "writer_pass",
+          "name": "credential",
           "move_type": "ID"
+        },
+        {
+          "name": "credential_kind",
+          "move_type": "u8"
         },
         {
           "name": "issue",
@@ -71,7 +75,8 @@
         "file_id": "0xda9c0a26fe0ce3c836e9c9753d0e7f9eecf1acbc130cc1558d6384a2f06e8c45",
         "draft_id": "0xef5b76f5a9a64aa06703e87baae727901cc426ebb379478aab02f43be634c009",
         "draft_index": "1024",
-        "writer_pass": "0x811ac1b9085a2c7da0c8f82b5b7197bc7efd436fb5b7df5f7794750c2e09ab31",
+        "credential": "0xe265b6f564601a1fe8dc42785cd18a868bd8013eb5899560e79248767a683e6b",
+        "credential_kind": 1,
         "issue": "0xc071e2596bc11b7d71804b635668ee312fd98762c2d6f69064347fa5e344fae9",
         "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "commit_by": "0x7a5376820b30eb578b951d8bec3942a9096c9b9af741a034973a07bb404f424b",
@@ -481,6 +486,67 @@
         "delegate": "0x6f216e33c5cf9add9d70e7cd8c28e3dafe27e7723ea93918b27c60f118532154"
       }
     },
+    "<PACKAGE>::identity_events::OperatorRoleGranted": {
+      "module": "identity_events",
+      "summary": "A user delegated capability bits to the system operator role.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "add_blob_to_address",
+          "move_type": "bool"
+        },
+        {
+          "name": "create_inner_file",
+          "move_type": "bool"
+        },
+        {
+          "name": "create_writer_pass",
+          "move_type": "bool"
+        },
+        {
+          "name": "can_init_db",
+          "move_type": "bool"
+        },
+        {
+          "name": "can_compact",
+          "move_type": "bool"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "add_blob_to_address": true,
+        "create_inner_file": true,
+        "create_writer_pass": true,
+        "can_init_db": true,
+        "can_compact": true
+      }
+    },
+    "<PACKAGE>::identity_events::OperatorRoleRevoked": {
+      "module": "identity_events",
+      "summary": "A user withdrew every capability bit from the system operator role.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581"
+      }
+    },
     "<PACKAGE>::innerfile_events::InnerFileCreated": {
       "module": "innerfile_events",
       "summary": "A file was created and shared, with its first revision already in the window.",
@@ -522,6 +588,14 @@
           "move_type": "u32"
         },
         {
+          "name": "operators_allowed",
+          "move_type": "bool"
+        },
+        {
+          "name": "operators_may_bypass_draft",
+          "move_type": "bool"
+        },
+        {
           "name": "created_at_ms",
           "move_type": "u64"
         },
@@ -544,9 +618,44 @@
         "epoch_set": 13,
         "cycle_end": "1024",
         "draft_epoch_duration": 13,
+        "operators_allowed": true,
+        "operators_may_bypass_draft": true,
         "created_at_ms": "1024",
         "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "blob_config_id": "0x6cd3c0bc95c907cc8ce8941688fc6d7c48338d7236a50ad008b40db2d190b72e"
+      }
+    },
+    "<PACKAGE>::innerfile_events::FileOperatorPolicySet": {
+      "module": "innerfile_events",
+      "summary": "A file's owner replaced both operator bits.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "file_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "operators_allowed",
+          "move_type": "bool"
+        },
+        {
+          "name": "operators_may_bypass_draft",
+          "move_type": "bool"
+        },
+        {
+          "name": "set_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
+        "file_id": "0xda9c0a26fe0ce3c836e9c9753d0e7f9eecf1acbc130cc1558d6384a2f06e8c45",
+        "operators_allowed": true,
+        "operators_may_bypass_draft": true,
+        "set_by": "0x184d9b19a22f5d831feb5a0ccba819e3c6d2b7c7119c18d4517f0c9fc064f3ef"
       }
     },
     "<PACKAGE>::innerfile_events::HeadAdvanced": {
@@ -881,7 +990,7 @@
     },
     "<PACKAGE>::product_events::ProjectCreated": {
       "module": "product_events",
-      "summary": "A project was minted under a holder. The id is minted on chain and carried by no name, so this is the only announcement that it exists.",
+      "summary": "A project was minted under a holder.",
       "fields": [
         {
           "name": "holder_id",
@@ -909,7 +1018,7 @@
     },
     "<PACKAGE>::product_events::ProjectDatabaseInitialised": {
       "module": "product_events",
-      "summary": "An inner file was named as a project's database. A project has one and cannot name a second.",
+      "summary": "An inner file was named as a project's database.",
       "fields": [
         {
           "name": "holder_id",
@@ -937,7 +1046,7 @@
     },
     "<PACKAGE>::product_events::ProjectFileSetRootChanged": {
       "module": "product_events",
-      "summary": "A project's 32-byte commitment to its path to content mapping was replaced.",
+      "summary": "A project's commitment to its path to content mapping was replaced.",
       "fields": [
         {
           "name": "holder_id",
@@ -1331,10 +1440,6 @@
           "move_type": "u64"
         },
         {
-          "name": "warlot_allowed_address",
-          "move_type": "address"
-        },
-        {
           "name": "tier_table",
           "move_type": "vector<u32>"
         },
@@ -1364,7 +1469,6 @@
         "previous_system": "0x5bf268cb1a5a599e60db1056bcc704a53fc282230f887e50ce5ce158fd9d1b7f",
         "minted_by": "0x97c10e5ed0a7a3ce4b37df0fa87745eb5315e8a9ce3674bced83a20e70b67d77",
         "version": "1024",
-        "warlot_allowed_address": "0xb2e4efad0a35255157f87dfa47df6a3f0443c9405ce1595a290d4c1b5ebca71b",
         "tier_table": [
           13
         ],
@@ -1525,6 +1629,95 @@
         "total_system": 1,
         "recipient": "0x665d0698dbc8fb95afc25c3a4d9cf280d87a585b7999243ca6008fd03258975f",
         "minted_by": "0x97c10e5ed0a7a3ce4b37df0fa87745eb5315e8a9ce3674bced83a20e70b67d77"
+      }
+    },
+    "<PACKAGE>::system_events::SystemOperatorEnrolled": {
+      "module": "system_events",
+      "summary": "A capability was given a slot it did not hold before.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "admin_cap",
+          "move_type": "ID"
+        },
+        {
+          "name": "until_ms",
+          "move_type": "u64"
+        },
+        {
+          "name": "may_bypass_draft",
+          "move_type": "bool"
+        },
+        {
+          "name": "enrolled_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
+        "admin_cap": "0x98864d9a507aeb63af01aa22cdb679bb45a88a4358d6108f8943771e2e0ca1df",
+        "until_ms": "1024",
+        "may_bypass_draft": true,
+        "enrolled_by": "0x705f33270d6f294727d96e38c3937710b3fc64f70412015b1bcae39b8059da13"
+      }
+    },
+    "<PACKAGE>::system_events::SystemOperatorRefreshed": {
+      "module": "system_events",
+      "summary": "A slot a capability already held was given new terms.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "admin_cap",
+          "move_type": "ID"
+        },
+        {
+          "name": "until_ms",
+          "move_type": "u64"
+        },
+        {
+          "name": "may_bypass_draft",
+          "move_type": "bool"
+        },
+        {
+          "name": "refreshed_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
+        "admin_cap": "0x98864d9a507aeb63af01aa22cdb679bb45a88a4358d6108f8943771e2e0ca1df",
+        "until_ms": "1024",
+        "may_bypass_draft": true,
+        "refreshed_by": "0xe5429f6243b450127f60a930e9cc2a49d77743eab805587d7496210146177936"
+      }
+    },
+    "<PACKAGE>::system_events::SystemOperatorRetired": {
+      "module": "system_events",
+      "summary": "A capability lost its slot in the system's operator set.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "admin_cap",
+          "move_type": "ID"
+        },
+        {
+          "name": "retired_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
+        "admin_cap": "0x98864d9a507aeb63af01aa22cdb679bb45a88a4358d6108f8943771e2e0ca1df",
+        "retired_by": "0x4edacbc4ed332da6dd193297f1c54ef1d1aa81d997d411fc9079805a24b24003"
       }
     },
     "<PACKAGE>::treasury_events::VaultCoinSupportChanged": {

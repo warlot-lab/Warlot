@@ -52,6 +52,25 @@ stream whole and join locally.
    compute purely to announce. A consumer accumulates those from the deltas, which
    is what `tests/support/replay.move` does and what the rebuild test checks.
 
+### The credential behind a write
+
+`DraftPinned.credential` is the id of the object the write was authorised by, and
+`credential_kind` says which kind it is: `0` a writer pass, `1` a system
+operator's admin capability. The draft object records neither. An id on its own
+cannot be resolved to a type by anything on chain, and the variant set of an enum
+a published module declares cannot be widened by a later upgrade, so the
+discriminant belongs in the payload rather than in stored state.
+
+### The operator set
+
+A backend key is a **capability id** with a slot on the system, not an address.
+Enrolment, refreshment and retirement each raise their own event; moving the
+capability to another wallet raises none, because nothing on chain changes. A
+consumer tracking who may act for a user therefore joins three things: the slots
+in the stream, the `OperatorRoleGranted` rows, and the per-file
+`operators_allowed` bit ,  and it cannot know which wallet holds a slot without
+following the capability object itself.
+
 ### Timestamps
 
 An event carries a time field only where that time is itself on-chain state ,  a
@@ -97,12 +116,15 @@ same shapes.
 
 | Event | Emitted from | Fields |
 |---|---|---|
-| `SystemCreated` | system/config.move , `new` | `system_id`, `previous_system`, `minted_by`, `version`, `warlot_allowed_address`, `tier_table`, `max_epochs_ahead`, `cost_change_apikey_forms`, `cost_to_migrate_system`, `cost_to_update_name`, `cost_to_delete` |
+| `SystemCreated` | system/config.move , `new` | `system_id`, `previous_system`, `minted_by`, `version`, `tier_table`, `max_epochs_ahead`, `cost_change_apikey_forms`, `cost_to_migrate_system`, `cost_to_update_name`, `cost_to_delete` |
 | `SystemSucceeded` | system/config.move , `set_next_system` | `system_id`, `next_system`, `minted_by` |
 | `SystemFeesChanged` | system/config.move , `set_costs` | `system_id`, `cost_change_apikey_forms`, `cost_to_migrate_system`, `cost_to_update_name`, `cost_to_delete`, `changed_by` |
 | `SystemTiersChanged` | system/config.move , `set_tier_table` | `system_id`, `tier_table`, `max_epochs_ahead`, `changed_by` |
 | `SystemVersionMigrated` | system/config.move , `update_version` | `system_id`, `version`, `migrated_by` |
 | `AdminCapMinted` | system/admin_cap.move , `transfer_to` | `system_id`, `admin_cap`, `state`, `total_system`, `recipient`, `minted_by` |
+| `SystemOperatorEnrolled` | system/config.move , `enrol_operator` | `system_id`, `admin_cap`, `until_ms`, `may_bypass_draft`, `enrolled_by` |
+| `SystemOperatorRefreshed` | system/config.move , `refresh_operator` | `system_id`, `admin_cap`, `until_ms`, `may_bypass_draft`, `refreshed_by` |
+| `SystemOperatorRetired` | system/config.move , `retire_operator` | `system_id`, `admin_cap`, `retired_by` |
 
 ### Treasury ,  `treasury_events`
 
@@ -124,8 +146,10 @@ same shapes.
 | `WalletCreated` | identity/wallet.move , `create_wallet` | `system_id`, `wallet_id`, `user`, `created_at` |
 | `WalletDeposited` | identity/wallet.move , `deposit` | `system_id`, `user`, `coin_type`, `amount`, `new_balance` |
 | `WalletWithdrawn` | identity/wallet.move , `withdraw`, `withdraw_all` | `system_id`, `user`, `coin_type`, `amount`, `new_balance` |
-| `PermissionGranted` | identity/permission.move , `create_table`, `create_permission_state` | `system_id`, `owner`, `delegate`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact` |
+| `PermissionGranted` | identity/permission.move , `create_permission_state`, `replace_permission_state` | `system_id`, `owner`, `delegate`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact` |
 | `PermissionRevoked` | identity/permission.move , `revoke_permission_state` | `system_id`, `owner`, `delegate` |
+| `OperatorRoleGranted` | identity/permission.move , `create_table`, `create_operator_role_state`, `replace_operator_role_state` | `system_id`, `owner`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact` |
+| `OperatorRoleRevoked` | identity/permission.move , `revoke_operator_role_state` | `system_id`, `owner` |
 
 ### Blob custody ,  `storage_events`
 
@@ -144,17 +168,18 @@ same shapes.
 
 | Event | Emitted from | Fields |
 |---|---|---|
-| `InnerFileCreated` | innerfile/inner_file.move , `share` | `system_id`, `file_id`, `owner`, `created_by`, `writers_length`, `track_back_length`, `epoch_set`, `cycle_end`, `draft_epoch_duration`, `created_at_ms`, `commit`, `blob_config_id` |
+| `InnerFileCreated` | innerfile/inner_file.move , `share` | `system_id`, `file_id`, `owner`, `created_by`, `writers_length`, `track_back_length`, `epoch_set`, `cycle_end`, `draft_epoch_duration`, `operators_allowed`, `operators_may_bypass_draft`, `created_at_ms`, `commit`, `blob_config_id` |
 | `HeadAdvanced` | innerfile/eviction.move , `advance_history` | `system_id`, `file_id`, `commit`, `commit_by`, `blob_config_id`, `previous_commit`, `previous_blob_config`, `window_depth`, `last_modified` |
 | `RevisionRetired` | innerfile/eviction.move , `release` and `discard` | `system_id`, `file_id`, `blob_config`, `commit`, `commit_by`, `released` |
 | `RootChangeSet` | innerfile/inner_file.move , `swap_root_change` | `system_id`, `file_id`, `commit`, `commit_by`, `blob_config_id`, `previous_blob_config` |
 | `RootChangeRemoved` | innerfile/inner_file.move , `extract_root_change` | `system_id`, `file_id`, `blob_config_id`, `removed_by` |
+| `FileOperatorPolicySet` | innerfile/inner_file.move , `set_operator_policy` | `system_id`, `file_id`, `operators_allowed`, `operators_may_bypass_draft`, `set_by` |
 
 ### Drafts ,  `draft_events`
 
 | Event | Emitted from | Fields |
 |---|---|---|
-| `DraftPinned` | innerfile/draft.move , `pin_draft` | `system_id`, `file_id`, `draft_id`, `draft_index`, `writer_pass`, `issue`, `commit`, `commit_by`, `blob_config_id`, `total_draft`, `last_modified` |
+| `DraftPinned` | innerfile/draft.move , `pin_draft` | `system_id`, `file_id`, `draft_id`, `draft_index`, `credential`, `credential_kind`, `issue`, `commit`, `commit_by`, `blob_config_id`, `total_draft`, `last_modified` |
 | `DraftMerged` | innerfile/draft.move , `resolve_draft_to_file` | `system_id`, `file_id`, `draft_index`, `merged_by`, `commit`, `blob_config_id`, `total_draft`, `last_modified` |
 | `DraftDeleted` | innerfile/draft.move , `delete_draft` | `system_id`, `file_id`, `draft_index`, `deleted_by`, `total_draft`, `last_modified` |
 

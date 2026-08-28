@@ -4,7 +4,7 @@ module warlot::draft;
 // === Imports ===
 
 use sui::{clock::Clock, dynamic_object_field as ofields};
-use warlot::{draft_events, file_data::FileData};
+use warlot::{credential::{Self, Credential}, draft_events, file_data::FileData};
 
 // === Errors ===
 
@@ -34,19 +34,19 @@ public struct FileDraftHolder has key, store {
 }
 
 /// One proposed revision.
+///
+/// It records no credential. The id of the pass or capability behind a draft was
+/// held here, read by nothing, and already carried by `DraftPinned` ,  and it now
+/// has to say which of the two kinds it is, which is a discriminant an event can
+/// hold and a stored struct cannot gain a variant of later.
 public struct Draft has key, store {
     id: UID,
-    /// The pass the writer used to make this draft.
-    writer_pass: ID,
     /// The issue this draft resolves, if any.
     issue: Option<ID>,
     file: Option<FileData>,
 }
 
 // === View functions ===
-
-/// The pass the writer used to make this draft.
-public fun writer_pass(draft: &Draft): ID { draft.writer_pass }
 
 /// The issue this draft resolves, if any.
 public fun issue(draft: &Draft): &Option<ID> { &draft.issue }
@@ -78,14 +78,12 @@ public(package) fun create_draft_holder(
 
 /// Build one proposed revision.
 public(package) fun create_draft(
-    writer_pass: ID,
     issue: Option<ID>,
     file: Option<FileData>,
     ctx: &mut TxContext,
 ): Draft {
     Draft {
         id: object::new(ctx),
-        writer_pass,
         issue,
         file,
     }
@@ -98,6 +96,7 @@ public(package) fun create_draft(
 public(package) fun pin_draft(
     draft_holder: &mut FileDraftHolder,
     draft: Draft,
+    credential: Credential,
     clock: &Clock,
     system_id: ID,
     file_id: ID,
@@ -106,7 +105,6 @@ public(package) fun pin_draft(
     let available_index_point = draft_holder.available_index;
 
     let draft_id = object::id(&draft);
-    let writer_pass = draft.writer_pass;
     let issue = draft.issue;
     let proposed = draft.file.borrow();
     let commit = proposed.commit();
@@ -124,7 +122,8 @@ public(package) fun pin_draft(
         file_id,
         draft_id,
         available_index_point,
-        writer_pass,
+        credential.id(),
+        credential.kind(),
         issue,
         commit,
         commit_by,
@@ -150,7 +149,7 @@ public(package) fun resolve_draft_to_file(
     draft_holder.last_modified = clock.timestamp_ms();
 
     let draft = ofields::remove<u64, Draft>(&mut draft_holder.id, draft_index);
-    let Draft { id, writer_pass: _, issue: _, file } = draft;
+    let Draft { id, issue: _, file } = draft;
     id.delete();
 
     let accepted = option::destroy_some(file);
@@ -212,7 +211,7 @@ public(package) fun delete_draft(
 ): Option<FileData> {
     assert!(ofields::exists_(&draft_holder.id, draft), INVALIDDRAFT);
     let draft_obj = ofields::remove<u64, Draft>(&mut draft_holder.id, draft);
-    let Draft { id, writer_pass: _, issue: _, file } = draft_obj;
+    let Draft { id, issue: _, file } = draft_obj;
     id.delete();
     draft_holder.last_modified = clock.timestamp_ms();
     let old_total_draft = draft_holder.total_draft;

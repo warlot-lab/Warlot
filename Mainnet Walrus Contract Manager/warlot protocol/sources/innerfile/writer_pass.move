@@ -19,15 +19,15 @@ public struct WriterPass has key {
     file_id: ID,
     /// The timestamp in ms past which the pass has decayed.
     duration: u64,
-    /// Present when the pass may bypass the draft queue.
-    admin_privilege: Option<AdminPass>,
-}
-
-/// Carried by a pass that may push changes straight into the file's history
-/// rather than into the draft queue. Given to services that write on a user's
-/// behalf when the content is too large for the user's own machine.
-public struct AdminPass has store, drop {
-    admin: address,
+    /// Whether the pass may push changes straight into the file's history rather
+    /// than into the draft queue. Given to services that write on a user's behalf
+    /// when the content is too large for the user's own machine.
+    ///
+    /// This was an `Option<AdminPass>` wrapping the file owner's address. Nothing
+    /// read the address ,  no accessor for it existed anywhere in this module's
+    /// public surface ,  and `WriterPassMinted` has always carried the same
+    /// answer as a `bool`.
+    admin_privilege: bool,
 }
 
 // === Public functions ===
@@ -59,7 +59,7 @@ public fun duration(pass: &WriterPass): u64 {
 
 /// Whether the pass may bypass the draft queue.
 public fun has_admin_privilege(pass: &WriterPass): bool {
-    option::is_some(&pass.admin_privilege)
+    pass.admin_privilege
 }
 
 /// Whether the pass is one the system does not decay.
@@ -78,7 +78,7 @@ public fun immortal_duration(): u64 {
 public(package) fun new(
     file_id: ID,
     duration: u64,
-    admin_privilege: Option<AdminPass>,
+    admin_privilege: bool,
     ctx: &mut TxContext,
 ): WriterPass {
     WriterPass {
@@ -106,14 +106,9 @@ public(package) fun transfer_to(
         object::id(&pass),
         writer,
         pass.duration,
-        option::is_some(&pass.admin_privilege),
+        pass.admin_privilege,
         ctx.sender(),
     );
 
     transfer::transfer(pass, writer);
-}
-
-/// Build the admin privilege carried by a bypassing pass.
-public(package) fun new_admin_pass(admin: address): AdminPass {
-    AdminPass { admin }
 }

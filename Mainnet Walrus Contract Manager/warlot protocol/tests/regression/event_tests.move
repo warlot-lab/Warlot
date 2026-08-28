@@ -19,7 +19,7 @@ use warlot::{
     entry_register,
     entry_renew,
     fixtures,
-    identity_events::{Self, PermissionGranted, PermissionRevoked},
+    identity_events::{Self, OperatorRoleGranted, PermissionGranted, PermissionRevoked},
     registry::Registry,
     storage_events::{Self, BlobRenewed, BlobStored, RenewCycleSpent, RenewSkipped},
     store,
@@ -331,6 +331,7 @@ fun stored_by_differs() {
         SET,
         CYCLES,
         ALICE,
+        option::none(),
         &clk,
         sc.ctx(),
     );
@@ -507,10 +508,11 @@ fun a_default_delegation_is_announced() {
     sc.next_tx(ALICE);
     let mut sys = sc.take_shared<SystemConfig>();
     let clk = clock::create_for_testing(sc.ctx());
-    let warlot_address = sys.get_warlot_address();
 
-    // Registering with the system's delegate hands that address every bit before
-    // the user has done anything. It is a delegation, so it is announced as one.
+    // Registering with the system's operator role hands it every bit before the
+    // user has done anything. It is a delegation, so it is announced as one ,  and
+    // as `OperatorRoleGranted` rather than `PermissionGranted`, because it names
+    // no address to grant to.
     entry_register::all_register_user_with_system_permission(
         &mut sys,
         b"alice".to_string(),
@@ -518,15 +520,18 @@ fun a_default_delegation_is_announced() {
         sc.ctx(),
     );
 
-    let grants = event::events_by_type<PermissionGranted>();
+    let grants = event::events_by_type<OperatorRoleGranted>();
     assert!(grants.length() == 1, 0);
 
-    let (_, owner, delegate, add_blob, inner_file, writer_pass, init_db, compact) =
-        identity_events::read_permission_granted(&grants[0]);
+    let (_, owner, add_blob, inner_file, writer_pass, init_db, compact) =
+        identity_events::read_operator_role_granted(&grants[0]);
 
     assert!(owner == ALICE, 1);
-    assert!(delegate == warlot_address, 2);
-    assert!(add_blob && inner_file && writer_pass && init_db && compact, 3);
+    assert!(add_blob && inner_file && writer_pass && init_db && compact, 2);
+
+    // And no address was named anywhere, which is the whole point of the change:
+    // a registration no longer writes any key's address into the user's table.
+    assert!(event::events_by_type<PermissionGranted>().is_empty(), 3);
 
     ts::return_shared(sys);
     clock::destroy_for_testing(clk);

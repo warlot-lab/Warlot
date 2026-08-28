@@ -60,6 +60,7 @@ fun grant_then_use() {
         SET,
         CYCLES,
         ALICE,
+        option::none(),
         &clk,
         sc.ctx(),
     );
@@ -102,6 +103,7 @@ fun a_stranger_cannot_act_without_a_grant() {
         SET,
         CYCLES,
         ALICE,
+        option::none(),
         &clk,
         sc.ctx(),
     );
@@ -146,6 +148,7 @@ fun revoke_then_denied() {
         SET,
         CYCLES,
         ALICE,
+        option::none(),
         &clk,
         sc.ctx(),
     );
@@ -171,10 +174,10 @@ fun owner_never_needs_grant() {
     // Every gate, against a table that holds nothing at all.
     sc.next_tx(ALICE);
     let alice = user::get_user(&sys, ALICE);
-    user::check_permission_add_blob(alice, sc.ctx());
-    user::check_permission_inner_file(alice, sc.ctx());
-    user::check_permission_writer_pass(alice, sc.ctx());
-    user::check_permission_can_init_db(alice, sc.ctx());
+    user::check_permission_add_blob(alice, option::none(), sc.ctx());
+    user::check_permission_inner_file(alice, option::none(), sc.ctx());
+    user::check_permission_writer_pass(alice, option::none(), sc.ctx());
+    user::check_permission_can_init_db(alice, option::none(), sc.ctx());
 
     clock::destroy_for_testing(clk);
     ts::return_shared(sys);
