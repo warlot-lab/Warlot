@@ -36,9 +36,6 @@ public struct BlobConfig has key {
     epoch_set: u32,
     /// How many renewal cycles remain; `none` for an indefinite mandate.
     cycle_limit: Option<u64>,
-    /// The `FileMeta` naming this config, if one exists.
-    fileMeta_id: Option<ID>,
-    uploaded_on: u64,
 }
 
 // === View functions ===
@@ -76,18 +73,6 @@ public(package) fun has_cycles(blob_cfg: &BlobConfig): bool {
 // === Test-only helpers ===
 
 #[test_only]
-/// The `FileMeta` naming this config, if one exists.
-public fun fileMeta_id(blob_cfg: &BlobConfig): Option<ID> {
-    blob_cfg.fileMeta_id
-}
-
-#[test_only]
-/// When this config took custody.
-public fun uploaded_on(blob_cfg: &BlobConfig): u64 {
-    blob_cfg.uploaded_on
-}
-
-#[test_only]
 /// The object ids of the blobs under this config's custody.
 public fun blob_ids(blob_cfg: &BlobConfig): vector<ID> {
     let mut ids = vector<ID>[];
@@ -107,18 +92,17 @@ public(package) fun new(
     blobs: vector<Blob>,
     epoch_set: u32,
     cycle_limit: Option<u64>,
-    fileMeta_id: Option<ID>,
     clock: &Clock,
     ctx: &mut TxContext,
 ): BlobConfig {
+    let uploaded_on = clock.timestamp_ms();
+
     let blob_cfg = BlobConfig {
         id: object::new(ctx),
         owner,
         blobs,
         epoch_set,
         cycle_limit,
-        fileMeta_id,
-        uploaded_on: clock.timestamp_ms(),
     };
 
     // Announced here rather than on either upload path, because this is the one
@@ -155,8 +139,7 @@ public(package) fun new(
         end_epoch,
         epoch_set,
         cycle_limit,
-        fileMeta_id,
-        blob_cfg.uploaded_on,
+        uploaded_on,
     );
 
     blob_cfg
@@ -250,15 +233,7 @@ public(package) fun unwrap_for_owner(
 /// adds reconstructs a state that never existed.
 fun destroy(blob_cfg: BlobConfig, system_id: ID): (address, vector<Blob>) {
     let config_id = object::id(&blob_cfg);
-    let BlobConfig {
-        id,
-        owner,
-        blobs,
-        epoch_set: _,
-        cycle_limit: _,
-        fileMeta_id: _,
-        uploaded_on: _,
-    } = blob_cfg;
+    let BlobConfig { id, owner, blobs, epoch_set: _, cycle_limit: _ } = blob_cfg;
     id.delete();
 
     let mut blobs_obj_id = vector<ID>[];

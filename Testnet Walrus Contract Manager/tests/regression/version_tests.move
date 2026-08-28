@@ -417,7 +417,7 @@ fun gate_initialize_project_file() {
     let (sys, file, pass, config, mut holder, wsys, funds, clk) = file_world(&mut sc, true);
     entry_innerfile::initialize_project_file(
         &mut holder,
-        b"project".to_string(),
+        object::id_from_address(@0x0),
         &sys,
         ALICE,
         fixtures::file_writers(),
@@ -490,8 +490,7 @@ fun gate_write_() {
         &mut file,
         &mut pass,
         true,
-        0,
-        false,
+        option::none(),
         &clk,
         &sys,
         vector[],

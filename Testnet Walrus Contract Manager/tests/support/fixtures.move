@@ -134,7 +134,6 @@ public fun shared_config(
         vector[raw_blob],
         epoch_set,
         cycle_limit,
-        option::none(),
         clock,
         ctx,
     );

@@ -330,7 +330,6 @@ fun stored_by_differs() {
         vector[raw_blob],
         SET,
         CYCLES,
-        option::none(),
         ALICE,
         &clk,
         sc.ctx(),
@@ -351,8 +350,7 @@ fun stored_by_differs() {
         _end_epoch,
         epoch_set,
         cycle_limit,
-        fileMeta_id,
-        _uploaded_on,
+        uploaded_on,
     ) = storage_events::read_blob_stored(&stores[0]);
 
     assert!(owner == ALICE, 1);
@@ -367,7 +365,10 @@ fun stored_by_differs() {
     assert!(size == BLOB_SIZE, 8);
     assert!(epoch_set == SET, 9);
     assert!(cycle_limit.borrow() == CYCLES, 10);
-    assert!(fileMeta_id.is_none(), 11);
+
+    // The config records no timestamp of its own now, so the store's is only in
+    // the stream.
+    assert!(uploaded_on == clk.timestamp_ms(), 11);
 
     destroy(funds);
     destroy(wsys);

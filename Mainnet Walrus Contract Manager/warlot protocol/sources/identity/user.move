@@ -4,13 +4,7 @@ module warlot::user;
 // === Imports ===
 
 use std::string::String;
-use sui::{
-    clock::Clock,
-    dynamic_field as dfield,
-    dynamic_object_field as ofields,
-    table::{Self, Table},
-    table_vec::{Self, TableVec},
-};
+use sui::{clock::Clock, dynamic_object_field as ofields};
 use warlot::{
     identity_events,
     permission,
@@ -135,33 +129,25 @@ public(package) fun create_user(
     new_user
 }
 
-/// Attach `user` to the system under the sender's address and index it.
+/// Attach `user` to the system under the sender's address.
+///
+/// Membership is the dynamic field itself, which `check_user` reads directly. The
+/// append-only address list and the address-to-index map that used to be
+/// maintained alongside it cost two objects per user forever and existed only for
+/// a global loop that no longer exists.
 public(package) fun add_user(system_cfg: &mut SystemConfig, user: User, ctx: &TxContext) {
     let new_user = ctx.sender();
     assert!(!ofields::exists_(system_config::uid(system_cfg), new_user), EUserExist);
 
     let user_id = object::id(&user);
 
-    index_push_user(system_cfg, new_user);
-
     ofields::add<address, User>(system_config::uid_mut(system_cfg), new_user, user);
 
-    system_config::increase_user_count(system_cfg);
-
-    identity_events::emit_user_joined_system(
-        object::id(system_cfg),
-        new_user,
-        user_id,
-        system_cfg.users(),
-    );
+    identity_events::emit_user_joined_system(object::id(system_cfg), new_user, user_id);
 }
 
-/// Detach `user` from the system and remove them from the index.
+/// Detach `user` from the system.
 public(package) fun remove_user(system_cfg: &mut SystemConfig, user: address): User {
-    index_remove_user(system_cfg, user);
-
-    system_config::decrease_user_count(system_cfg);
-
     // `dynamic_object_field` wraps its keys, so a record attached with it has to be
     // detached with it; `dynamic_field` looks in a different key space and finds
     // nothing.
@@ -171,7 +157,6 @@ public(package) fun remove_user(system_cfg: &mut SystemConfig, user: address): U
         object::id(system_cfg),
         user,
         object::id(&removed),
-        system_cfg.users(),
     );
 
     removed
@@ -182,75 +167,4 @@ public(package) fun get_user_mut(system_cfg: &mut SystemConfig, user: address): 
     assert!(check_user(system_cfg, user), EUserNotFound);
 
     ofields::borrow_mut<address, User>(system_config::uid_mut(system_cfg), user)
-}
-
-// === Private functions ===
-
-/// Record `user` at the end of the address index and in the lookup map.
-fun index_push_user(system_cfg: &mut SystemConfig, user: address) {
-    let index_key = system_config::user_index_key();
-    let map_key = system_config::user_index_map_key();
-
-    let new_index = {
-        let indexer = dfield::borrow_mut<vector<u8>, TableVec<address>>(
-            system_config::uid_mut(system_cfg),
-            index_key,
-        );
-        table_vec::push_back(indexer, user);
-        table_vec::length(indexer) - 1
-    };
-
-    let index_map = dfield::borrow_mut<vector<u8>, Table<address, u64>>(
-        system_config::uid_mut(system_cfg),
-        map_key,
-    );
-    table::add(index_map, user, new_index);
-}
-
-/// Drop `user` from the address index using swap-and-pop, keeping the map in step.
-fun index_remove_user(system_cfg: &mut SystemConfig, user: address) {
-    let index_key = system_config::user_index_key();
-    let map_key = system_config::user_index_map_key();
-
-    // Take the index, then release the map borrow so the indexer can be borrowed.
-    let user_index = {
-        let index_map = dfield::borrow_mut<vector<u8>, Table<address, u64>>(
-            system_config::uid_mut(system_cfg),
-            map_key,
-        );
-        table::remove(index_map, user)
-    };
-
-    // Swap-and-pop, capturing the address that moved so the map can be corrected
-    // once this borrow ends.
-    let swapped_user_option = {
-        let indexer = dfield::borrow_mut<vector<u8>, TableVec<address>>(
-            system_config::uid_mut(system_cfg),
-            index_key,
-        );
-        let last_index = table_vec::length(indexer) - 1;
-
-        if (user_index != last_index) {
-            table_vec::swap(indexer, user_index, last_index);
-
-            let swapped_addr = *table_vec::borrow(indexer, user_index);
-
-            table_vec::pop_back(indexer);
-
-            option::some(swapped_addr)
-        } else {
-            table_vec::pop_back(indexer);
-            option::none()
-        }
-    };
-
-    if (option::is_some(&swapped_user_option)) {
-        let swapped_addr = *option::borrow(&swapped_user_option);
-        let index_map = dfield::borrow_mut<vector<u8>, Table<address, u64>>(
-            system_config::uid_mut(system_cfg),
-            map_key,
-        );
-
-        *table::borrow_mut(index_map, swapped_addr) = user_index;
-    };
 }

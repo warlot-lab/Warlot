@@ -29,9 +29,13 @@ const DENYLISTKEY: vector<u8> = b"deny list";
 ///
 /// Revoked pass ids are attached alongside, keyed by `ID` rather than by
 /// `address`, so the two records share the object without colliding.
+///
+/// The object carries no fields of its own: the denials *are* the dynamic
+/// fields, and the running count that used to sit here was written on every
+/// change and read by nothing. A consumer that wants the count counts the
+/// `WriterDenied` and `WriterUndenied` events.
 public struct DenyList has key, store {
     id: UID,
-    numbers_of_deny: u64,
 }
 
 // === View functions ===
@@ -51,19 +55,11 @@ public(package) fun is_pass_revoked(deny_obj: &DenyList, pass_id: ID): bool {
     dfield::exists_<ID>(&deny_obj.id, pass_id)
 }
 
-/// How many writers are currently denied.
-public(package) fun numbers_of_deny(deny_obj: &DenyList): u64 {
-    deny_obj.numbers_of_deny
-}
-
 // === Package functions ===
 
 /// Attach an empty deny list to `file_uid`.
 public(package) fun attach(file_uid: &mut UID, ctx: &mut TxContext) {
-    let default_deny_list = DenyList {
-        id: object::new(ctx),
-        numbers_of_deny: 0,
-    };
+    let default_deny_list = DenyList { id: object::new(ctx) };
 
     ofields::add<vector<u8>, DenyList>(file_uid, DENYLISTKEY, default_deny_list);
 }
@@ -95,31 +91,14 @@ public(package) fun deny(
         // still a change, and is announced as one.
         *dfield::borrow_mut<address, u64>(&mut deny_obj.id, writer) = period;
 
-        pass_events::emit_writer_denied(
-            system_id,
-            file_id,
-            writer,
-            period,
-            denied_by,
-            deny_obj.numbers_of_deny,
-        );
+        pass_events::emit_writer_denied(system_id, file_id, writer, period, denied_by);
 
         return
     };
 
     dfield::add<address, u64>(&mut deny_obj.id, writer, period);
 
-    let old_d_o = deny_obj.numbers_of_deny;
-    deny_obj.numbers_of_deny = 1 + old_d_o;
-
-    pass_events::emit_writer_denied(
-        system_id,
-        file_id,
-        writer,
-        period,
-        denied_by,
-        deny_obj.numbers_of_deny,
-    );
+    pass_events::emit_writer_denied(system_id, file_id, writer, period, denied_by);
 }
 
 /// Drop `writer`'s denial, or do nothing when they hold none.
@@ -139,18 +118,9 @@ public(package) fun undeny(
 
     let _ = dfield::remove<address, u64>(&mut deny_obj.id, writer);
 
-    let old_d_o = deny_obj.numbers_of_deny;
-    deny_obj.numbers_of_deny = old_d_o - 1;
-
     // Only a denial that was actually there is announced. Announcing the no-op
     // would report a state change that did not happen.
-    pass_events::emit_writer_undenied(
-        system_id,
-        file_id,
-        writer,
-        undenied_by,
-        deny_obj.numbers_of_deny,
-    );
+    pass_events::emit_writer_undenied(system_id, file_id, writer, undenied_by);
 }
 
 /// Revoke the pass `pass_id`, permanently.

@@ -133,12 +133,15 @@ fun rebuild_matches_chain() {
     // --- an upload for herself, and one on her behalf ----------------------
     sc.next_tx(ALICE);
     let alice_blob = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut funds, sc.ctx());
+
+    // The config no longer records when it was stored, so the clock reading the
+    // store was given is held against what the stream reports.
+    let stored_at = clk.timestamp_ms();
     let (own_config, _) = store::store_blob_internal(
         &sys,
         vector[alice_blob],
         SET,
         CYCLES,
-        option::none(),
         ALICE,
         &clk,
         sc.ctx(),
@@ -153,7 +156,6 @@ fun rebuild_matches_chain() {
         vector[bob_blob],
         SET,
         CYCLES,
-        option::none(),
         ALICE,
         &clk,
         sc.ctx(),
@@ -283,8 +285,7 @@ fun rebuild_matches_chain() {
         &mut file,
         &mut bob_pass,
         true,
-        0,
-        false,
+        option::none(),
         &clk,
         &sys,
         vector[proposal],
@@ -394,9 +395,11 @@ fun rebuild_matches_chain() {
     assert!(name == sys.cost_to_update_name(), 8);
     assert!(del == sys.cost_to_delete(), 9);
 
-    // Derived from joins minus leaves, then held against the counter the chain
-    // keeps for itself.
-    assert!(system_row.system_users() == sys.users(), 10);
+    // Derived from joins minus leaves. The chain keeps no counter to compare
+    // against any more, so the comparison is against the membership itself ,
+    // the dynamic fields `check_user` reads, which is the state the counter was
+    // ever a summary of.
+    assert!(system_row.system_users() == registered_users(&sys), 10);
     assert!(system_row.system_vault_wal() == sys.get_system_balance<WAL>(), 11);
     assert!(system_row.system_admin_caps().length() == 1, 12);
     assert!(system_row.system_admin_caps()[0] == object::id(&cap), 13);
@@ -412,7 +415,9 @@ fun rebuild_matches_chain() {
     assert!(alice_row.user_created_at() == alice_registry.created_at(), 20);
     assert!(alice_row.user_decay_at() == alice_registry.decay_at(), 21);
     assert!(alice_row.user_foreign_meta().borrow() == object::id(&alice_meta), 22);
-    assert!(alice_row.user_foreign_configs() == alice_meta.total_blob_config(), 23);
+    // Accumulated from the adoption events, against the ids the index itself
+    // holds. One chunk was opened, so its length is the whole total.
+    assert!(alice_row.user_foreign_configs() == foreign_meta::verify_peak(&alice_meta), 23);
     assert!(alice_row.user_foreign_chunk() == alice_meta.current_index(), 24);
 
     let alice_user = user::get_user(&sys, ALICE);
@@ -449,8 +454,7 @@ fun rebuild_matches_chain() {
     assert!(renewed_row.config_epoch_set() == blob_config::epoch_set(&renewed), 39);
     assert!(renewed_row.config_cycle_limit() == blob_config::cycle_limit(&renewed), 40);
     assert!(renewed_row.config_cycle_limit().borrow() == CYCLES - 1, 41);
-    assert!(renewed_row.config_file_meta() == renewed.fileMeta_id(), 42);
-    assert!(renewed_row.config_uploaded_on() == renewed.uploaded_on(), 43);
+    assert!(renewed_row.config_uploaded_on() == stored_at, 43);
     assert!(renewed_row.config_blobs() == renewed.blob_ids(), 44);
     assert!(renewed_row.config_blob_sizes() == vector[BLOB_SIZE], 45);
     assert!(renewed_row.config_size() == BLOB_SIZE, 46);
@@ -515,9 +519,15 @@ fun rebuild_matches_chain() {
     assert!(rebuilt_total_draft == 0, 77);
     assert!(rebuilt_available_index == 1, 78);
 
-    // Denials on, off and on again, counted rather than copied.
+    // Denials on, off and on again, counted rather than copied. The deny list
+    // keeps no count of its own now, so the derived total is held against the
+    // entries the list actually carries.
     let deny_obj = deny_list::borrow(file.uid());
-    assert!(ledger.denials_live(file_id) == deny_list::numbers_of_deny(deny_obj), 79);
+    let mut chain_denials = 0;
+    vector[ADMIN, ALICE, BOB, MALLORY].do_ref!(|addr| {
+        if (deny_list::contains(deny_obj, *addr)) chain_denials = chain_denials + 1;
+    });
+    assert!(ledger.denials_live(file_id) == chain_denials, 79);
     assert!(ledger.denials_live(file_id) == 1, 80);
     assert!(deny_list::contains(deny_obj, BOB), 81);
     assert!(!deny_list::contains(deny_obj, MALLORY), 82);
@@ -617,13 +627,13 @@ fun rebuild_follows_a_user_between_systems() {
 
     let first_row = ledger.system(first_id);
     assert!(first_row.system_next().borrow() == second_id, 0);
-    assert!(first_row.system_users() == first.users(), 1);
+    assert!(first_row.system_users() == registered_users(&first), 1);
     assert!(first_row.system_users() == 0, 2);
     assert!(!user::check_user(&first, ALICE), 3);
 
     let second_row = ledger.system(second_id);
     assert!(second_row.system_previous() == first_id, 4);
-    assert!(second_row.system_users() == second.users(), 5);
+    assert!(second_row.system_users() == registered_users(&second), 5);
     assert!(second_row.system_users() == 1, 6);
     assert!(user::check_user(&second, ALICE), 7);
 
@@ -662,6 +672,20 @@ fun rebuild_follows_a_user_between_systems() {
 /// Move the clock on, so no two recorded timestamps are the same by accident.
 fun tick(clk: &mut clock::Clock) {
     clock::increment_for_testing(clk, TICK_MS);
+}
+
+/// How many of the scenario's addresses the system still holds a record for.
+///
+/// The system stopped keeping a registered-user count, so this walks the
+/// membership the chain does keep. Every address the scenario ever registers is
+/// listed, so a join or a leave the replay missed shows up as a mismatch rather
+/// than as a number nobody checks.
+fun registered_users(sys: &SystemConfig): u64 {
+    let mut count = 0;
+    vector[ADMIN, ALICE, BOB, MALLORY].do_ref!(|addr| {
+        if (user::check_user(sys, *addr)) count = count + 1;
+    });
+    count
 }
 
 /// The coin-type string the treasury keys its balances by.

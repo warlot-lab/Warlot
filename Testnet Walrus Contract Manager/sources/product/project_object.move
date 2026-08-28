@@ -1,112 +1,115 @@
-/// Holds `ProjectHolder`, the per-user index over projects, their buckets and their database.
+/// Holds `ProjectHolder`, the authority root over a user's projects, and
+/// `Project`, the id-keyed record carrying a project's database and its
+/// commitment to the paths it resolves.
+///
+/// A project used to be keyed by its name and to carry that name, a description,
+/// two timestamps and two counters. None of it was read by any contract
+/// function, and keying by name made a rename an object removed and re-added.
+/// What is left is the two things a contract does read ,  the address allowed to
+/// act on the holder, and the one inner file the project may name as its
+/// database ,  plus the 32-byte root that binds the names now living off chain
+/// to the content they resolve to.
 module warlot::project_object;
 
 // === Imports ===
 
-use std::string::String;
-use sui::{clock::Clock, dynamic_object_field as ofields};
+use sui::dynamic_object_field as ofields;
+use warlot::{file_set, product_events};
 
 // === Errors ===
 
 #[error]
 const INVALIDACCESS: vector<u8> = b"INVALID PROJECT HOLDER";
 #[error]
-const NAMEINUSE: vector<u8> = b"ENTER UNUSED NAME";
-#[error]
-const INVALIDNAME: vector<u8> = b"Enter valid name";
+const ENoSuchProject: vector<u8> = b"THIS HOLDER HOLDS NO PROJECT WITH THAT ID";
 #[error]
 const DBEXIST: vector<u8> = b"db has been initialized";
 
-// === Constants ===
-
-/// Dynamic object field key for a project's bucket collection.
-const BUCKETHOLDERKEY: vector<u8> = b"bucket";
-/// Dynamic object field key for a project's database.
-const DATABASE: vector<u8> = b"database";
-
 // === Structs ===
 
-/// A user's projects, indexed by name.
+/// A user's projects, indexed by the id each was minted with.
 public struct ProjectHolder has key, store {
     id: UID,
+    /// The address that may create projects here and edit the ones it holds.
     admin: address,
-    total_projects: u64,
 }
 
-/// A project's buckets, indexed by name.
-public struct BucketHolder has key, store {
-    id: UID,
-}
-
-/// A project's database. The Warlot engine modifies it remotely, while the inner
-/// file is what binds the user to that engine.
-public struct DataBase has key, store {
-    id: UID,
-}
-
-/// One project: an index over its buckets, its files and its database.
+/// One project: the inner file acting as its database, and its commitment.
 public struct Project has key, store {
     id: UID,
-    name: String,
-    description: vector<u8>,
-    time_created: u64,
-    last_modified: u64,
+    /// The inner file this project uses as its database. A project has one, and
+    /// naming it is the one irreversible thing a project record does.
     db_inner_file: Option<ID>,
-    buckets_created: u64,
-    total_storage: u64,
+    /// The 32-byte Merkle root over this project's `(path, content_hash)` pairs.
+    ///
+    /// The names themselves are off chain. This is what stops whoever holds that
+    /// database from deciding which content answers to which path: a user
+    /// recomputes the root from what they believe they stored and holds it
+    /// against this field.
+    file_set_root: vector<u8>,
 }
 
 // === Public functions ===
 
-/// Create a project under the caller's holder.
-public fun create_project(
-    project_holder: &mut ProjectHolder,
-    name: String,
-    description: vector<u8>,
-    clock: &Clock,
-    ctx: &mut TxContext,
-) {
+/// Mint a project under the caller's holder and return its id.
+///
+/// The id is the project's identity from here on, and it is announced rather
+/// than derivable: a project carries no name, so nothing off chain can compute
+/// it. It opens committed to the empty file set.
+public fun create_project(project_holder: &mut ProjectHolder, ctx: &mut TxContext): ID {
     assert!(ctx.sender() == project_holder.admin, INVALIDACCESS);
 
-    project_holder.total_projects = project_holder.total_projects + 1;
-
-    let mut project = Project {
+    let project = Project {
         id: object::new(ctx),
-        name,
-        description,
-        time_created: clock.timestamp_ms(),
-        last_modified: clock.timestamp_ms(),
         db_inner_file: option::none(),
-        buckets_created: 0,
-        total_storage: 0,
+        file_set_root: file_set::empty_root(),
     };
 
-    let bucket = BucketHolder { id: object::new(ctx) };
-    let data_base = DataBase { id: object::new(ctx) };
+    let project_id = object::id(&project);
+    let file_set_root = project.file_set_root;
 
-    ofields::add<vector<u8>, BucketHolder>(&mut project.id, BUCKETHOLDERKEY, bucket);
-    ofields::add<vector<u8>, DataBase>(&mut project.id, DATABASE, data_base);
+    ofields::add<ID, Project>(&mut project_holder.id, project_id, project);
 
-    ofields::add<String, Project>(&mut project_holder.id, name, project);
+    product_events::emit_project_created(
+        object::id(project_holder),
+        project_id,
+        ctx.sender(),
+        file_set_root,
+    );
+
+    project_id
 }
 
-/// Rename a project, keeping the holder's index in step.
-public fun modify_name(
+/// Replace a project's commitment to the paths it resolves.
+///
+/// A rename, an upload and a deletion all land here as one 32-byte write, where
+/// under the previous shape a rename removed and re-added a whole object. The
+/// root is not recomputed on chain ,  the set it commits to lives off chain and
+/// can be far larger than a transaction ,  so what the chain enforces is that the
+/// value is a well-formed root, that only the holder's admin may move it, and
+/// that every move is announced.
+public fun set_file_set_root(
     project_holder: &mut ProjectHolder,
-    old_name: String,
-    new_name: String,
-    clock: &Clock,
-    ctx: &mut TxContext,
+    project_id: ID,
+    file_set_root: vector<u8>,
+    ctx: &TxContext,
 ) {
-    assert!(project_holder.admin == ctx.sender(), INVALIDACCESS);
-    assert!(ofields::exists_(&project_holder.id, old_name), INVALIDNAME);
-    assert!(!ofields::exists_(&project_holder.id, new_name), NAMEINUSE);
+    assert!(ctx.sender() == project_holder.admin, INVALIDACCESS);
+    file_set::assert_valid_root(&file_set_root);
 
-    let mut project: Project = ofields::remove<String, Project>(&mut project_holder.id, old_name);
-    project.name = new_name;
-    project.last_modified = clock.timestamp_ms();
+    let holder_id = object::id(project_holder);
+    let project = borrow_project_mut(project_holder, project_id);
+    let previous_root = project.file_set_root;
 
-    ofields::add<String, Project>(&mut project_holder.id, new_name, project);
+    project.file_set_root = file_set_root;
+
+    product_events::emit_project_file_set_root_changed(
+        holder_id,
+        project_id,
+        file_set_root,
+        previous_root,
+        ctx.sender(),
+    );
 }
 
 // === View functions ===
@@ -116,56 +119,70 @@ public fun project_admin(project_holder: &ProjectHolder): address {
     project_holder.admin
 }
 
+/// Whether this holder holds a project with that id.
+public fun has_project(project_holder: &ProjectHolder, project_id: ID): bool {
+    ofields::exists_<ID>(&project_holder.id, project_id)
+}
+
+/// The inner file a project names as its database, if it has named one.
+public fun db_inner_file(project_holder: &ProjectHolder, project_id: ID): Option<ID> {
+    borrow_project(project_holder, project_id).db_inner_file
+}
+
+/// A project's commitment to the paths it resolves.
+public fun file_set_root(project_holder: &ProjectHolder, project_id: ID): vector<u8> {
+    borrow_project(project_holder, project_id).file_set_root
+}
+
 // === Package functions ===
 
 /// Build an empty project holder for the sender.
 public(package) fun create_project_holder(ctx: &mut TxContext): ProjectHolder {
-    ProjectHolder {
+    let project_holder = ProjectHolder {
         id: object::new(ctx),
         admin: ctx.sender(),
-        total_projects: 0,
-    }
-}
+    };
 
-/// The UID of a project's bucket collection, so buckets can be attached to it.
-public(package) fun bucket_holder(
-    project_holder: &mut ProjectHolder,
-    project_name: String,
-): &mut UID {
-    let project = ofields::borrow_mut<String, Project>(&mut project_holder.id, project_name);
-    let bucket_holder = ofields::borrow_mut<vector<u8>, BucketHolder>(
-        &mut project.id,
-        BUCKETHOLDERKEY,
-    );
-    &mut bucket_holder.id
-}
+    product_events::emit_project_holder_created(object::id(&project_holder), project_holder.admin);
 
-/// Raise a project's bucket count by one.
-public(package) fun update_bucket_count(project_holder: &mut ProjectHolder, project_name: String) {
-    let project = ofields::borrow_mut<String, Project>(&mut project_holder.id, project_name);
-    project.buckets_created = project.buckets_created + 1;
-}
-
-/// Add `storage_size` to a project's byte total.
-public(package) fun update_storage_count(
-    project_holder: &mut ProjectHolder,
-    project_name: String,
-    storage_size: u64,
-) {
-    let project = ofields::borrow_mut<String, Project>(&mut project_holder.id, project_name);
-    project.total_storage = project.total_storage + storage_size;
+    project_holder
 }
 
 /// Name `inner_file_id` as the project's database. A project has one.
 public(package) fun init_db(
     project_holder: &mut ProjectHolder,
-    project_name: String,
+    project_id: ID,
     inner_file_id: ID,
     user: address,
 ) {
     assert!(project_holder.admin == user, INVALIDACCESS);
-    let project = ofields::borrow_mut<String, Project>(&mut project_holder.id, project_name);
+
+    let holder_id = object::id(project_holder);
+    let project = borrow_project_mut(project_holder, project_id);
     assert!(project.db_inner_file.is_none(), DBEXIST);
 
     project.db_inner_file.fill(inner_file_id);
+
+    product_events::emit_project_database_initialised(
+        holder_id,
+        project_id,
+        inner_file_id,
+        user,
+    );
+}
+
+// === Private functions ===
+
+/// The project `project_id`, or an abort naming the miss.
+fun borrow_project(project_holder: &ProjectHolder, project_id: ID): &Project {
+    assert!(has_project(project_holder, project_id), ENoSuchProject);
+
+    ofields::borrow<ID, Project>(&project_holder.id, project_id)
+}
+
+/// Mutable access to the project `project_id`, or an abort naming the miss.
+fun borrow_project_mut(project_holder: &mut ProjectHolder, project_id: ID): &mut Project {
+    assert!(has_project(project_holder, project_id), ENoSuchProject);
+
+    ofields::borrow_mut<ID, Project>(&mut project_holder.id, project_id)
 }

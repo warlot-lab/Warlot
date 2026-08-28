@@ -61,7 +61,6 @@ fun owner_withdraws_every_config() {
             vector[raw_blob],
             SET,
             CYCLES,
-            option::none(),
             ALICE,
             &clk,
             sc.ctx(),

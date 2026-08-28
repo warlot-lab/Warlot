@@ -45,8 +45,12 @@ stream whole and join locally.
    reconstruct a state that never existed.
 3. **Where the acting address differs from the subject, both are carried.**
    `owner` and `stored_by`, `owner` and `executed_by`, `commit_by`, `minted_by`.
-4. **Aggregates are carried as the value after the change**, so a consumer never
-   has to guess whether it saw every delta.
+4. **Aggregates are carried as the value after the change** where the chain still
+   keeps one. Where it no longer does ,  the registered-user count, a file's deny
+   count, a user's adopted-config total ,  the count is not in the payload either,
+   because a value the chain does not hold is one the emitter would have had to
+   compute purely to announce. A consumer accumulates those from the deltas, which
+   is what `tests/support/replay.move` does and what the rebuild test checks.
 
 ### Timestamps
 
@@ -79,8 +83,9 @@ twice reads back as `"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8="`. Confirmed 
 published testnet package across six events and five transactions, read both from
 the executing client and re-fetched from the fullnode.
 
-This affects every `commit` field, and `previous_commit` on `HeadAdvanced`. **A
-decoder must base64-decode them.** `vector<u16>` and `vector<ID>` are unaffected and
+This affects every `commit` field, `previous_commit` on `HeadAdvanced`, and both
+root fields on `ProjectCreated` and `ProjectFileSetRootChanged`. **A decoder must
+base64-decode them.** `vector<u16>` and `vector<ID>` are unaffected and
 are still arrays.
 
 `docs/event-schema.json` carries one `parsedJson` example per event type, in the
@@ -112,8 +117,8 @@ same shapes.
 | Event | Emitted from | Fields |
 |---|---|---|
 | `UserRegistered` | identity/registry.move , `create_registry` | `system_id`, `user_id`, `registry_id`, `user`, `public_username`, `created_at`, `decay_at` |
-| `UserJoinedSystem` | identity/user.move , `add_user` | `system_id`, `user`, `user_id`, `users` |
-| `UserLeftSystem` | identity/user.move , `remove_user` | `system_id`, `user`, `user_id`, `users` |
+| `UserJoinedSystem` | identity/user.move , `add_user` | `system_id`, `user`, `user_id` |
+| `UserLeftSystem` | identity/user.move , `remove_user` | `system_id`, `user`, `user_id` |
 | `UsernameUpdated` | identity/registry.move , `update_username` | `system_id`, `registry_id`, `user`, `public_username` |
 | `RegistryMigrated` | identity/registry.move , `migrate_system` | `system_id`, `previous_system`, `registry_id`, `user`, `updated_at` |
 | `WalletCreated` | identity/wallet.move , `create_wallet` | `system_id`, `wallet_id`, `user`, `created_at` |
@@ -126,14 +131,14 @@ same shapes.
 
 | Event | Emitted from | Fields |
 |---|---|---|
-| `BlobStored` | storage/blob_config.move , `new` | `system_id`, `config_id`, `owner`, `stored_by`, `blobs_obj_id`, `blob_sizes`, `size`, `encoded_size`, `end_epoch`, `epoch_set`, `cycle_limit`, `fileMeta_id`, `uploaded_on` |
+| `BlobStored` | storage/blob_config.move , `new` | `system_id`, `config_id`, `owner`, `stored_by`, `blobs_obj_id`, `blob_sizes`, `size`, `encoded_size`, `end_epoch`, `epoch_set`, `cycle_limit`, `uploaded_on` |
 | `BlobConfigOwnerChanged` | storage/blob_config.move , `transfer_ownership` | `system_id`, `config_id`, `previous_owner`, `new_owner` |
 | `BlobRenewed` | storage/renew.move , inside the per-blob loop | `system_id`, `config_id`, `owner`, `blob_obj_id`, `epoch_set`, `current_epoch`, `epochs_extended`, `new_end_epoch`, `wal_spent`, `executed_by` |
 | `RenewCycleSpent` | storage/renew.move , after the cycle is charged | `system_id`, `config_id`, `owner`, `blobs_extended`, `wal_spent`, `cycles_remaining`, `executed_by` |
 | `RenewSkipped` | storage/renew.move , on every path that does no work | `system_id`, `config_id`, `owner`, `blob_obj_id`, `reason`, `epoch_set`, `current_epoch`, `executed_by` |
 | `BlobWithdrawn` | storage/blob_config.move , `destroy` | `system_id`, `config_id`, `owner`, `blobs_obj_id` |
 | `ForeignMetaCreated` | foreign/foreign_meta.move , `create_meta` | `system_id`, `foreign_meta_id`, `owner` |
-| `ForeignBlobsAdopted` | foreign/foreign_meta.move , `add_foreign_blob` | `system_id`, `foreign_meta_id`, `owner`, `adopted_by`, `chunk_index`, `config_ids`, `total_blob_config` |
+| `ForeignBlobsAdopted` | foreign/foreign_meta.move , `add_foreign_blob` | `system_id`, `foreign_meta_id`, `owner`, `adopted_by`, `chunk_index`, `config_ids` |
 
 ### Inner files ,  `innerfile_events`
 
@@ -153,6 +158,25 @@ same shapes.
 | `DraftMerged` | innerfile/draft.move , `resolve_draft_to_file` | `system_id`, `file_id`, `draft_index`, `merged_by`, `commit`, `blob_config_id`, `total_draft`, `last_modified` |
 | `DraftDeleted` | innerfile/draft.move , `delete_draft` | `system_id`, `file_id`, `draft_index`, `deleted_by`, `total_draft`, `last_modified` |
 
+### Projects ,  `product_events`
+
+A project is addressed by a minted `ID` and carries no name on chain, so
+`ProjectCreated` is the only announcement that the id exists. A reader holding
+the label a user typed has nothing else to resolve it against.
+
+`file_set_root` is the 32-byte Merkle root over the project's whole
+`(path, content_hash)` mapping, in the frozen format ,  leaf
+`H(0x00 || u32_be(len(path)) || path || content_hash)`, node `H(0x01 || l || r)`,
+sorted ascending by raw path bytes, last node of an odd level paired with itself,
+empty set 32 zero bytes. It is a `vector<u8>` and therefore arrives base64.
+
+| Event | Emitted from | Fields |
+|---|---|---|
+| `ProjectHolderCreated` | product/project_object.move , `create_project_holder` | `holder_id`, `admin` |
+| `ProjectCreated` | product/project_object.move , `create_project` | `holder_id`, `project_id`, `created_by`, `file_set_root` |
+| `ProjectDatabaseInitialised` | product/project_object.move , `init_db` | `holder_id`, `project_id`, `inner_file_id`, `initialised_by` |
+| `ProjectFileSetRootChanged` | product/project_object.move , `set_file_set_root` | `holder_id`, `project_id`, `file_set_root`, `previous_root`, `changed_by` |
+
 ### Passes and revocations ,  `pass_events`
 
 | Event | Emitted from | Fields |
@@ -160,8 +184,8 @@ same shapes.
 | `WriterPassMinted` | innerfile/writer_pass.move , `transfer_to` | `system_id`, `file_id`, `pass_id`, `holder`, `duration`, `admin_privilege`, `minted_by` |
 | `WriterPassDestroyed` | innerfile/writer_pass.move , `destroy_writer_pass` | `file_id`, `pass_id`, `destroyed_by` |
 | `WriterPassRevoked` | innerfile/deny_list.move , `revoke_pass` | `system_id`, `file_id`, `pass_id`, `revoked_by` |
-| `WriterDenied` | innerfile/deny_list.move , `deny` | `system_id`, `file_id`, `writer`, `until_ms`, `denied_by`, `numbers_of_deny` |
-| `WriterUndenied` | innerfile/deny_list.move , `undeny` | `system_id`, `file_id`, `writer`, `undenied_by`, `numbers_of_deny` |
+| `WriterDenied` | innerfile/deny_list.move , `deny` | `system_id`, `file_id`, `writer`, `until_ms`, `denied_by` |
+| `WriterUndenied` | innerfile/deny_list.move , `undeny` | `system_id`, `file_id`, `writer`, `undenied_by` |
 
 ## The contract with consumers
 

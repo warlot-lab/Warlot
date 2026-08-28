@@ -43,6 +43,9 @@ Three invariants, checkable by reading the `use` lines of any module:
 2. No domain imports sideways or upward. `identity` never imports `storage`.
 3. `events` imports nothing internal, so any module may import it without risking a cycle.
 
+Every event type is declared under `sources/events/`, in one module per domain, so a single
+package-scoped event-type filter returns the whole stream. `docs/events.md` records the filters.
+
 Where domains must be composed ,  registration touches `identity` and `system`, upload touches
 `identity` and `storage` ,  that composition happens in `entry`, never by one domain reaching into
 another.
@@ -59,10 +62,18 @@ in `entry/` carries an `entry_` prefix.
 | `entry/upload.move` | `entry_upload` | Adopt externally-sourced blobs into renewal management |
 | `entry/renew.move` | `entry_renew` | Renew one blob config, one call per config in a block |
 | `entry/withdraw.move` | `entry_withdraw` | Return a user's blobs to them |
+| `entry/permission.move` | `entry_permission` | Grant and revoke a delegate's capability bits |
 | `entry/innerfile.move` | `entry_innerfile` | Create a file, write to it, merge a draft, mint a pass |
 | `entry/admin.move` | `entry_admin` | Treasury withdrawal, fee changes, system and cap minting |
-| `events/events.move` | `events` | Declare every event struct and its emitter |
-| `system/config.move` | `system_config` | Version, fees, mint lineage, treasury, user index |
+| `events/system_events.move` | `system_events` | System configuration, lineage and capability events |
+| `events/treasury_events.move` | `treasury_events` | Treasury custody events |
+| `events/identity_events.move` | `identity_events` | Registration, wallet and delegation events |
+| `events/storage_events.move` | `storage_events` | Blob custody, renewal and adoption events |
+| `events/innerfile_events.move` | `innerfile_events` | File creation, head, fallback and retirement events |
+| `events/draft_events.move` | `draft_events` | Draft queue events |
+| `events/pass_events.move` | `pass_events` | Writer pass and revocation events |
+| `events/product_events.move` | `product_events` | Project holder, project, database and commitment events |
+| `system/config.move` | `system_config` | Version, fees, mint lineage and treasury |
 | `system/admin_cap.move` | `admin_cap` | Mint and inspect the admin capability |
 | `system/vault.move` | `vault` | Custody the protocol's multi-coin treasury |
 | `system/version.move` | `version` | The package version and its gate |
@@ -79,12 +90,11 @@ in `entry/` carries an `entry_` prefix.
 | `innerfile/writer_pass.move` | `writer_pass` | Delegated write authority |
 | `innerfile/deny_list.move` | `deny_list` | Revocation of writers |
 | `innerfile/draft.move` | `draft` | Proposals awaiting the owner's merge |
-| `innerfile/issue.move` | `issue` | Issues raised and resolved against a file |
+| `innerfile/commit.move` | `commit` | The Merkle root a revision commits to |
+| `innerfile/eviction.move` | `eviction` | What becomes of a revision that leaves the window |
+| `storage/file_set.move` | `file_set` | The root binding logical paths to the bytes they resolve to |
 | `foreign/foreign_meta.move` | `foreign_meta` | Index of adopted blob configs |
-| `product/file_meta.move` | `file_meta` | On-chain attributes of a stored file |
-| `product/project_object.move` | `project_object` | Projects, their buckets and their database |
-| `product/bucket_object.move` | `bucket_object` | A named collection of files inside a project |
-| `product/drive_meta.move` | `drive_meta` | Folder-style view with category counters |
+| `product/project_object.move` | `project_object` | A project's database and its commitment, keyed by id |
 
 ### Conventions
 

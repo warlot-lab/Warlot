@@ -9,7 +9,7 @@
     "std::string::String": "JSON string",
     "Option<T>": "T's encoding, or null when none",
     "vector<T>": "JSON array of T's encoding",
-    "vector<u8>": "CONFIRMED (s6, testnet). Base64 JSON string, NOT an array of numbers. A 32-byte commit sent as 00112233445566778899aabbccddeeff twice reads back as \"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8=\". This is a special case: vector<u16> and vector<ID> are still arrays. A decoder must base64-decode every `commit`, `previous_commit` and any other vector<u8> field."
+    "vector<u8>": "CONFIRMED (s6, testnet). Base64 JSON string, NOT an array of numbers. A 32-byte commit sent as 00112233445566778899aabbccddeeff twice reads back as \"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8=\". This is a special case: vector<u16> and vector<ID> are still arrays. A decoder must base64-decode every `commit`, `previous_commit`, `file_set_root`, `previous_root` and any other vector<u8> field."
   },
   "_filters": {
     "grpc": "EventTypeFilter { event_type: \"<PACKAGE>\" } returns every event the protocol raises, whichever module declares it.",
@@ -224,17 +224,12 @@
         {
           "name": "user_id",
           "move_type": "ID"
-        },
-        {
-          "name": "users",
-          "move_type": "u64"
         }
       ],
       "parsedJson": {
         "system_id": "0x1a1d68afb6ad2137cf874818e074e748258eb862263f2c84ccc3fdf218cdcff1",
         "user": "0x04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb",
-        "user_id": "0xa405aa14554611a54fae87e89d4cf329700635d387e42c0c7c7dce7ced76a085",
-        "users": "1024"
+        "user_id": "0xa405aa14554611a54fae87e89d4cf329700635d387e42c0c7c7dce7ced76a085"
       }
     },
     "<PACKAGE>::identity_events::UserLeftSystem": {
@@ -252,17 +247,12 @@
         {
           "name": "user_id",
           "move_type": "ID"
-        },
-        {
-          "name": "users",
-          "move_type": "u64"
         }
       ],
       "parsedJson": {
         "system_id": "0x6c33e1683e5a5ad44eaeb0c0614724025f3c7ae90c6be868f59405c2f689c0ac",
         "user": "0x04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb",
-        "user_id": "0x343b849e2f51d7b03b2711196bb5a2589613877a4c3774d137409174c47d89b3",
-        "users": "1024"
+        "user_id": "0x343b849e2f51d7b03b2711196bb5a2589613877a4c3774d137409174c47d89b3"
       }
     },
     "<PACKAGE>::identity_events::UsernameUpdated": {
@@ -833,10 +823,6 @@
         {
           "name": "denied_by",
           "move_type": "address"
-        },
-        {
-          "name": "numbers_of_deny",
-          "move_type": "u64"
         }
       ],
       "parsedJson": {
@@ -844,8 +830,7 @@
         "file_id": "0x081d68c75e2b6715b27790759bf4805b72561c881411139e049c6f46f0de9f76",
         "writer": "0xb93006774cbdd4b299389a03ac3d88c3a76b460d538795bc12718011a909fba5",
         "until_ms": "1024",
-        "denied_by": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf",
-        "numbers_of_deny": "1024"
+        "denied_by": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
       }
     },
     "<PACKAGE>::pass_events::WriterUndenied": {
@@ -867,18 +852,120 @@
         {
           "name": "undenied_by",
           "move_type": "address"
-        },
-        {
-          "name": "numbers_of_deny",
-          "move_type": "u64"
         }
       ],
       "parsedJson": {
         "system_id": "0x8d905c8f23bf78e47648d2a74cc0bdfa54f406a14854bd71b9b707cf52ecd9e0",
         "file_id": "0x2d83f95570d35b6d0496ff8641664bc17fde76e7bb7855c9b750cd0d17cfc08e",
         "writer": "0xb93006774cbdd4b299389a03ac3d88c3a76b460d538795bc12718011a909fba5",
-        "undenied_by": "0xf89bbb288e5ce53e9e95c39dfa353622cf3fb3e5aeb936a9fef62aabccb5e355",
-        "numbers_of_deny": "1024"
+        "undenied_by": "0xf89bbb288e5ce53e9e95c39dfa353622cf3fb3e5aeb936a9fef62aabccb5e355"
+      }
+    },
+    "<PACKAGE>::product_events::ProjectHolderCreated": {
+      "module": "product_events",
+      "summary": "A project holder was minted for an address.",
+      "fields": [
+        {
+          "name": "holder_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "admin",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "holder_id": "0x2c0b1e9d0b3e3b8ad1c0a5f6d8e7c4b2a9f18d3e6c5b4a2938271605f4e3d2c1",
+        "admin": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
+      }
+    },
+    "<PACKAGE>::product_events::ProjectCreated": {
+      "module": "product_events",
+      "summary": "A project was minted under a holder. The id is minted on chain and carried by no name, so this is the only announcement that it exists.",
+      "fields": [
+        {
+          "name": "holder_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "project_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "created_by",
+          "move_type": "address"
+        },
+        {
+          "name": "file_set_root",
+          "move_type": "vector<u8>"
+        }
+      ],
+      "parsedJson": {
+        "holder_id": "0x2c0b1e9d0b3e3b8ad1c0a5f6d8e7c4b2a9f18d3e6c5b4a2938271605f4e3d2c1",
+        "project_id": "0x9f3a2b1c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f10",
+        "created_by": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf",
+        "file_set_root": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      }
+    },
+    "<PACKAGE>::product_events::ProjectDatabaseInitialised": {
+      "module": "product_events",
+      "summary": "An inner file was named as a project's database. A project has one and cannot name a second.",
+      "fields": [
+        {
+          "name": "holder_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "project_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "inner_file_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "initialised_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "holder_id": "0x2c0b1e9d0b3e3b8ad1c0a5f6d8e7c4b2a9f18d3e6c5b4a2938271605f4e3d2c1",
+        "project_id": "0x9f3a2b1c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f10",
+        "inner_file_id": "0x4fbecf5f5a39eb70571df7218828afe117ca5eae3316e9d6f0cdf232f5f741c0",
+        "initialised_by": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
+      }
+    },
+    "<PACKAGE>::product_events::ProjectFileSetRootChanged": {
+      "module": "product_events",
+      "summary": "A project's 32-byte commitment to its path to content mapping was replaced.",
+      "fields": [
+        {
+          "name": "holder_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "project_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "file_set_root",
+          "move_type": "vector<u8>"
+        },
+        {
+          "name": "previous_root",
+          "move_type": "vector<u8>"
+        },
+        {
+          "name": "changed_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "holder_id": "0x2c0b1e9d0b3e3b8ad1c0a5f6d8e7c4b2a9f18d3e6c5b4a2938271605f4e3d2c1",
+        "project_id": "0x9f3a2b1c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f10",
+        "file_set_root": "9UtXYCvYmvOl6SccZkt3ZBsXZmXFHWBOJ34aheYq5gs=",
+        "previous_root": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "changed_by": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
       }
     },
     "<PACKAGE>::storage_events::BlobStored": {
@@ -930,10 +1017,6 @@
           "move_type": "Option<u64>"
         },
         {
-          "name": "fileMeta_id",
-          "move_type": "Option<ID>"
-        },
-        {
           "name": "uploaded_on",
           "move_type": "u64"
         }
@@ -954,7 +1037,6 @@
         "end_epoch": 13,
         "epoch_set": 13,
         "cycle_limit": "1024",
-        "fileMeta_id": "0x37dd0a1d0b5a470c09f9f058b811b2514bc5d47d07a28127af087c28bbe4c9ba",
         "uploaded_on": "1024"
       }
     },
@@ -1215,10 +1297,6 @@
         {
           "name": "config_ids",
           "move_type": "vector<ID>"
-        },
-        {
-          "name": "total_blob_config",
-          "move_type": "u64"
         }
       ],
       "parsedJson": {
@@ -1229,8 +1307,7 @@
         "chunk_index": "1024",
         "config_ids": [
           "0x84369b6fdc1e2234caebb5ca0f2fe33407c7707582a71b7a07123e88ee1ce593"
-        ],
-        "total_blob_config": "1024"
+        ]
       }
     },
     "<PACKAGE>::system_events::SystemCreated": {

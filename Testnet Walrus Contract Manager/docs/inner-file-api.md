@@ -1,5 +1,11 @@
 # 📄 **Warlot Inner File, Quick Docs**
 
+> **This file describes an older shape of the package and has not been rewritten.**
+> Several signatures below predate the custody, eviction and version-gate work and
+> name arguments the package no longer takes. The authoritative signatures are the
+> Move sources; a stated ABI written for consumers is the next scope's deliverable.
+> `docs/events.md` and `docs/event-schema.json` *are* current.
+
 The **Inner File** is a core structure in the Warlot system that enables **trusted, collaborative, and controlled file modification** on the Walrus protocol. It ensures file **integrity**, **ownership**, and **accountable collaboration**, while supporting features like draft editing, file history tracking, and admin-controlled recovery.
 
 ---
@@ -103,8 +109,7 @@ public fun write_(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
     to_draft: bool,
-    file_issue: u64,
-    should_include_issue: bool,
+    issue: Option<ID>,
     commit: vector<u8>,
     walrus_blob_id: String,
     walrus_blob_object_id: address,
@@ -118,6 +123,10 @@ public fun write_(
 - `to_draft: true` → Add to draft (for review/collab).
 - `to_draft: false` → Direct file change (requires admin rights).
 - Tracks changes in `FileTrack`.
+- `issue` is an opaque reference to whatever the draft resolves, kept in the audit
+  trail and interpreted by nothing on chain. The on-chain issue tracker it used to
+  index into is gone: it was three objects per file that no reachable function ever
+  wrote to.
 
 ---
 

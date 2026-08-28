@@ -38,8 +38,6 @@ public struct UserJoinedSystem has copy, drop, store {
     system_id: ID,
     user: address,
     user_id: ID,
-    /// The system's registered-user count after the change.
-    users: u64,
 }
 
 /// A user record was detached from a system.
@@ -47,8 +45,6 @@ public struct UserLeftSystem has copy, drop, store {
     system_id: ID,
     user: address,
     user_id: ID,
-    /// The system's registered-user count after the change.
-    users: u64,
 }
 
 /// A registry's public username was replaced.
@@ -140,18 +136,13 @@ public(package) fun emit_user_registered(
 }
 
 /// Announce a user record attached to a system.
-public(package) fun emit_user_joined_system(
-    system_id: ID,
-    user: address,
-    user_id: ID,
-    users: u64,
-) {
-    event::emit(UserJoinedSystem { system_id, user, user_id, users })
+public(package) fun emit_user_joined_system(system_id: ID, user: address, user_id: ID) {
+    event::emit(UserJoinedSystem { system_id, user, user_id })
 }
 
 /// Announce a user record detached from a system.
-public(package) fun emit_user_left_system(system_id: ID, user: address, user_id: ID, users: u64) {
-    event::emit(UserLeftSystem { system_id, user, user_id, users })
+public(package) fun emit_user_left_system(system_id: ID, user: address, user_id: ID) {
+    event::emit(UserLeftSystem { system_id, user, user_id })
 }
 
 /// Announce a replaced public username.
@@ -266,28 +257,26 @@ public fun read_user_registered(e: &UserRegistered): (ID, ID, ID, address, Strin
 
 #[test_only]
 /// Every field of `UserJoinedSystem`, in declaration order.
-public fun read_user_joined_system(e: &UserJoinedSystem): (ID, address, ID, u64) {
+public fun read_user_joined_system(e: &UserJoinedSystem): (ID, address, ID) {
     let UserJoinedSystem {
         system_id: _system_id,
         user: _user,
         user_id: _user_id,
-        users: _users,
     } = e;
 
-    (*_system_id, *_user, *_user_id, *_users)
+    (*_system_id, *_user, *_user_id)
 }
 
 #[test_only]
 /// Every field of `UserLeftSystem`, in declaration order.
-public fun read_user_left_system(e: &UserLeftSystem): (ID, address, ID, u64) {
+public fun read_user_left_system(e: &UserLeftSystem): (ID, address, ID) {
     let UserLeftSystem {
         system_id: _system_id,
         user: _user,
         user_id: _user_id,
-        users: _users,
     } = e;
 
-    (*_system_id, *_user, *_user_id, *_users)
+    (*_system_id, *_user, *_user_id)
 }
 
 #[test_only]

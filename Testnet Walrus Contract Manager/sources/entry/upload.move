@@ -76,7 +76,6 @@ public fun foreign_blob_add(
                 vector::singleton(raw_blob),
                 set,
                 cycle_end,
-                option::none(),
                 owner,
                 clock,
                 ctx,

@@ -50,7 +50,7 @@ public struct BlobStored has copy, drop, store {
     end_epoch: u32,
     epoch_set: u32,
     cycle_limit: Option<u64>,
-    fileMeta_id: Option<ID>,
+    /// When the config took custody, read from the clock the store was given.
     uploaded_on: u64,
 }
 
@@ -140,8 +140,6 @@ public struct ForeignBlobsAdopted has copy, drop, store {
     /// Which of the index's vectors the ids landed in.
     chunk_index: u64,
     config_ids: vector<ID>,
-    /// The index's running total after the change.
-    total_blob_config: u64,
 }
 
 // === View functions ===
@@ -170,7 +168,6 @@ public(package) fun emit_blob_stored(
     end_epoch: u32,
     epoch_set: u32,
     cycle_limit: Option<u64>,
-    fileMeta_id: Option<ID>,
     uploaded_on: u64,
 ) {
     event::emit(BlobStored {
@@ -185,7 +182,6 @@ public(package) fun emit_blob_stored(
         end_epoch,
         epoch_set,
         cycle_limit,
-        fileMeta_id,
         uploaded_on,
     })
 }
@@ -303,7 +299,6 @@ public(package) fun emit_foreign_blobs_adopted(
     adopted_by: address,
     chunk_index: u64,
     config_ids: vector<ID>,
-    total_blob_config: u64,
 ) {
     event::emit(ForeignBlobsAdopted {
         system_id,
@@ -312,7 +307,6 @@ public(package) fun emit_foreign_blobs_adopted(
         adopted_by,
         chunk_index,
         config_ids,
-        total_blob_config,
     })
 }
 
@@ -337,7 +331,6 @@ public fun read_blob_stored(e: &BlobStored): (
     u32,
     u32,
     Option<u64>,
-    Option<ID>,
     u64,
 ) {
     let BlobStored {
@@ -352,7 +345,6 @@ public fun read_blob_stored(e: &BlobStored): (
         end_epoch: _end_epoch,
         epoch_set: _epoch_set,
         cycle_limit: _cycle_limit,
-        fileMeta_id: _fileMeta_id,
         uploaded_on: _uploaded_on,
     } = e;
 
@@ -368,7 +360,6 @@ public fun read_blob_stored(e: &BlobStored): (
         *_end_epoch,
         *_epoch_set,
         *_cycle_limit,
-        *_fileMeta_id,
         *_uploaded_on,
     )
 }
@@ -528,7 +519,6 @@ public fun read_foreign_blobs_adopted(e: &ForeignBlobsAdopted): (
     address,
     u64,
     vector<ID>,
-    u64,
 ) {
     let ForeignBlobsAdopted {
         system_id: _system_id,
@@ -537,7 +527,6 @@ public fun read_foreign_blobs_adopted(e: &ForeignBlobsAdopted): (
         adopted_by: _adopted_by,
         chunk_index: _chunk_index,
         config_ids: _config_ids,
-        total_blob_config: _total_blob_config,
     } = e;
 
     (
@@ -547,6 +536,5 @@ public fun read_foreign_blobs_adopted(e: &ForeignBlobsAdopted): (
         *_adopted_by,
         *_chunk_index,
         *_config_ids,
-        *_total_blob_config,
     )
 }

@@ -10,7 +10,6 @@ use warlot::{
     draft::{Self, Draft, FileDraftHolder},
     file_data::FileData,
     innerfile_events,
-    issue::{Self, FileIssueMeta},
     writer_pass::{Self, WriterPass},
 };
 
@@ -41,8 +40,6 @@ const MAX_TRACK_BACK: u8 = 8;
 
 /// Dynamic object field key for the file's draft queue.
 const FILEDRAFTKEY: vector<u8> = b"file draft";
-/// Dynamic object field key for the file's issue tracker.
-const ISSUEKEY: vector<u8> = b"file issue";
 
 // === Structs ===
 
@@ -224,12 +221,11 @@ public(package) fun new(
     }
 }
 
-/// Attach the deny list, the draft queue and the issue tracker, then share the file.
+/// Attach the deny list and the draft queue, then share the file.
 public(package) fun share(
     mut inner_file: InnerFile,
     draft_epoch_duration: u32,
     system_id: ID,
-    clock: &Clock,
     ctx: &mut TxContext,
 ) {
     deny_list::attach(&mut inner_file.id, ctx);
@@ -237,11 +233,6 @@ public(package) fun share(
         &mut inner_file.id,
         FILEDRAFTKEY,
         draft::create_draft_holder(draft_epoch_duration, ctx),
-    );
-    ofields::add<vector<u8>, FileIssueMeta>(
-        &mut inner_file.id,
-        ISSUEKEY,
-        issue::create_file_issue_meta(clock, ctx),
     );
 
     // Announced at the share rather than at construction, because a file that is
@@ -280,11 +271,6 @@ public(package) fun uid_mut(inner_file: &mut InnerFile): &mut UID {
 /// The file's draft queue.
 public(package) fun get_draft_holder(inner_file: &mut InnerFile): &mut FileDraftHolder {
     ofields::borrow_mut<vector<u8>, FileDraftHolder>(&mut inner_file.id, FILEDRAFTKEY)
-}
-
-/// The file's issue tracker.
-public(package) fun get_issue_meta(inner_file: &InnerFile): &FileIssueMeta {
-    ofields::borrow<vector<u8>, FileIssueMeta>(&inner_file.id, ISSUEKEY)
 }
 
 /// Make `file_data` the newest revision, returning the oldest one if the rollback

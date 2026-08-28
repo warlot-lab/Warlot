@@ -46,7 +46,6 @@ fun tier_rejected() {
         vector[raw_blob],
         OFF_LADDER,
         CYCLES,
-        option::none(),
         ALICE,
         &clk,
         sc.ctx(),

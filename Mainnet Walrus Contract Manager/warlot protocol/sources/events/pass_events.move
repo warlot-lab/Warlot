@@ -55,8 +55,6 @@ public struct WriterDenied has copy, drop, store {
     writer: address,
     until_ms: u64,
     denied_by: address,
-    /// How many writers the file denies after the change.
-    numbers_of_deny: u64,
 }
 
 /// A file owner lifted an address's denial.
@@ -65,8 +63,6 @@ public struct WriterUndenied has copy, drop, store {
     file_id: ID,
     writer: address,
     undenied_by: address,
-    /// How many writers the file denies after the change.
-    numbers_of_deny: u64,
 }
 
 // === Package functions ===
@@ -114,16 +110,8 @@ public(package) fun emit_writer_denied(
     writer: address,
     until_ms: u64,
     denied_by: address,
-    numbers_of_deny: u64,
 ) {
-    event::emit(WriterDenied {
-        system_id,
-        file_id,
-        writer,
-        until_ms,
-        denied_by,
-        numbers_of_deny,
-    })
+    event::emit(WriterDenied { system_id, file_id, writer, until_ms, denied_by })
 }
 
 /// Announce a lifted denial.
@@ -132,15 +120,8 @@ public(package) fun emit_writer_undenied(
     file_id: ID,
     writer: address,
     undenied_by: address,
-    numbers_of_deny: u64,
 ) {
-    event::emit(WriterUndenied {
-        system_id,
-        file_id,
-        writer,
-        undenied_by,
-        numbers_of_deny,
-    })
+    event::emit(WriterUndenied { system_id, file_id, writer, undenied_by })
 }
 
 // === Test-only readers ===
@@ -201,29 +182,27 @@ public fun read_writer_pass_revoked(e: &WriterPassRevoked): (ID, ID, ID, address
 
 #[test_only]
 /// Every field of `WriterDenied`, in declaration order.
-public fun read_writer_denied(e: &WriterDenied): (ID, ID, address, u64, address, u64) {
+public fun read_writer_denied(e: &WriterDenied): (ID, ID, address, u64, address) {
     let WriterDenied {
         system_id: _system_id,
         file_id: _file_id,
         writer: _writer,
         until_ms: _until_ms,
         denied_by: _denied_by,
-        numbers_of_deny: _numbers_of_deny,
     } = e;
 
-    (*_system_id, *_file_id, *_writer, *_until_ms, *_denied_by, *_numbers_of_deny)
+    (*_system_id, *_file_id, *_writer, *_until_ms, *_denied_by)
 }
 
 #[test_only]
 /// Every field of `WriterUndenied`, in declaration order.
-public fun read_writer_undenied(e: &WriterUndenied): (ID, ID, address, address, u64) {
+public fun read_writer_undenied(e: &WriterUndenied): (ID, ID, address, address) {
     let WriterUndenied {
         system_id: _system_id,
         file_id: _file_id,
         writer: _writer,
         undenied_by: _undenied_by,
-        numbers_of_deny: _numbers_of_deny,
     } = e;
 
-    (*_system_id, *_file_id, *_writer, *_undenied_by, *_numbers_of_deny)
+    (*_system_id, *_file_id, *_writer, *_undenied_by)
 }

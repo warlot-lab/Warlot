@@ -15,11 +15,15 @@ const AVG_LEN: u64 = 300;
 // === Structs ===
 
 /// A per-user index over the blob configs adopted into the Warlot system.
+///
+/// `current_index` stays because it is read: it names the dynamic field the next
+/// adoption appends to. The running total that sat beside it was written on
+/// every adoption and read by nothing, and a consumer that wants it adds up the
+/// `ForeignBlobsAdopted` events.
 public struct ForeignMeta has key {
     id: UID,
     /// The vector currently being appended to.
     current_index: u64,
-    total_blob_config: u64,
 }
 
 // === View functions ===
@@ -40,22 +44,14 @@ public fun current_index(foreign_meta: &ForeignMeta): u64 {
     foreign_meta.current_index
 }
 
-#[test_only]
-/// How many configs this index records.
-public fun total_blob_config(foreign_meta: &ForeignMeta): u64 {
-    foreign_meta.total_blob_config
-}
-
 // === Package functions ===
 
 /// Create an index for the sender and transfer it to them.
 public(package) fun create_meta(system_id: ID, ctx: &mut TxContext) {
     let current_index = 0;
-    let total_blob_config = 0;
     let mut new_meta = ForeignMeta {
         id: object::new(ctx),
         current_index,
-        total_blob_config,
     };
 
     dfield::add<u64, vector<ID>>(&mut new_meta.id, current_index, vector::empty<ID>());
@@ -78,7 +74,6 @@ public(package) fun add_foreign_blob(
         dfield::borrow<u64, vector<ID>>(&foreign_meta.id, foreign_meta.current_index),
     );
     let config_len = vector::length(&config_blob_list);
-    foreign_meta.total_blob_config = foreign_meta.total_blob_config + config_len;
 
     // Start a new vector when the incoming list alone exceeds the bound, or when
     // the combined size would exceed it and the current vector is already three
@@ -113,7 +108,6 @@ public(package) fun add_foreign_blob(
             adopted_by,
             foreign_meta.current_index,
             announced,
-            foreign_meta.total_blob_config,
         );
     }
 }

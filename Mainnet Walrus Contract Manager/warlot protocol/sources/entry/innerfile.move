@@ -3,7 +3,6 @@ module warlot::entry_innerfile;
 
 // === Imports ===
 
-use std::string::String;
 use sui::clock::Clock;
 use walrus::blob::Blob;
 use warlot::{
@@ -13,7 +12,6 @@ use warlot::{
     eviction,
     file_data::{Self, FileData},
     inner_file::{Self, InnerFile},
-    issue,
     project_object::{Self, ProjectHolder},
     store,
     system_config::SystemConfig,
@@ -112,16 +110,16 @@ public fun create_file(
         writer_pass::transfer_to(temp_pass, ctx.sender(), system_id, ctx);
     };
 
-    inner_file::share(new_inner_file, draft_epoch_duration, system_id, clock, ctx);
+    inner_file::share(new_inner_file, draft_epoch_duration, system_id, ctx);
     writer_pass::transfer_to(immortal_pass, owner, system_id, ctx);
 
     new_inner_file_id
 }
 
-/// Create a file and name it as `project_name`'s database.
+/// Create a file and name it as `project_id`'s database.
 public fun initialize_project_file(
     project_holder: &mut ProjectHolder,
-    project_name: String,
+    project_id: ID,
     system_cfg: &SystemConfig,
     owner: address,
     writers_length: u8,
@@ -157,7 +155,7 @@ public fun initialize_project_file(
     let owners_obj = user::get_user(system_cfg, owner);
     user::check_permission_can_init_db(owners_obj, ctx);
 
-    project_object::init_db(project_holder, project_name, new_inner_file_id, owner);
+    project_object::init_db(project_holder, project_id, new_inner_file_id, owner);
 }
 
 /// Deny `writer` until `period`, or indefinitely when `period` is zero.
@@ -253,12 +251,16 @@ public fun force_write_innerfile(
 
 /// Write to the file, either as a draft awaiting the owner's merge or, with an
 /// admin pass, straight into the file's history.
+///
+/// `issue` is an opaque reference to whatever the draft resolves, recorded in
+/// the audit trail because it is part of what the owner agreed to when merging.
+/// Nothing on chain interprets it: the tracker it used to name was three objects
+/// per file that no reachable function ever wrote to.
 public fun write_(
     inner_file: &mut InnerFile,
     writer_pass: &mut WriterPass,
     to_draft: bool,
-    file_issue: u64,
-    should_include_issue: bool,
+    issue: Option<ID>,
     clock: &Clock,
     system_cfg: &SystemConfig,
     blobs: vector<Blob>,
@@ -302,18 +304,9 @@ public fun write_(
     // A draft displaces nothing, so it can retire nothing.
     eviction::assert_no_config(evicted);
 
-    let file_issue_meta = inner_file.get_issue_meta();
-    let issue_state = {
-        if (should_include_issue) {
-            issue::confirm_issue(file_issue_meta, file_issue)
-        } else {
-            option::none()
-        }
-    };
-
     let file_draft = draft::create_draft(
         object::id(writer_pass),
-        issue_state,
+        issue,
         option::some(file_data),
         ctx,
     );
@@ -563,7 +556,6 @@ fun process_blob(
         blobs,
         epoch_set,
         cycle_end,
-        option::none(),
         store_to,
         clock,
         ctx,

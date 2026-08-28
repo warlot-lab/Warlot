@@ -108,7 +108,8 @@ public struct SystemRow has drop {
     cost_to_migrate_system: u64,
     cost_to_update_name: u64,
     cost_to_delete: u64,
-    /// Joins minus leaves, never read off an event.
+    /// Joins minus leaves. The chain keeps no such counter any more, so this is
+    /// the only place the number exists at all.
     users: u64,
     /// Deposits minus payouts, never read off an event.
     vault_wal: u64,
@@ -161,7 +162,6 @@ public struct ConfigRow has drop {
     end_epoch: u32,
     epoch_set: u32,
     cycle_limit: Option<u64>,
-    fileMeta_id: Option<ID>,
     uploaded_on: u64,
     wal_spent: u64,
     renewals: u64,
@@ -447,8 +447,6 @@ public fun config_epoch_set(row: &ConfigRow): u32 { row.epoch_set }
 
 public fun config_cycle_limit(row: &ConfigRow): Option<u64> { row.cycle_limit }
 
-public fun config_file_meta(row: &ConfigRow): Option<ID> { row.fileMeta_id }
-
 public fun config_uploaded_on(row: &ConfigRow): u64 { row.uploaded_on }
 
 public fun config_wal_spent(row: &ConfigRow): u64 { row.wal_spent }
@@ -692,7 +690,7 @@ fun apply_identity(ledger: &mut Ledger) {
     // A migration detaches before it attaches, so removals are applied first ,
     // the reverse order would leave the user a member of neither system.
     event::events_by_type<UserLeftSystem>().do_ref!(|e| {
-        let (system_id, user, _user_id, _users) = identity_events::read_user_left_system(e);
+        let (system_id, user, _user_id) = identity_events::read_user_left_system(e);
         let row = ledger.system_mut(system_id);
         row.users = row.users - 1;
         ledger.user_mut(user).joined = false;
@@ -700,7 +698,7 @@ fun apply_identity(ledger: &mut Ledger) {
     });
 
     event::events_by_type<UserJoinedSystem>().do_ref!(|e| {
-        let (system_id, user, _user_id, _users) = identity_events::read_user_joined_system(e);
+        let (system_id, user, _user_id) = identity_events::read_user_joined_system(e);
         let row = ledger.system_mut(system_id);
         row.users = row.users + 1;
         let user_row = ledger.user_mut(user);
@@ -807,7 +805,6 @@ fun apply_storage(ledger: &mut Ledger) {
             end_epoch,
             epoch_set,
             cycle_limit,
-            fileMeta_id,
             uploaded_on,
         ) = storage_events::read_blob_stored(e);
 
@@ -823,7 +820,6 @@ fun apply_storage(ledger: &mut Ledger) {
             end_epoch,
             epoch_set,
             cycle_limit,
-            fileMeta_id,
             uploaded_on,
             wal_spent: 0,
             renewals: 0,
@@ -877,12 +873,11 @@ fun apply_storage(ledger: &mut Ledger) {
     });
 
     event::events_by_type<ForeignBlobsAdopted>().do_ref!(|e| {
-        let (_system_id, _meta_id, owner, _adopted_by, chunk_index, config_ids, total) =
+        let (_system_id, _meta_id, owner, _adopted_by, chunk_index, config_ids) =
             storage_events::read_foreign_blobs_adopted(e);
         let row = ledger.user_mut(owner);
         row.foreign_configs = row.foreign_configs + config_ids.length();
         row.foreign_chunk = chunk_index;
-        assert!(row.foreign_configs == total, ENoSuchRow);
         ledger.applied = ledger.applied + 1;
     });
 
@@ -1050,7 +1045,7 @@ fun apply_innerfile(ledger: &mut Ledger) {
     });
 
     event::events_by_type<WriterDenied>().do_ref!(|e| {
-        let (_system_id, file_id, writer, until_ms, _denied_by, _count) =
+        let (_system_id, file_id, writer, until_ms, _denied_by) =
             pass_events::read_writer_denied(e);
         let held = ledger
             .denials
@@ -1066,7 +1061,7 @@ fun apply_innerfile(ledger: &mut Ledger) {
     });
 
     event::events_by_type<WriterUndenied>().do_ref!(|e| {
-        let (_system_id, file_id, writer, _undenied_by, _count) =
+        let (_system_id, file_id, writer, _undenied_by) =
             pass_events::read_writer_undenied(e);
         let held = ledger
             .denials
