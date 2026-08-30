@@ -5,12 +5,17 @@ module warlot::blob_config;
 
 use sui::clock::Clock;
 use walrus::blob::{Self, Blob};
-use warlot::storage_events;
+use warlot::{layout::Layout, storage_events};
 
 // === Errors ===
 
 #[error]
 const ENotOwner: vector<u8> = b"NOT THE OWNER OF THIS BLOB CONFIG";
+#[error]
+const ELayoutAlreadyRegistered: vector<u8> =
+    b"THIS CONFIG ALREADY CARRIES A LAYOUT";
+#[error]
+const ENoLayout: vector<u8> = b"THIS CONFIG CARRIES NO LAYOUT";
 
 // === Structs ===
 
@@ -36,6 +41,13 @@ public struct BlobConfig has key {
     epoch_set: u32,
     /// How many renewal cycles remain; `none` for an indefinite mandate.
     cycle_limit: Option<u64>,
+    /// How the content under this config is laid out, and what it replaced.
+    ///
+    /// `none` on every config an ordinary upload creates, which costs it one
+    /// byte. A compaction fills it once and it is never moved again: the config
+    /// *is* the generation, so rewriting its receipt would mean rewriting what
+    /// the chain already attested that generation contained.
+    layout: Option<Layout>,
 }
 
 // === View functions ===
@@ -58,6 +70,40 @@ public(package) fun epoch_set(blob_cfg: &BlobConfig): u32 {
 /// How many renewal cycles remain, or `none` for an indefinite mandate.
 public(package) fun cycle_limit(blob_cfg: &BlobConfig): Option<u64> {
     blob_cfg.cycle_limit
+}
+
+/// How many blobs this config holds.
+///
+/// One for a quilt, which is a single Walrus blob however many patches it
+/// carries.
+public(package) fun blob_count(blob_cfg: &BlobConfig): u64 {
+    blob_cfg.blobs.length()
+}
+
+/// Whether a compaction has registered a layout on this config.
+public(package) fun has_layout(blob_cfg: &BlobConfig): bool {
+    blob_cfg.layout.is_some()
+}
+
+/// This config's layout, or an abort because it carries none.
+public(package) fun layout(blob_cfg: &BlobConfig): &Layout {
+    assert!(blob_cfg.layout.is_some(), ENoLayout);
+
+    blob_cfg.layout.borrow()
+}
+
+/// How many repacks deep this config's content is, and zero for content that has
+/// never been compacted.
+///
+/// Zero is the honest answer for an uncompacted config rather than a missing one:
+/// a compaction's generation must exceed every generation it supersedes, and raw
+/// uploads are the floor that ordering starts from.
+public(package) fun generation(blob_cfg: &BlobConfig): u32 {
+    if (blob_cfg.layout.is_none()) {
+        return 0
+    };
+
+    blob_cfg.layout.borrow().generation()
 }
 
 /// Whether the mandate still authorises a renewal. An indefinite mandate always
@@ -103,6 +149,7 @@ public(package) fun new(
         blobs,
         epoch_set,
         cycle_limit,
+        layout: option::none(),
     };
 
     // Announced here rather than on either upload path, because this is the one
@@ -169,6 +216,22 @@ public(package) fun consume_cycle(blob_cfg: &mut BlobConfig) {
     *remaining = *remaining - 1;
 }
 
+/// Record how this config's content is laid out, and what it replaced.
+///
+/// Write-once. A config that already carries a layout is refused rather than
+/// overwritten: the receipt is what a holder of the superseded content checked
+/// before deleting it, so a layout that could be replaced is a receipt Warlot
+/// could rewrite after the fact. A new generation is a new config.
+///
+/// `public(package)` and unauthorised here on purpose ,  the permission bit and
+/// the homogeneity of the predecessors are settled by `compaction`, which is the
+/// only caller.
+public(package) fun set_layout(blob_cfg: &mut BlobConfig, layout: Layout) {
+    assert!(blob_cfg.layout.is_none(), ELayoutAlreadyRegistered);
+
+    blob_cfg.layout.fill(layout);
+}
+
 /// Re-parent the config to `new_owner`.
 ///
 /// Custody is a field rather than Sui object ownership, so moving it is a write
@@ -233,7 +296,7 @@ public(package) fun unwrap_for_owner(
 /// adds reconstructs a state that never existed.
 fun destroy(blob_cfg: BlobConfig, system_id: ID): (address, vector<Blob>) {
     let config_id = object::id(&blob_cfg);
-    let BlobConfig { id, owner, blobs, epoch_set: _, cycle_limit: _ } = blob_cfg;
+    let BlobConfig { id, owner, blobs, epoch_set: _, cycle_limit: _, layout: _ } = blob_cfg;
     id.delete();
 
     let mut blobs_obj_id = vector<ID>[];

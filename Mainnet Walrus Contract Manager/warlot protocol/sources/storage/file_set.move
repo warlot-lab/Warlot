@@ -39,6 +39,9 @@ const EPathControlCharacter: vector<u8> = b"A PATH MUST CARRY NO CONTROL CHARACT
 const EDuplicatePath: vector<u8> = b"A FILE SET MUST NOT NAME THE SAME PATH TWICE";
 #[error]
 const EFileSetTooLarge: vector<u8> = b"A FILE SET MUST HOLD AT MOST 666 ENTRIES";
+#[error]
+const EPathsNotAscending: vector<u8> =
+    b"THESE PATHS MUST ARRIVE IN ASCENDING BYTE ORDER, WITH NO REPEAT";
 
 // === Constants ===
 
@@ -176,6 +179,29 @@ public fun node(left: &vector<u8>, right: &vector<u8>): vector<u8> {
 /// Abort unless `file_set_root` is a well-formed commitment.
 public fun assert_valid_root(file_set_root: &vector<u8>) {
     assert!(file_set_root.length() == ROOT_LENGTH, EInvalidRootLength);
+}
+
+/// Abort unless `paths` is already in the order `root` folds them in.
+///
+/// `root` sorts, so it accepts any order and produces the same commitment ,  but
+/// the sort is insertion sort and therefore quadratic in the entry count, and
+/// measured against the Move test runner's execution bound a set of 666 entries
+/// in arbitrary order does not finish while the same 666 already in order does.
+/// A caller that has to supply the order anyway is the cheaper side of that
+/// trade, so the one path that commits to a full quilt asks for it and checks it
+/// here in one pass.
+///
+/// It is also what makes an announcement of the set canonical: an event carrying
+/// the caller's order beside a root over the sorted order leaves a consumer to
+/// re-derive which is which.
+public fun assert_ascending_paths(paths: &vector<vector<u8>>) {
+    let length = paths.length();
+    let mut i = 1;
+
+    while (i < length) {
+        assert!(before(&paths[i - 1], &paths[i]), EPathsNotAscending);
+        i = i + 1;
+    };
 }
 
 // === View functions ===

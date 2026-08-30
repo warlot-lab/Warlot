@@ -75,6 +75,16 @@ public fun check_permission_can_init_db(
     permission::check_can_init_db(&user_obj.id, user_obj.owner, operator, ctx);
 }
 
+/// Assert the sender may register a compaction layout against `user_obj`'s
+/// configs.
+public fun check_permission_can_compact(
+    user_obj: &User,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+) {
+    permission::check_can_compact(&user_obj.id, user_obj.owner, operator, ctx);
+}
+
 /// Whether `writer` holds an address-keyed grant to store blobs under `user_obj`.
 public(package) fun grants_add_blob(user_obj: &User, writer: address): bool {
     permission::grants_add_blob(&user_obj.id, user_obj.owner, writer)
@@ -116,9 +126,8 @@ public(package) fun get_wallet(user: &mut User): &mut Wallet {
 
 // === Package functions ===
 
-/// Build a user with an empty wallet, an empty delegation table granting the
-/// operator role every bit when `grant_operator_role` is set, and a registry
-/// transferred to the sender.
+/// Build a user with an empty wallet, the operator role granted every bit when
+/// `grant_operator_role` is set, and a registry transferred to the sender.
 public(package) fun create_user(
     public_username: String,
     system_id: ID,
@@ -136,12 +145,11 @@ public(package) fun create_user(
 
     let owner = new_user.owner;
 
-    permission::create_table(
+    permission::open_delegations(
         &mut new_user.id,
         system_id,
         owner,
         grant_operator_role,
-        ctx,
     );
 
     registry::create_registry(

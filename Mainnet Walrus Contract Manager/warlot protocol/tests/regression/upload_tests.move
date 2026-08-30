@@ -1,4 +1,4 @@
-/// The shared system object is off the write path.
+/// The shared system object is off the write path, and an adoption is one config.
 ///
 /// It used to be mutated by every upload ,  a user counter, an adopted-blob
 /// counter, per-user index entries ,  which put one globally shared object in the
@@ -16,8 +16,11 @@ use sui::{clock, coin::Coin, event, test_scenario as ts};
 use wal::wal::WAL;
 use walrus::system::System;
 use warlot::{
-    blob_config::BlobConfig,
-    entry_innerfile,
+    admin_cap::AdminCap,
+    blob_config::{Self, BlobConfig},
+    entry_admin,
+    entry_file_create,
+    entry_file_write,
     entry_register,
     entry_renew,
     entry_upload,
@@ -38,8 +41,8 @@ use warlot::{
         SystemTiersChanged,
         SystemVersionMigrated
     },
+    storage_events::{Self, BlobStored, ForeignBlobsAdopted},
     system_config,
-    foreign_meta::ForeignMeta,
     treasury_events::{SystemWithdraw, VaultCoinSupportChanged, VaultDeposited},
     writer_pass::WriterPass
 };
@@ -47,6 +50,12 @@ use warlot::{
 // === Constants ===
 
 const ALICE: address = @0xA11CE;
+const ADMIN: address = @0xADA;
+/// The wallet the backend signs with.
+const BACKEND: address = @0xB4CE;
+
+/// When the operator slot these tests enrol stops being accepted.
+const OPERATOR_UNTIL_MS: u64 = 10_000;
 
 const CYCLES: u64 = 2;
 const SET: u32 = 13;
@@ -71,7 +80,6 @@ fun system_config_untouched() {
 
     sc.next_tx(ALICE);
     let registry = sc.take_from_sender<Registry>();
-    let mut meta = sc.take_from_sender<ForeignMeta>();
     let renewable = fixtures::shared_config(
         &mut wsys,
         object::id(&sys),
@@ -111,9 +119,8 @@ fun system_config_untouched() {
         sc.ctx(),
     );
     entry_upload::foreign_blob_add(
-        &registry,
         system,
-        &mut meta,
+        ALICE,
         CYCLES,
         SET,
         vector[foreign],
@@ -131,7 +138,7 @@ fun system_config_untouched() {
         &mut funds,
         sc.ctx(),
     );
-    let file_id = entry_innerfile::create_file(
+    let file_id = entry_file_create::create_file(
         system,
         ALICE,
         fixtures::file_writers(),
@@ -161,7 +168,7 @@ fun system_config_untouched() {
         &mut funds,
         sc.ctx(),
     );
-    entry_innerfile::force_write_innerfile(
+    entry_file_write::force_write_innerfile(
         &mut file,
         &mut pass,
         &clk,
@@ -194,7 +201,6 @@ fun system_config_untouched() {
     assert!(system.get_system_balance<WAL>() == treasury, 48);
 
     sc.return_to_sender(registry);
-    sc.return_to_sender(meta);
     destroy(pass);
     destroy(funds);
     destroy(wsys);
@@ -228,4 +234,163 @@ fun assert_system_silent(code: u64) {
     assert!(event::events_by_type<SystemOperatorEnrolled>().is_empty(), code + 11);
     assert!(event::events_by_type<SystemOperatorRefreshed>().is_empty(), code + 12);
     assert!(event::events_by_type<SystemOperatorRetired>().is_empty(), code + 13);
+}
+
+#[test]
+/// An adoption is one config, whatever it carries.
+///
+/// It used to be one shared object and one event per blob, so a hundred-blob
+/// adoption created a hundred configs the owner then had to renew a hundred
+/// times. One config per call is also the only granularity a quilt has: a quilt
+/// is a single Walrus blob, and Walrus extends and deletes one whole.
+fun an_adoption_is_one_config() {
+    let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut sys = sc.take_shared<SystemConfig>();
+    let clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
+    entry_register::all_register_user_publicly(&mut sys, b"alice".to_string(), &clk, sc.ctx());
+
+    sc.next_tx(ALICE);
+    let registry = sc.take_from_sender<Registry>();
+    let mut blobs = vector[];
+    let mut i = 0;
+    while (i < 3) {
+        blobs.push_back(
+            fixtures::certified_blob(
+                &mut wsys,
+                fixtures::blob_size(),
+                fixtures::blob_epochs_ahead(),
+                &mut funds,
+                sc.ctx(),
+            ),
+        );
+        i = i + 1;
+    };
+
+    entry_upload::foreign_blob_add(&sys, ALICE, CYCLES, SET, blobs, &clk, sc.ctx());
+
+    // One custody announcement, naming one config that holds all three blobs.
+    let stored = event::events_by_type<BlobStored>();
+    assert!(stored.length() == 1, 0);
+
+    let adopted = event::events_by_type<ForeignBlobsAdopted>();
+    assert!(adopted.length() == 1, 1);
+    let (_system_id, owner, adopted_by, config_id, blob_count) =
+        storage_events::read_foreign_blobs_adopted(&adopted[0]);
+    assert!(owner == ALICE && adopted_by == ALICE, 2);
+    assert!(blob_count == 3, 3);
+
+    sc.next_tx(ALICE);
+    let config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
+    assert!(blob_config::owner(&config) == ALICE, 4);
+    assert!(config.blob_ids().length() == 3, 5);
+    assert!(blob_config::epoch_set(&config) == SET, 6);
+    assert!(blob_config::cycle_limit(&config).borrow() == CYCLES, 7);
+    // An adoption is not a compaction, so it leaves no receipt.
+    assert!(!blob_config::has_layout(&config), 8);
+
+    ts::return_shared(config);
+    sc.return_to_sender(registry);
+    destroy(funds);
+    destroy(wsys);
+    clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
+    sc.end();
+}
+
+#[test]
+/// The operator path adopts on the user's behalf, and the record keeps both
+/// addresses apart.
+fun an_operator_adopts_for_the_owner() {
+    let mut sc = ts::begin(ADMIN);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ADMIN);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
+
+    sc.next_tx(ADMIN);
+    let mut sys = sc.take_shared<SystemConfig>();
+    let mut clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
+    clk.set_for_testing(1_000);
+
+    let cap = sc.take_from_sender<AdminCap>();
+    entry_admin::mint_admin(&sys, BACKEND, &cap, sc.ctx());
+
+    sc.next_tx(BACKEND);
+    let backend_cap = sc.take_from_sender<AdminCap>();
+    let backend_cap_id = object::id(&backend_cap);
+    sc.return_to_sender(backend_cap);
+
+    sc.next_tx(ADMIN);
+    entry_admin::enrol_operator(
+        &mut sys,
+        &cap,
+        backend_cap_id,
+        OPERATOR_UNTIL_MS,
+        false,
+        &clk,
+        sc.ctx(),
+    );
+    sc.return_to_sender(cap);
+
+    sc.next_tx(ALICE);
+    entry_register::all_register_user_with_system_permission(
+        &mut sys,
+        b"alice".to_string(),
+        &clk,
+        sc.ctx(),
+    );
+
+    sc.next_tx(ALICE);
+    let registry = sc.take_from_sender<Registry>();
+
+    sc.next_tx(BACKEND);
+    let backend_cap = sc.take_from_sender<AdminCap>();
+    let foreign = fixtures::certified_blob(
+        &mut wsys,
+        fixtures::blob_size(),
+        fixtures::blob_epochs_ahead(),
+        &mut funds,
+        sc.ctx(),
+    );
+    entry_upload::foreign_blob_add_as_operator(
+        &sys,
+        &backend_cap,
+        ALICE,
+        CYCLES,
+        SET,
+        vector[foreign],
+        &clk,
+        sc.ctx(),
+    );
+
+    let adopted = event::events_by_type<ForeignBlobsAdopted>();
+    assert!(adopted.length() == 1, 0);
+    let (_system_id, owner, adopted_by, config_id, blob_count) =
+        storage_events::read_foreign_blobs_adopted(&adopted[0]);
+    // The custody is the user's; the act is the backend's. Collapsing the two
+    // loses the audit trail.
+    assert!(owner == ALICE, 1);
+    assert!(adopted_by == BACKEND, 2);
+    assert!(blob_count == 1, 3);
+    sc.return_to_sender(backend_cap);
+
+    sc.next_tx(ALICE);
+    let config = ts::take_shared_by_id<BlobConfig>(&sc, config_id);
+    assert!(blob_config::owner(&config) == ALICE, 4);
+
+    ts::return_shared(config);
+    sc.return_to_sender(registry);
+    destroy(funds);
+    destroy(wsys);
+    clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
+    sc.end();
 }

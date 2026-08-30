@@ -1,5 +1,6 @@
 /// Declares the events blob custody raises: storing, re-parenting, renewing,
-/// skipping a renewal, adopting from outside, and withdrawing.
+/// skipping a renewal, adopting from outside, registering a compaction layout,
+/// and withdrawing.
 ///
 /// Structs and emitters only ,  this module imports nothing from the rest of the
 /// package, so it can never take part in an import cycle and every domain module
@@ -124,22 +125,62 @@ public struct BlobWithdrawn has copy, drop, store {
     blobs_obj_id: vector<ID>,
 }
 
-/// A foreign-blob index was created for a user.
-public struct ForeignMetaCreated has copy, drop, store {
-    system_id: ID,
-    foreign_meta_id: ID,
-    owner: address,
-}
-
-/// Externally-sourced configs were recorded in a user's foreign-blob index.
+/// Blobs sourced outside the protocol were taken into its custody.
+///
+/// The per-user index this used to name is gone. It covered only the adopted
+/// subset of a user's configs and said nothing about that, so a client walking it
+/// got a partial answer and had to consult a service anyway. Two sources replace
+/// it, which is one more than it had: this event, and `BlobConfig.owner`, which
+/// answers ownership from the config object itself and so survives a missed
+/// event.
+///
+/// `BlobStored` already names the blobs and their terms; this says the one thing
+/// that announcement cannot, which is that the content came from outside.
 public struct ForeignBlobsAdopted has copy, drop, store {
     system_id: ID,
-    foreign_meta_id: ID,
+    /// The address entitled to withdraw the content.
     owner: address,
+    /// The address that performed the adoption. Differs from `owner` under
+    /// delegation and under the operator role.
     adopted_by: address,
-    /// Which of the index's vectors the ids landed in.
-    chunk_index: u64,
-    config_ids: vector<ID>,
+    /// The config the adoption took the blobs into. One per call.
+    config_id: ID,
+    /// How many blobs the adoption carried into that config.
+    blob_count: u64,
+}
+
+/// A compaction's receipt was written onto the config it produced.
+///
+/// The object keeps two 32-byte roots and the counts beside them, which is
+/// constant in the file count; this keeps the members those roots commit to. The
+/// split is what lets a client enumerate a generation's contents *after* the
+/// quilt holding them has been deleted ,  which is exactly the moment the record
+/// is needed, and exactly the moment an index living inside the quilt is gone.
+///
+/// `paths` and `content_hashes` are positionally paired and carry the caller's
+/// order; the root is over the sorted set, so a consumer recomputing it sorts
+/// first. `superseded` is every config this layout replaces, and it is the list
+/// the completeness check in the verification procedure is run against.
+public struct LayoutRegistered has copy, drop, store {
+    system_id: ID,
+    config_id: ID,
+    /// The address entitled to withdraw the compacted content.
+    owner: address,
+    /// The address that registered the layout. Differs from `owner` under
+    /// delegation and under the operator role.
+    registered_by: address,
+    /// `0` raw blobs, `1` a quilt.
+    kind: u8,
+    generation: u32,
+    file_count: u64,
+    file_set_root: vector<u8>,
+    paths: vector<vector<u8>>,
+    /// The content hash each path resolves to, positionally matching `paths`.
+    content_hashes: vector<vector<u8>>,
+    superseded_root: vector<u8>,
+    superseded_count: u64,
+    superseded: vector<ID>,
+    created_at_ms: u64,
 }
 
 // === View functions ===
@@ -282,31 +323,55 @@ public(package) fun emit_blob_withdrawn(
     event::emit(BlobWithdrawn { system_id, config_id, owner, blobs_obj_id })
 }
 
-/// Announce a newly created foreign-blob index.
-public(package) fun emit_foreign_meta_created(
-    system_id: ID,
-    foreign_meta_id: ID,
-    owner: address,
-) {
-    event::emit(ForeignMetaCreated { system_id, foreign_meta_id, owner })
-}
-
-/// Announce configs recorded in a foreign-blob index.
+/// Announce blobs adopted from outside the protocol.
 public(package) fun emit_foreign_blobs_adopted(
     system_id: ID,
-    foreign_meta_id: ID,
     owner: address,
     adopted_by: address,
-    chunk_index: u64,
-    config_ids: vector<ID>,
+    config_id: ID,
+    blob_count: u64,
 ) {
     event::emit(ForeignBlobsAdopted {
         system_id,
-        foreign_meta_id,
         owner,
         adopted_by,
-        chunk_index,
-        config_ids,
+        config_id,
+        blob_count,
+    })
+}
+
+/// Announce a compaction's receipt.
+public(package) fun emit_layout_registered(
+    system_id: ID,
+    config_id: ID,
+    owner: address,
+    registered_by: address,
+    kind: u8,
+    generation: u32,
+    file_count: u64,
+    file_set_root: vector<u8>,
+    paths: vector<vector<u8>>,
+    content_hashes: vector<vector<u8>>,
+    superseded_root: vector<u8>,
+    superseded_count: u64,
+    superseded: vector<ID>,
+    created_at_ms: u64,
+) {
+    event::emit(LayoutRegistered {
+        system_id,
+        config_id,
+        owner,
+        registered_by,
+        kind,
+        generation,
+        file_count,
+        file_set_root,
+        paths,
+        content_hashes,
+        superseded_root,
+        superseded_count,
+        superseded,
+        created_at_ms,
     })
 }
 
@@ -499,42 +564,74 @@ public fun read_blob_withdrawn(e: &BlobWithdrawn): (ID, ID, address, vector<ID>)
 }
 
 #[test_only]
-/// Every field of `ForeignMetaCreated`, in declaration order.
-public fun read_foreign_meta_created(e: &ForeignMetaCreated): (ID, ID, address) {
-    let ForeignMetaCreated {
+/// Every field of `LayoutRegistered`, in declaration order.
+public fun read_layout_registered(e: &LayoutRegistered): (
+    ID,
+    ID,
+    address,
+    address,
+    u8,
+    u32,
+    u64,
+    vector<u8>,
+    vector<vector<u8>>,
+    vector<vector<u8>>,
+    vector<u8>,
+    u64,
+    vector<ID>,
+    u64,
+) {
+    let LayoutRegistered {
         system_id: _system_id,
-        foreign_meta_id: _foreign_meta_id,
+        config_id: _config_id,
         owner: _owner,
+        registered_by: _registered_by,
+        kind: _kind,
+        generation: _generation,
+        file_count: _file_count,
+        file_set_root: _file_set_root,
+        paths: _paths,
+        content_hashes: _content_hashes,
+        superseded_root: _superseded_root,
+        superseded_count: _superseded_count,
+        superseded: _superseded,
+        created_at_ms: _created_at_ms,
     } = e;
 
-    (*_system_id, *_foreign_meta_id, *_owner)
+    (
+        *_system_id,
+        *_config_id,
+        *_owner,
+        *_registered_by,
+        *_kind,
+        *_generation,
+        *_file_count,
+        *_file_set_root,
+        *_paths,
+        *_content_hashes,
+        *_superseded_root,
+        *_superseded_count,
+        *_superseded,
+        *_created_at_ms,
+    )
 }
 
 #[test_only]
 /// Every field of `ForeignBlobsAdopted`, in declaration order.
 public fun read_foreign_blobs_adopted(e: &ForeignBlobsAdopted): (
     ID,
+    address,
+    address,
     ID,
-    address,
-    address,
     u64,
-    vector<ID>,
 ) {
     let ForeignBlobsAdopted {
         system_id: _system_id,
-        foreign_meta_id: _foreign_meta_id,
         owner: _owner,
         adopted_by: _adopted_by,
-        chunk_index: _chunk_index,
-        config_ids: _config_ids,
+        config_id: _config_id,
+        blob_count: _blob_count,
     } = e;
 
-    (
-        *_system_id,
-        *_foreign_meta_id,
-        *_owner,
-        *_adopted_by,
-        *_chunk_index,
-        *_config_ids,
-    )
+    (*_system_id, *_owner, *_adopted_by, *_config_id, *_blob_count)
 }

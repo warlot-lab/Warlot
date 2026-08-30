@@ -11,7 +11,7 @@ use walrus::{blob::{Self, Blob}, encoding, messages, system::{Self, System}};
 use warlot::{
     blob_config::{Self, BlobConfig},
     commit,
-    entry_innerfile,
+    entry_file_create,
     entry_register,
     system_config::SystemConfig,
 };
@@ -163,7 +163,7 @@ public fun inner_file(
 
     let first_revision = certified_blob(walrus_system, BLOB_SIZE, BLOB_EPOCHS_AHEAD, payment, ctx);
 
-    entry_innerfile::create_file(
+    entry_file_create::create_file(
         system_cfg,
         owner,
         FILE_WRITERS,

@@ -24,6 +24,12 @@ const EOperatorRoleNotGranted: vector<u8> =
 // === Constants ===
 
 /// Dynamic object field key for a user's delegation table.
+///
+/// Attached by the first delegation rather than at registration. The table is a
+/// dynamic object field ,  two objects, counting the field entry ,  and an
+/// account that never delegates to a named address never needs one. Every read
+/// therefore asks `has_table` first, and answers an absent table the way it
+/// answers an empty one.
 const ACCEPTANCE_KEY: vector<u8> = b"acceptance key";
 
 /// Dynamic field key for the bits a user has delegated to the operator role.
@@ -51,11 +57,16 @@ public struct SubPermission has store {
     create_writer_pass: bool,
     /// May initialise the owner's database.
     can_init_db: bool,
-    /// May compact the owner's stored blobs. Reserved; nothing consumes it yet.
+    /// May register a compaction layout against the owner's blob configs.
     can_compact: bool,
 }
 
 // === View functions ===
+
+/// Whether `user_uid` has ever held an address-keyed delegation.
+public fun has_delegation_table(user_uid: &UID): bool {
+    ofields::exists_with_type<vector<u8>, Table<address, SubPermission>>(user_uid, ACCEPTANCE_KEY)
+}
 
 /// Whether `user_uid`'s owner has delegated anything to the operator role.
 public fun has_operator_role(user_uid: &UID): bool {
@@ -70,11 +81,9 @@ public fun has_operator_role(user_uid: &UID): bool {
 /// a pass is minted to an address.
 public(package) fun grants_add_blob(user_uid: &UID, owner: address, writer: address): bool {
     if (writer == owner) return true;
+    if (!has_delegation_table(user_uid)) return false;
 
-    let sub_permission = ofields::borrow<vector<u8>, Table<address, SubPermission>>(
-        user_uid,
-        ACCEPTANCE_KEY,
-    );
+    let sub_permission = borrow_table(user_uid);
 
     if (!sub_permission.contains(writer)) return false;
 
@@ -83,23 +92,18 @@ public(package) fun grants_add_blob(user_uid: &UID, owner: address, writer: addr
 
 // === Package functions ===
 
-/// Attach an empty delegation table to `user_uid`, granting the operator role
-/// every bit when `grant_operator_role` is set.
-public(package) fun create_table(
+/// Open `user_uid`'s delegation surface, granting the operator role every bit
+/// when `grant_operator_role` is set.
+///
+/// Nothing is attached when the flag is clear. The delegation table arrives with
+/// the first address grant and the operator role is a dynamic field of its own,
+/// so a registration that delegates to nobody creates no container at all.
+public(package) fun open_delegations(
     user_uid: &mut UID,
     system_id: ID,
     owner: address,
     grant_operator_role: bool,
-    ctx: &mut TxContext,
 ) {
-    let sub_permission: Table<address, SubPermission> = table::new(ctx);
-
-    ofields::add<vector<u8>, Table<address, SubPermission>>(
-        user_uid,
-        ACCEPTANCE_KEY,
-        sub_permission,
-    );
-
     if (grant_operator_role) {
         // A registration that opens with a full delegation is a delegation, and
         // is announced as one. Without this the only silent grant in the
@@ -263,6 +267,24 @@ public(package) fun check_can_init_db(
     assert!(can_init_db, INVALIDACCESS);
 }
 
+/// Assert the sender may register a compaction layout against `owner`'s configs.
+///
+/// Writing a new quilt is purely additive ,  it destroys nothing and supersedes
+/// nothing until the owner acts ,  so it is delegable and backgroundable. The
+/// destructive half is withdrawal, which takes the config by value and is
+/// refused to anybody but its owner. That is why there is one bit here and no
+/// second one for deletion: deletion is not delegable at all.
+public(package) fun check_can_compact(
+    user_uid: &UID,
+    owner: address,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+) {
+    if (ctx.sender() == owner) return;
+    let (_, _, _, _, can_compact) = effective_bits(user_uid, operator, ctx);
+    assert!(can_compact, INVALIDACCESS);
+}
+
 /// Delegate capability bits to an address that holds none.
 ///
 /// Refuses an address that already holds a delegation. Widening a grant and
@@ -283,11 +305,9 @@ public(package) fun create_permission_state(
     create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    ctx: &mut TxContext,
 ) {
-    let sub_permission = ofields::borrow_mut<vector<u8>, Table<address, SubPermission>>(
-        user_uid,
-        ACCEPTANCE_KEY,
-    );
+    let sub_permission = borrow_table_mut_or_attach(user_uid, ctx);
 
     assert!(!sub_permission.contains(privilege_address), EAlreadyDelegated);
 
@@ -331,10 +351,11 @@ public(package) fun replace_permission_state(
     can_init_db: bool,
     can_compact: bool,
 ) {
-    let sub_permission = ofields::borrow_mut<vector<u8>, Table<address, SubPermission>>(
-        user_uid,
-        ACCEPTANCE_KEY,
-    );
+    // An account that has never delegated to any address has not delegated to
+    // this one, so the missing table answers exactly as an empty one would.
+    assert!(has_delegation_table(user_uid), ENotDelegated);
+
+    let sub_permission = borrow_table_mut(user_uid);
 
     assert!(sub_permission.contains(privilege_address), ENotDelegated);
 
@@ -372,10 +393,16 @@ public(package) fun revoke_permission_state(
     owner: address,
     privilege_address: address,
 ) {
-    let sub_permission = ofields::borrow_mut<vector<u8>, Table<address, SubPermission>>(
-        user_uid,
-        ACCEPTANCE_KEY,
-    );
+    if (has_delegation_table(user_uid)) {
+        remove_delegation(user_uid, privilege_address);
+    };
+
+    identity_events::emit_permission_revoked(system_id, owner, privilege_address);
+}
+
+/// Drop `privilege_address`'s row from a table that exists.
+fun remove_delegation(user_uid: &mut UID, privilege_address: address) {
+    let sub_permission = borrow_table_mut(user_uid);
 
     if (sub_permission.contains(privilege_address)) {
         let SubPermission {
@@ -386,11 +413,38 @@ public(package) fun revoke_permission_state(
             can_compact: _,
         } = sub_permission.remove(privilege_address);
     };
-
-    identity_events::emit_permission_revoked(system_id, owner, privilege_address);
 }
 
 // === Private functions ===
+
+/// The delegation table attached to `user_uid`.
+fun borrow_table(user_uid: &UID): &Table<address, SubPermission> {
+    ofields::borrow<vector<u8>, Table<address, SubPermission>>(user_uid, ACCEPTANCE_KEY)
+}
+
+/// Mutable access to the delegation table attached to `user_uid`.
+fun borrow_table_mut(user_uid: &mut UID): &mut Table<address, SubPermission> {
+    ofields::borrow_mut<vector<u8>, Table<address, SubPermission>>(user_uid, ACCEPTANCE_KEY)
+}
+
+/// The delegation table, attaching an empty one if this is the account's first
+/// address grant.
+fun borrow_table_mut_or_attach(
+    user_uid: &mut UID,
+    ctx: &mut TxContext,
+): &mut Table<address, SubPermission> {
+    if (!has_delegation_table(user_uid)) {
+        let sub_permission: Table<address, SubPermission> = table::new(ctx);
+
+        ofields::add<vector<u8>, Table<address, SubPermission>>(
+            user_uid,
+            ACCEPTANCE_KEY,
+            sub_permission,
+        );
+    };
+
+    borrow_table_mut(user_uid)
+}
 
 /// Every capability bit the sender may use on this account, in declaration
 /// order.
@@ -416,13 +470,8 @@ fun effective_bits(
     let mut can_init_db = false;
     let mut can_compact = false;
 
-    let sub_permission = ofields::borrow<vector<u8>, Table<address, SubPermission>>(
-        user_uid,
-        ACCEPTANCE_KEY,
-    );
-
-    if (sub_permission.contains(ctx.sender())) {
-        let row = sub_permission.borrow(ctx.sender());
+    if (has_delegation_table(user_uid) && borrow_table(user_uid).contains(ctx.sender())) {
+        let row = borrow_table(user_uid).borrow(ctx.sender());
         add_blob_to_address = row.add_blob_to_address;
         create_inner_file = row.create_inner_file;
         create_writer_pass = row.create_writer_pass;
@@ -456,22 +505,13 @@ fun effective_bits(
 #[test_only]
 /// Whether `delegate` holds a row in `user_uid`'s delegation table.
 public fun has_delegate(user_uid: &UID, delegate: address): bool {
-    let sub_permission = ofields::borrow<vector<u8>, Table<address, SubPermission>>(
-        user_uid,
-        ACCEPTANCE_KEY,
-    );
-
-    sub_permission.contains(delegate)
+    has_delegation_table(user_uid) && borrow_table(user_uid).contains(delegate)
 }
 
 #[test_only]
 /// Every capability bit `delegate` holds, in declaration order.
 public fun delegate_bits(user_uid: &UID, delegate: address): (bool, bool, bool, bool, bool) {
-    let sub_permission = ofields::borrow<vector<u8>, Table<address, SubPermission>>(
-        user_uid,
-        ACCEPTANCE_KEY,
-    );
-    let row = sub_permission.borrow(delegate);
+    let row = borrow_table(user_uid).borrow(delegate);
 
     (
         row.add_blob_to_address,

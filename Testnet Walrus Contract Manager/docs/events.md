@@ -102,10 +102,12 @@ twice reads back as `"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8="`. Confirmed 
 published testnet package across six events and five transactions, read both from
 the executing client and re-fetched from the fullnode.
 
-This affects every `commit` field, `previous_commit` on `HeadAdvanced`, and both
-root fields on `ProjectCreated` and `ProjectFileSetRootChanged`. **A decoder must
-base64-decode them.** `vector<u16>` and `vector<ID>` are unaffected and
-are still arrays.
+This affects every `commit` field, `previous_commit` on `HeadAdvanced`, both root
+fields on `ProjectCreated` and `ProjectFileSetRootChanged`, and on
+`LayoutRegistered` both roots plus **every element of** `paths` and
+`content_hashes` ,  a `vector<vector<u8>>` is a JSON array of base64 strings.
+**A decoder must base64-decode them.** `vector<u16>` and `vector<ID>` are
+unaffected and are still arrays.
 
 `docs/event-schema.json` carries one `parsedJson` example per event type, in the
 same shapes.
@@ -148,7 +150,7 @@ same shapes.
 | `WalletWithdrawn` | identity/wallet.move , `withdraw`, `withdraw_all` | `system_id`, `user`, `coin_type`, `amount`, `new_balance` |
 | `PermissionGranted` | identity/permission.move , `create_permission_state`, `replace_permission_state` | `system_id`, `owner`, `delegate`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact` |
 | `PermissionRevoked` | identity/permission.move , `revoke_permission_state` | `system_id`, `owner`, `delegate` |
-| `OperatorRoleGranted` | identity/permission.move , `create_table`, `create_operator_role_state`, `replace_operator_role_state` | `system_id`, `owner`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact` |
+| `OperatorRoleGranted` | identity/permission.move , `create_operator_role_state`, `replace_operator_role_state` | `system_id`, `owner`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact` |
 | `OperatorRoleRevoked` | identity/permission.move , `revoke_operator_role_state` | `system_id`, `owner` |
 
 ### Blob custody ,  `storage_events`
@@ -161,8 +163,47 @@ same shapes.
 | `RenewCycleSpent` | storage/renew.move , after the cycle is charged | `system_id`, `config_id`, `owner`, `blobs_extended`, `wal_spent`, `cycles_remaining`, `executed_by` |
 | `RenewSkipped` | storage/renew.move , on every path that does no work | `system_id`, `config_id`, `owner`, `blob_obj_id`, `reason`, `epoch_set`, `current_epoch`, `executed_by` |
 | `BlobWithdrawn` | storage/blob_config.move , `destroy` | `system_id`, `config_id`, `owner`, `blobs_obj_id` |
-| `ForeignMetaCreated` | foreign/foreign_meta.move , `create_meta` | `system_id`, `foreign_meta_id`, `owner` |
-| `ForeignBlobsAdopted` | foreign/foreign_meta.move , `add_foreign_blob` | `system_id`, `foreign_meta_id`, `owner`, `adopted_by`, `chunk_index`, `config_ids` |
+| `ForeignBlobsAdopted` | entry/upload.move , `adopt` | `system_id`, `owner`, `adopted_by`, `config_id`, `blob_count` |
+| `LayoutRegistered` | storage/compaction.move , `register` | `system_id`, `config_id`, `owner`, `registered_by`, `kind`, `generation`, `file_count`, `file_set_root`, `paths`, `content_hashes`, `superseded_root`, `superseded_count`, `superseded`, `created_at_ms` |
+
+#### The adoption record has no on-chain index behind it
+
+`ForeignMetaCreated` is gone and so is the per-user `ForeignMeta` object it
+announced. The index it named covered only the *adopted* subset of a user's
+configs and said nothing about that, so a client walking it got a partial answer
+and had to consult a service anyway. Two sources replace it, which is one more
+than it had: this event, and `BlobConfig.owner`, which answers ownership from the
+config object itself and therefore survives an event a consumer missed.
+
+An adoption is now **one config per call** rather than one per blob, so
+`config_ids` has become `config_id` and `blob_count` says how many blobs went
+into it. `BlobStored` fires once beside it with the blob ids, the sizes and the
+renewal terms.
+
+#### `LayoutRegistered` is the receipt, and it has to outlive the data
+
+A quilt's patch index and its per-patch tags live *inside* the quilt, so deleting
+a generation destroys the record of what that generation contained ,  and deleting
+it is the point of compacting past it. The object keeps two 32-byte roots and the
+counts beside them, which is constant in the file count; the event keeps the
+members those roots commit to. A consumer that wants to know what generation *N*
+held after generation *N* is gone reads this event and nothing else.
+
+`paths` and `content_hashes` are positionally paired and arrive in **ascending
+path order**, which is the order the root is folded in, so a consumer recomputing
+`file_set_root` folds them as given. `superseded` arrives in ascending id order
+for the same reason. Both are `vector<vector<u8>>` and `vector<ID>` respectively:
+each element of `paths` and `content_hashes` is a `vector<u8>` and therefore
+arrives **base64**, inside a JSON array.
+
+`kind` is `0` for raw blobs and `1` for a quilt. `generation` is strictly greater
+than every generation the compaction supersedes, so the lineage is a strict order
+rather than a set of claims.
+
+There is no accept, reject or expiry event, because there is no accept, reject or
+expiry. Registering a layout destroys nothing and re-parents nothing; the only
+consent signal is whether the owner subsequently withdraws the superseded
+configs, which raises `BlobWithdrawn` and which nobody but the owner can cause.
 
 ### Inner files ,  `innerfile_events`
 

@@ -11,7 +11,9 @@ use std::unit_test::destroy;
 use sui::{clock, test_scenario as ts};
 use warlot::{
     draft,
-    entry_innerfile,
+    entry_file_access,
+    entry_file_draft,
+    entry_file_write,
     entry_permission,
     entry_register,
     fixtures,
@@ -59,7 +61,7 @@ fun writers_length_enforced() {
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
     let owner_pass = sc.take_from_sender<WriterPass>();
     entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
-    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
     let mut bob_pass = sc.take_from_sender<WriterPass>();
@@ -75,7 +77,7 @@ fun writers_length_enforced() {
             &mut funds,
             sc.ctx(),
         );
-        entry_innerfile::write_(
+        entry_file_write::write_(
             &mut file,
             &mut bob_pass,
             true,
@@ -137,7 +139,7 @@ fun clearing_takes_a_range_and_leaves_the_rest() {
             &mut funds,
             sc.ctx(),
         );
-        entry_innerfile::write_(
+        entry_file_write::write_(
             &mut file,
             &mut owner_pass,
             true,
@@ -155,14 +157,14 @@ fun clearing_takes_a_range_and_leaves_the_rest() {
     assert!(draft::total_draft(inner_file::get_draft_holder(&mut file)) == 3, 0);
 
     // A range clears what it names and nothing else.
-    entry_innerfile::clear_drafts(&sys, &mut file, &mut owner_pass, 0, 2, &clk, sc.ctx());
+    entry_file_draft::clear_drafts(&sys, &mut file, &mut owner_pass, 0, 2, &clk, sc.ctx());
 
     assert!(draft::total_draft(inner_file::get_draft_holder(&mut file)) == 1, 1);
 
     // The index only ever moves forward, so the draft that survived keeps its own.
     assert!(draft::available_index(inner_file::get_draft_holder(&mut file)) == 3, 2);
 
-    entry_innerfile::clear_drafts(&sys, &mut file, &mut owner_pass, 2, 3, &clk, sc.ctx());
+    entry_file_draft::clear_drafts(&sys, &mut file, &mut owner_pass, 2, 3, &clk, sc.ctx());
 
     assert!(draft::total_draft(inner_file::get_draft_holder(&mut file)) == 0, 3);
 

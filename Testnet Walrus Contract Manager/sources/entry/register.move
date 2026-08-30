@@ -7,7 +7,6 @@ use std::string::String;
 use sui::{clock::Clock, coin::{Self, Coin}};
 use wal::wal::WAL;
 use warlot::{
-    foreign_meta,
     registry::{Self, Registry},
     system_config::{Self, SystemConfig},
     user,
@@ -48,9 +47,6 @@ public fun all_register_user_publicly(
         ctx,
     );
 
-    // Tracks the blob configs this user adopts from outside the protocol.
-    foreign_meta::create_meta(object::id(system_cfg), ctx);
-
     user::add_user(system_cfg, new_user, ctx);
 }
 
@@ -76,8 +72,6 @@ public fun all_register_user_with_system_permission(
         true,
         ctx,
     );
-
-    foreign_meta::create_meta(object::id(system_cfg), ctx);
 
     user::add_user(system_cfg, new_user, ctx);
 }

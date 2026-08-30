@@ -34,33 +34,34 @@ public struct Wallet has key, store {
 }
 
 /// Holds balances for many coin types, one dynamic field per type name.
+///
+/// Attached on the first deposit rather than at the wallet's creation. It is a
+/// dynamic object field ,  two objects, counting the field entry ,  and an
+/// account that has never funded its wallet holds no balance for it to keep.
 public struct Bank has key, store {
     id: UID,
 }
 
 // === Package functions ===
 
-/// Create a wallet for the sender with an empty bank attached.
+/// Create a wallet for the sender.
 public(package) fun create_wallet(system_id: ID, clock: &Clock, ctx: &mut TxContext): Wallet {
-    let mut wallet = Wallet {
+    let wallet = Wallet {
         id: object::new(ctx),
         owner: ctx.sender(),
         created_at: clock::timestamp_ms(clock),
     };
-
-    let bank = Bank { id: object::new(ctx) };
-
-    dof::add(&mut wallet.id, BANK_KEY, bank);
 
     identity_events::emit_wallet_created(system_id, object::id(&wallet), ctx.sender(), wallet.created_at);
 
     wallet
 }
 
-/// Deposit a whole `Coin<T>` into the wallet.
-public(package) fun deposit_coin<T>(wallet: &mut Wallet, coin: Coin<T>) {
+/// Deposit a whole `Coin<T>` into the wallet, attaching the bank if this is the
+/// first deposit the wallet has ever taken.
+public(package) fun deposit_coin<T>(wallet: &mut Wallet, coin: Coin<T>, ctx: &mut TxContext) {
     let type_key = get_type_key<T>();
-    let bank = borrow_bank_mut(wallet);
+    let bank = borrow_bank_mut_or_attach(wallet, ctx);
 
     if (df::exists_(&bank.id, type_key)) {
         let balance = df::borrow_mut<String, Balance<T>>(&mut bank.id, type_key);
@@ -82,7 +83,7 @@ public(package) fun deposit<T>(
 
     let deposit_coin = coin::split(funds, amount, ctx);
 
-    deposit_coin<T>(wallet, deposit_coin);
+    deposit_coin<T>(wallet, deposit_coin, ctx);
 
     let new_balance = get_balance<T>(wallet);
 
@@ -108,6 +109,9 @@ public(package) fun withdraw<T>(
 ): Coin<T> {
     let type_key = get_type_key<T>();
     let owner = wallet.owner;
+
+    assert!(has_bank(wallet), ENoBalance);
+
     let bank = borrow_bank_mut(wallet);
 
     assert!(df::exists_(&bank.id, type_key), ENoBalance);
@@ -131,6 +135,9 @@ public(package) fun withdraw_all<T>(
 ): Coin<T> {
     let type_key = get_type_key<T>();
     let owner = wallet.owner;
+
+    assert!(has_bank(wallet), ENoBalance);
+
     let bank = borrow_bank_mut(wallet);
 
     assert!(df::exists_(&bank.id, type_key), ENoBalance);
@@ -146,7 +153,14 @@ public(package) fun withdraw_all<T>(
 }
 
 /// The balance of `T` held, or zero if none is held.
+///
+/// A wallet that has never taken a deposit holds no bank, and a wallet with no
+/// bank holds nothing of any type, so the two absences answer the same way.
 public(package) fun get_balance<T>(wallet: &Wallet): u64 {
+    if (!has_bank(wallet)) {
+        return 0
+    };
+
     let type_key = get_type_key<T>();
     let bank = borrow_bank(wallet);
 
@@ -177,14 +191,36 @@ public(package) fun get_coin_wal(
     withdraw_all<WAL>(wallet, system_id, ctx)
 }
 
+// === Test-only helpers ===
+
+#[test_only]
+/// Whether this wallet has ever taken a deposit.
+public fun has_bank_for_testing(wallet: &Wallet): bool {
+    has_bank(wallet)
+}
+
 // === Private functions ===
 
 fun get_type_key<T>(): String {
     string::from_ascii(type_name::with_defining_ids<T>().into_string())
 }
 
+/// Whether this wallet has ever taken a deposit.
+fun has_bank(wallet: &Wallet): bool {
+    dof::exists_<vector<u8>>(&wallet.id, BANK_KEY)
+}
+
 fun borrow_bank_mut(wallet: &mut Wallet): &mut Bank {
     dof::borrow_mut<vector<u8>, Bank>(&mut wallet.id, BANK_KEY)
+}
+
+/// The wallet's bank, attaching an empty one if this is its first deposit.
+fun borrow_bank_mut_or_attach(wallet: &mut Wallet, ctx: &mut TxContext): &mut Bank {
+    if (!has_bank(wallet)) {
+        dof::add(&mut wallet.id, BANK_KEY, Bank { id: object::new(ctx) });
+    };
+
+    borrow_bank_mut(wallet)
 }
 
 fun borrow_bank(wallet: &Wallet): &Bank {

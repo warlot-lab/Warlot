@@ -9,7 +9,8 @@
     "std::string::String": "JSON string",
     "Option<T>": "T's encoding, or null when none",
     "vector<T>": "JSON array of T's encoding",
-    "vector<u8>": "CONFIRMED (s6, testnet). Base64 JSON string, NOT an array of numbers. A 32-byte commit sent as 00112233445566778899aabbccddeeff twice reads back as \"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8=\". This is a special case: vector<u16> and vector<ID> are still arrays. A decoder must base64-decode every `commit`, `previous_commit`, `file_set_root`, `previous_root` and any other vector<u8> field."
+    "vector<u8>": "CONFIRMED (s6, testnet). Base64 JSON string, NOT an array of numbers. A 32-byte commit sent as 00112233445566778899aabbccddeeff twice reads back as \"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8=\". This is a special case: vector<u16> and vector<ID> are still arrays. A decoder must base64-decode every `commit`, `previous_commit`, `file_set_root`, `previous_root` and any other vector<u8> field.",
+    "vector<vector<u8>>": "JSON array of base64 strings. Each element is a vector<u8> and follows that rule; the outer vector follows the vector<T> rule. Applies to LayoutRegistered.paths and .content_hashes."
   },
   "_filters": {
     "grpc": "EventTypeFilter { event_type: \"<PACKAGE>\" } returns every event the protocol raises, whichever module declares it.",
@@ -17,6 +18,92 @@
     "json_rpc": "suix_queryEvents is deactivated on public fullnodes as of 2026-08-26 and returns -32601 Method not found."
   },
   "events": {
+    "<PACKAGE>::draft_events::DraftDeleted": {
+      "module": "draft_events",
+      "summary": "A draft was dropped without being accepted.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "file_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "draft_index",
+          "move_type": "u64"
+        },
+        {
+          "name": "deleted_by",
+          "move_type": "address"
+        },
+        {
+          "name": "total_draft",
+          "move_type": "u64"
+        },
+        {
+          "name": "last_modified",
+          "move_type": "u64"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x8ee36e853e068369ebc3e07d52dd92c35f82bbea3d0327803329b4d786c6498f",
+        "file_id": "0x768a7d0db64019f193c1fa0bd1b4dbb9a5076f009282e52737862bfddfcc7b11",
+        "draft_index": "1024",
+        "deleted_by": "0x40dce5b0a4f9e9f6f0400d3b5e93c8f51cabd3f5acf0d8505c794ad89daea672",
+        "total_draft": "1024",
+        "last_modified": "1024"
+      }
+    },
+    "<PACKAGE>::draft_events::DraftMerged": {
+      "module": "draft_events",
+      "summary": "A draft was accepted into the file's history.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "file_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "draft_index",
+          "move_type": "u64"
+        },
+        {
+          "name": "merged_by",
+          "move_type": "address"
+        },
+        {
+          "name": "commit",
+          "move_type": "vector<u8>"
+        },
+        {
+          "name": "blob_config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "total_draft",
+          "move_type": "u64"
+        },
+        {
+          "name": "last_modified",
+          "move_type": "u64"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xe3eedc271ea281ab1933b6d50beca623ef9657f090bec9ee569c441a66a99973",
+        "file_id": "0xaff67d06d3d06408e96cbf3fef47cc7a507846087048979712537ad4a9384cab",
+        "draft_index": "1024",
+        "merged_by": "0x816867960d31e81cc8af0c4c84421799041d0c6d3680ecb9abad8c397b9ebf33",
+        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "blob_config_id": "0xb705b006ffcf75214c4515a4b262846d9c08249e9d0ccceee48e872ca9ab8f55",
+        "total_draft": "1024",
+        "last_modified": "1024"
+      }
+    },
     "<PACKAGE>::draft_events::DraftPinned": {
       "module": "draft_events",
       "summary": "A proposed revision was pinned to a file's draft queue.",
@@ -85,102 +172,148 @@
         "last_modified": "1024"
       }
     },
-    "<PACKAGE>::draft_events::DraftMerged": {
-      "module": "draft_events",
-      "summary": "A draft was accepted into the file's history.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "file_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "draft_index",
-          "move_type": "u64"
-        },
-        {
-          "name": "merged_by",
-          "move_type": "address"
-        },
-        {
-          "name": "commit",
-          "move_type": "vector<u8>"
-        },
-        {
-          "name": "blob_config_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "total_draft",
-          "move_type": "u64"
-        },
-        {
-          "name": "last_modified",
-          "move_type": "u64"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0xe3eedc271ea281ab1933b6d50beca623ef9657f090bec9ee569c441a66a99973",
-        "file_id": "0xaff67d06d3d06408e96cbf3fef47cc7a507846087048979712537ad4a9384cab",
-        "draft_index": "1024",
-        "merged_by": "0x816867960d31e81cc8af0c4c84421799041d0c6d3680ecb9abad8c397b9ebf33",
-        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        "blob_config_id": "0xb705b006ffcf75214c4515a4b262846d9c08249e9d0ccceee48e872ca9ab8f55",
-        "total_draft": "1024",
-        "last_modified": "1024"
-      }
-    },
-    "<PACKAGE>::draft_events::DraftDeleted": {
-      "module": "draft_events",
-      "summary": "A draft was dropped without being accepted.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "file_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "draft_index",
-          "move_type": "u64"
-        },
-        {
-          "name": "deleted_by",
-          "move_type": "address"
-        },
-        {
-          "name": "total_draft",
-          "move_type": "u64"
-        },
-        {
-          "name": "last_modified",
-          "move_type": "u64"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x8ee36e853e068369ebc3e07d52dd92c35f82bbea3d0327803329b4d786c6498f",
-        "file_id": "0x768a7d0db64019f193c1fa0bd1b4dbb9a5076f009282e52737862bfddfcc7b11",
-        "draft_index": "1024",
-        "deleted_by": "0x40dce5b0a4f9e9f6f0400d3b5e93c8f51cabd3f5acf0d8505c794ad89daea672",
-        "total_draft": "1024",
-        "last_modified": "1024"
-      }
-    },
-    "<PACKAGE>::identity_events::UserRegistered": {
+    "<PACKAGE>::identity_events::OperatorRoleGranted": {
       "module": "identity_events",
-      "summary": "A registry was minted for an address, naming the user record it identifies.",
+      "summary": "A user delegated capability bits to the system operator role.",
       "fields": [
         {
           "name": "system_id",
           "move_type": "ID"
         },
         {
-          "name": "user_id",
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "add_blob_to_address",
+          "move_type": "bool"
+        },
+        {
+          "name": "create_inner_file",
+          "move_type": "bool"
+        },
+        {
+          "name": "create_writer_pass",
+          "move_type": "bool"
+        },
+        {
+          "name": "can_init_db",
+          "move_type": "bool"
+        },
+        {
+          "name": "can_compact",
+          "move_type": "bool"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "add_blob_to_address": true,
+        "create_inner_file": true,
+        "create_writer_pass": true,
+        "can_init_db": true,
+        "can_compact": true
+      }
+    },
+    "<PACKAGE>::identity_events::OperatorRoleRevoked": {
+      "module": "identity_events",
+      "summary": "A user withdrew every capability bit from the system operator role.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581"
+      }
+    },
+    "<PACKAGE>::identity_events::PermissionGranted": {
+      "module": "identity_events",
+      "summary": "A user delegated capability bits to another address.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "delegate",
+          "move_type": "address"
+        },
+        {
+          "name": "add_blob_to_address",
+          "move_type": "bool"
+        },
+        {
+          "name": "create_inner_file",
+          "move_type": "bool"
+        },
+        {
+          "name": "create_writer_pass",
+          "move_type": "bool"
+        },
+        {
+          "name": "can_init_db",
+          "move_type": "bool"
+        },
+        {
+          "name": "can_compact",
+          "move_type": "bool"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xe48d2a97be39b8bee0112cc01d2b9e7ad95ca32f8dae6552f849af33aba36922",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "delegate": "0x6f216e33c5cf9add9d70e7cd8c28e3dafe27e7723ea93918b27c60f118532154",
+        "add_blob_to_address": true,
+        "create_inner_file": true,
+        "create_writer_pass": true,
+        "can_init_db": true,
+        "can_compact": true
+      }
+    },
+    "<PACKAGE>::identity_events::PermissionRevoked": {
+      "module": "identity_events",
+      "summary": "A user withdrew every capability bit from an address.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "delegate",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xc7dec138c879c40ae6bc8d8b49c50ed17848e5480addf66845330b6d9afe3229",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "delegate": "0x6f216e33c5cf9add9d70e7cd8c28e3dafe27e7723ea93918b27c60f118532154"
+      }
+    },
+    "<PACKAGE>::identity_events::RegistryMigrated": {
+      "module": "identity_events",
+      "summary": "A registry was repointed from one system to another.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "previous_system",
           "move_type": "ID"
         },
         {
@@ -192,26 +325,16 @@
           "move_type": "address"
         },
         {
-          "name": "public_username",
-          "move_type": "String"
-        },
-        {
-          "name": "created_at",
-          "move_type": "u64"
-        },
-        {
-          "name": "decay_at",
+          "name": "updated_at",
           "move_type": "u64"
         }
       ],
       "parsedJson": {
-        "system_id": "0xdbd02182effbf2034f4ae7189907e8c1a6f94ed8b092670f6597c01314b24dfd",
-        "user_id": "0x188f5982bb80093f08d9d43517254c1c5c0c84a6349d57b047b73be05de3473d",
-        "registry_id": "0x5ad9fabdfb6f6a21207e6484a56646b89751cb37fd7c23e7054a361ec850704d",
+        "system_id": "0xdbe675ca1482e74aec87ceee53a8752d3568fec6600f8a2399bd7dcc8e7925ec",
+        "previous_system": "0xd58fa3d56b3947b154d87135a70c99a03a0cd980785c20ea9dcdc80f119a7835",
+        "registry_id": "0x63a0f355671815456d50d442043e1b6edb5a1e5ac00cdb1839fa1b98618bf281",
         "user": "0x04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb",
-        "public_username": "alice",
-        "created_at": "1024",
-        "decay_at": "1024"
+        "updated_at": "1024"
       }
     },
     "<PACKAGE>::identity_events::UserJoinedSystem": {
@@ -260,6 +383,49 @@
         "user_id": "0x343b849e2f51d7b03b2711196bb5a2589613877a4c3774d137409174c47d89b3"
       }
     },
+    "<PACKAGE>::identity_events::UserRegistered": {
+      "module": "identity_events",
+      "summary": "A registry was minted for an address, naming the user record it identifies.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "user_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "registry_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "user",
+          "move_type": "address"
+        },
+        {
+          "name": "public_username",
+          "move_type": "String"
+        },
+        {
+          "name": "created_at",
+          "move_type": "u64"
+        },
+        {
+          "name": "decay_at",
+          "move_type": "u64"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xdbd02182effbf2034f4ae7189907e8c1a6f94ed8b092670f6597c01314b24dfd",
+        "user_id": "0x188f5982bb80093f08d9d43517254c1c5c0c84a6349d57b047b73be05de3473d",
+        "registry_id": "0x5ad9fabdfb6f6a21207e6484a56646b89751cb37fd7c23e7054a361ec850704d",
+        "user": "0x04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb",
+        "public_username": "alice",
+        "created_at": "1024",
+        "decay_at": "1024"
+      }
+    },
     "<PACKAGE>::identity_events::UsernameUpdated": {
       "module": "identity_events",
       "summary": "A registry's public username was replaced.",
@@ -286,39 +452,6 @@
         "registry_id": "0x2fb881959544b670aec59be8923f13380ebab3c684066ba14376aeba087b4906",
         "user": "0x04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb",
         "public_username": "alice"
-      }
-    },
-    "<PACKAGE>::identity_events::RegistryMigrated": {
-      "module": "identity_events",
-      "summary": "A registry was repointed from one system to another.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "previous_system",
-          "move_type": "ID"
-        },
-        {
-          "name": "registry_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "user",
-          "move_type": "address"
-        },
-        {
-          "name": "updated_at",
-          "move_type": "u64"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0xdbe675ca1482e74aec87ceee53a8752d3568fec6600f8a2399bd7dcc8e7925ec",
-        "previous_system": "0xd58fa3d56b3947b154d87135a70c99a03a0cd980785c20ea9dcdc80f119a7835",
-        "registry_id": "0x63a0f355671815456d50d442043e1b6edb5a1e5ac00cdb1839fa1b98618bf281",
-        "user": "0x04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb",
-        "updated_at": "1024"
       }
     },
     "<PACKAGE>::identity_events::WalletCreated": {
@@ -415,216 +548,6 @@
         "new_balance": "1024"
       }
     },
-    "<PACKAGE>::identity_events::PermissionGranted": {
-      "module": "identity_events",
-      "summary": "A user delegated capability bits to another address.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "owner",
-          "move_type": "address"
-        },
-        {
-          "name": "delegate",
-          "move_type": "address"
-        },
-        {
-          "name": "add_blob_to_address",
-          "move_type": "bool"
-        },
-        {
-          "name": "create_inner_file",
-          "move_type": "bool"
-        },
-        {
-          "name": "create_writer_pass",
-          "move_type": "bool"
-        },
-        {
-          "name": "can_init_db",
-          "move_type": "bool"
-        },
-        {
-          "name": "can_compact",
-          "move_type": "bool"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0xe48d2a97be39b8bee0112cc01d2b9e7ad95ca32f8dae6552f849af33aba36922",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
-        "delegate": "0x6f216e33c5cf9add9d70e7cd8c28e3dafe27e7723ea93918b27c60f118532154",
-        "add_blob_to_address": true,
-        "create_inner_file": true,
-        "create_writer_pass": true,
-        "can_init_db": true,
-        "can_compact": true
-      }
-    },
-    "<PACKAGE>::identity_events::PermissionRevoked": {
-      "module": "identity_events",
-      "summary": "A user withdrew every capability bit from an address.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "owner",
-          "move_type": "address"
-        },
-        {
-          "name": "delegate",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0xc7dec138c879c40ae6bc8d8b49c50ed17848e5480addf66845330b6d9afe3229",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
-        "delegate": "0x6f216e33c5cf9add9d70e7cd8c28e3dafe27e7723ea93918b27c60f118532154"
-      }
-    },
-    "<PACKAGE>::identity_events::OperatorRoleGranted": {
-      "module": "identity_events",
-      "summary": "A user delegated capability bits to the system operator role.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "owner",
-          "move_type": "address"
-        },
-        {
-          "name": "add_blob_to_address",
-          "move_type": "bool"
-        },
-        {
-          "name": "create_inner_file",
-          "move_type": "bool"
-        },
-        {
-          "name": "create_writer_pass",
-          "move_type": "bool"
-        },
-        {
-          "name": "can_init_db",
-          "move_type": "bool"
-        },
-        {
-          "name": "can_compact",
-          "move_type": "bool"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
-        "add_blob_to_address": true,
-        "create_inner_file": true,
-        "create_writer_pass": true,
-        "can_init_db": true,
-        "can_compact": true
-      }
-    },
-    "<PACKAGE>::identity_events::OperatorRoleRevoked": {
-      "module": "identity_events",
-      "summary": "A user withdrew every capability bit from the system operator role.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "owner",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0xb8ad31545c33f7408bd99de984a4b3a4b9a32b990167b81a67c21715dec234eb",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581"
-      }
-    },
-    "<PACKAGE>::innerfile_events::InnerFileCreated": {
-      "module": "innerfile_events",
-      "summary": "A file was created and shared, with its first revision already in the window.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "file_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "owner",
-          "move_type": "address"
-        },
-        {
-          "name": "created_by",
-          "move_type": "address"
-        },
-        {
-          "name": "writers_length",
-          "move_type": "u8"
-        },
-        {
-          "name": "track_back_length",
-          "move_type": "u8"
-        },
-        {
-          "name": "epoch_set",
-          "move_type": "u32"
-        },
-        {
-          "name": "cycle_end",
-          "move_type": "u64"
-        },
-        {
-          "name": "draft_epoch_duration",
-          "move_type": "u32"
-        },
-        {
-          "name": "operators_allowed",
-          "move_type": "bool"
-        },
-        {
-          "name": "operators_may_bypass_draft",
-          "move_type": "bool"
-        },
-        {
-          "name": "created_at_ms",
-          "move_type": "u64"
-        },
-        {
-          "name": "commit",
-          "move_type": "vector<u8>"
-        },
-        {
-          "name": "blob_config_id",
-          "move_type": "ID"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x20d016d849a5c028346793a3bb5c9af32d97a376d667f38cdaa13717cce47e30",
-        "file_id": "0x7abb47f08aefa7b62bd8a57874e8c6c980f5b151279441ec860a027ce209b0d2",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
-        "created_by": "0x117dbb19db72ab17c98e4ef1274d5981b68ee4b44889969ee74a04a51c383056",
-        "writers_length": 1,
-        "track_back_length": 1,
-        "epoch_set": 13,
-        "cycle_end": "1024",
-        "draft_epoch_duration": 13,
-        "operators_allowed": true,
-        "operators_may_bypass_draft": true,
-        "created_at_ms": "1024",
-        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        "blob_config_id": "0x6cd3c0bc95c907cc8ce8941688fc6d7c48338d7236a50ad008b40db2d190b72e"
-      }
-    },
     "<PACKAGE>::innerfile_events::FileOperatorPolicySet": {
       "module": "innerfile_events",
       "summary": "A file's owner replaced both operator bits.",
@@ -711,6 +634,84 @@
         "last_modified": "1024"
       }
     },
+    "<PACKAGE>::innerfile_events::InnerFileCreated": {
+      "module": "innerfile_events",
+      "summary": "A file was created and shared, with its first revision already in the window.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "file_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "created_by",
+          "move_type": "address"
+        },
+        {
+          "name": "writers_length",
+          "move_type": "u8"
+        },
+        {
+          "name": "track_back_length",
+          "move_type": "u8"
+        },
+        {
+          "name": "epoch_set",
+          "move_type": "u32"
+        },
+        {
+          "name": "cycle_end",
+          "move_type": "u64"
+        },
+        {
+          "name": "draft_epoch_duration",
+          "move_type": "u32"
+        },
+        {
+          "name": "operators_allowed",
+          "move_type": "bool"
+        },
+        {
+          "name": "operators_may_bypass_draft",
+          "move_type": "bool"
+        },
+        {
+          "name": "created_at_ms",
+          "move_type": "u64"
+        },
+        {
+          "name": "commit",
+          "move_type": "vector<u8>"
+        },
+        {
+          "name": "blob_config_id",
+          "move_type": "ID"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x20d016d849a5c028346793a3bb5c9af32d97a376d667f38cdaa13717cce47e30",
+        "file_id": "0x7abb47f08aefa7b62bd8a57874e8c6c980f5b151279441ec860a027ce209b0d2",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "created_by": "0x117dbb19db72ab17c98e4ef1274d5981b68ee4b44889969ee74a04a51c383056",
+        "writers_length": 1,
+        "track_back_length": 1,
+        "epoch_set": 13,
+        "cycle_end": "1024",
+        "draft_epoch_duration": 13,
+        "operators_allowed": true,
+        "operators_may_bypass_draft": true,
+        "created_at_ms": "1024",
+        "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "blob_config_id": "0x6cd3c0bc95c907cc8ce8941688fc6d7c48338d7236a50ad008b40db2d190b72e"
+      }
+    },
     "<PACKAGE>::innerfile_events::RevisionRetired": {
       "module": "innerfile_events",
       "summary": "A revision stopped being referenced by the file that held it.",
@@ -747,6 +748,34 @@
         "commit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "commit_by": "0x7a5376820b30eb578b951d8bec3942a9096c9b9af741a034973a07bb404f424b",
         "released": true
+      }
+    },
+    "<PACKAGE>::innerfile_events::RootChangeRemoved": {
+      "module": "innerfile_events",
+      "summary": "A file gave up its known-good fallback.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "file_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "blob_config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "removed_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x17a1d147c0da36f4a515fcda878dbb1a21239f067230155fae7f0d0c12bc6105",
+        "file_id": "0x8945d566b3477a905303e7dd26f3ec98cae0800a9da4484d148264aab615bda6",
+        "blob_config_id": "0xb0078e174813e7ddc5ef4c2e57e1f1ec914d4a9fa1ca88fd83ff7e34b867004e",
+        "removed_by": "0xfbaedbb5b6211134d50db7286b106b184207f7345e6aad2024155b4b01478f15"
       }
     },
     "<PACKAGE>::innerfile_events::RootChangeSet": {
@@ -787,9 +816,9 @@
         "previous_blob_config": "0xe49b1a1c819ff0f83fb399bc8d7b022f8df2043d90e578dd97724db074d29b91"
       }
     },
-    "<PACKAGE>::innerfile_events::RootChangeRemoved": {
-      "module": "innerfile_events",
-      "summary": "A file gave up its known-good fallback.",
+    "<PACKAGE>::pass_events::WriterDenied": {
+      "module": "pass_events",
+      "summary": "A file owner refused an address, until `until_ms` or indefinitely when zero.",
       "fields": [
         {
           "name": "system_id",
@@ -800,19 +829,47 @@
           "move_type": "ID"
         },
         {
-          "name": "blob_config_id",
-          "move_type": "ID"
+          "name": "writer",
+          "move_type": "address"
         },
         {
-          "name": "removed_by",
+          "name": "until_ms",
+          "move_type": "u64"
+        },
+        {
+          "name": "denied_by",
           "move_type": "address"
         }
       ],
       "parsedJson": {
-        "system_id": "0x17a1d147c0da36f4a515fcda878dbb1a21239f067230155fae7f0d0c12bc6105",
-        "file_id": "0x8945d566b3477a905303e7dd26f3ec98cae0800a9da4484d148264aab615bda6",
-        "blob_config_id": "0xb0078e174813e7ddc5ef4c2e57e1f1ec914d4a9fa1ca88fd83ff7e34b867004e",
-        "removed_by": "0xfbaedbb5b6211134d50db7286b106b184207f7345e6aad2024155b4b01478f15"
+        "system_id": "0x329eb2bf33b91754d403a0182900464a2056bf4b93cb5ea9b24db5444a6f8731",
+        "file_id": "0x081d68c75e2b6715b27790759bf4805b72561c881411139e049c6f46f0de9f76",
+        "writer": "0xb93006774cbdd4b299389a03ac3d88c3a76b460d538795bc12718011a909fba5",
+        "until_ms": "1024",
+        "denied_by": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
+      }
+    },
+    "<PACKAGE>::pass_events::WriterPassDestroyed": {
+      "module": "pass_events",
+      "summary": "A writer pass was destroyed by whoever held it.",
+      "fields": [
+        {
+          "name": "file_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "pass_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "destroyed_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "file_id": "0x1620907bd5d010737946258f67087282cc889dcd29d6c55513d5d5242868b2f3",
+        "pass_id": "0xdb0b13f1821c9027be3fa9e78a31208877d8a0d47bc6e97cdddb5516aedb2e8f",
+        "destroyed_by": "0x8dbc45106399d3929a0a45901f53ef6548781e818d7d610535e2445067d2356f"
       }
     },
     "<PACKAGE>::pass_events::WriterPassMinted": {
@@ -858,29 +915,6 @@
         "minted_by": "0x97c10e5ed0a7a3ce4b37df0fa87745eb5315e8a9ce3674bced83a20e70b67d77"
       }
     },
-    "<PACKAGE>::pass_events::WriterPassDestroyed": {
-      "module": "pass_events",
-      "summary": "A writer pass was destroyed by whoever held it.",
-      "fields": [
-        {
-          "name": "file_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "pass_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "destroyed_by",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "file_id": "0x1620907bd5d010737946258f67087282cc889dcd29d6c55513d5d5242868b2f3",
-        "pass_id": "0xdb0b13f1821c9027be3fa9e78a31208877d8a0d47bc6e97cdddb5516aedb2e8f",
-        "destroyed_by": "0x8dbc45106399d3929a0a45901f53ef6548781e818d7d610535e2445067d2356f"
-      }
-    },
     "<PACKAGE>::pass_events::WriterPassRevoked": {
       "module": "pass_events",
       "summary": "A file owner refused one pass, permanently.",
@@ -909,39 +943,6 @@
         "revoked_by": "0xabc0529be3dff516784e7d4c777d0d084c5576f716c54249f314f3e0b41da1d4"
       }
     },
-    "<PACKAGE>::pass_events::WriterDenied": {
-      "module": "pass_events",
-      "summary": "A file owner refused an address, until `until_ms` or indefinitely when zero.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "file_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "writer",
-          "move_type": "address"
-        },
-        {
-          "name": "until_ms",
-          "move_type": "u64"
-        },
-        {
-          "name": "denied_by",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x329eb2bf33b91754d403a0182900464a2056bf4b93cb5ea9b24db5444a6f8731",
-        "file_id": "0x081d68c75e2b6715b27790759bf4805b72561c881411139e049c6f46f0de9f76",
-        "writer": "0xb93006774cbdd4b299389a03ac3d88c3a76b460d538795bc12718011a909fba5",
-        "until_ms": "1024",
-        "denied_by": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
-      }
-    },
     "<PACKAGE>::pass_events::WriterUndenied": {
       "module": "pass_events",
       "summary": "A file owner lifted an address's denial.",
@@ -968,24 +969,6 @@
         "file_id": "0x2d83f95570d35b6d0496ff8641664bc17fde76e7bb7855c9b750cd0d17cfc08e",
         "writer": "0xb93006774cbdd4b299389a03ac3d88c3a76b460d538795bc12718011a909fba5",
         "undenied_by": "0xf89bbb288e5ce53e9e95c39dfa353622cf3fb3e5aeb936a9fef62aabccb5e355"
-      }
-    },
-    "<PACKAGE>::product_events::ProjectHolderCreated": {
-      "module": "product_events",
-      "summary": "A project holder was minted for an address.",
-      "fields": [
-        {
-          "name": "holder_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "admin",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "holder_id": "0x2c0b1e9d0b3e3b8ad1c0a5f6d8e7c4b2a9f18d3e6c5b4a2938271605f4e3d2c1",
-        "admin": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
       }
     },
     "<PACKAGE>::product_events::ProjectCreated": {
@@ -1077,76 +1060,22 @@
         "changed_by": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
       }
     },
-    "<PACKAGE>::storage_events::BlobStored": {
-      "module": "storage_events",
-      "summary": "Blobs were taken into custody under a config.",
+    "<PACKAGE>::product_events::ProjectHolderCreated": {
+      "module": "product_events",
+      "summary": "A project holder was minted for an address.",
       "fields": [
         {
-          "name": "system_id",
+          "name": "holder_id",
           "move_type": "ID"
         },
         {
-          "name": "config_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "owner",
+          "name": "admin",
           "move_type": "address"
-        },
-        {
-          "name": "stored_by",
-          "move_type": "address"
-        },
-        {
-          "name": "blobs_obj_id",
-          "move_type": "vector<ID>"
-        },
-        {
-          "name": "blob_sizes",
-          "move_type": "vector<u64>"
-        },
-        {
-          "name": "size",
-          "move_type": "u64"
-        },
-        {
-          "name": "encoded_size",
-          "move_type": "u64"
-        },
-        {
-          "name": "end_epoch",
-          "move_type": "u32"
-        },
-        {
-          "name": "epoch_set",
-          "move_type": "u32"
-        },
-        {
-          "name": "cycle_limit",
-          "move_type": "Option<u64>"
-        },
-        {
-          "name": "uploaded_on",
-          "move_type": "u64"
         }
       ],
       "parsedJson": {
-        "system_id": "0x759d1ac0d95901fc23f1d91725495df1b9cc4355609836ac72436e37ab832a37",
-        "config_id": "0xb0ac951cc680979c349d070b110f908aa688c3c63be398afa40acdee760f2682",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
-        "stored_by": "0x8211809ff0bbbb781e609ff8c0488e216c29743c4c03928ea8c53a40b071b35e",
-        "blobs_obj_id": [
-          "0x1195483c778d36b9e25e9f92e25a2c81fd2e4d95d304796225c61e2ef57c5d52"
-        ],
-        "blob_sizes": [
-          "1024"
-        ],
-        "size": "1024",
-        "encoded_size": "1024",
-        "end_epoch": 13,
-        "epoch_set": 13,
-        "cycle_limit": "1024",
-        "uploaded_on": "1024"
+        "holder_id": "0x2c0b1e9d0b3e3b8ad1c0a5f6d8e7c4b2a9f18d3e6c5b4a2938271605f4e3d2c1",
+        "admin": "0xc7e9359dfabb26e0fc27a6149eb53ad0eb194531fe9fb1a9078c0125d1c44ccf"
       }
     },
     "<PACKAGE>::storage_events::BlobConfigOwnerChanged": {
@@ -1233,6 +1162,233 @@
         "new_end_epoch": 13,
         "wal_spent": "1024",
         "executed_by": "0x4b7b1612d93ddc347bc7df2f1c8a508a241144a355ae5dd1e4de013b722a7cf4"
+      }
+    },
+    "<PACKAGE>::storage_events::BlobStored": {
+      "module": "storage_events",
+      "summary": "Blobs were taken into custody under a config.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "stored_by",
+          "move_type": "address"
+        },
+        {
+          "name": "blobs_obj_id",
+          "move_type": "vector<ID>"
+        },
+        {
+          "name": "blob_sizes",
+          "move_type": "vector<u64>"
+        },
+        {
+          "name": "size",
+          "move_type": "u64"
+        },
+        {
+          "name": "encoded_size",
+          "move_type": "u64"
+        },
+        {
+          "name": "end_epoch",
+          "move_type": "u32"
+        },
+        {
+          "name": "epoch_set",
+          "move_type": "u32"
+        },
+        {
+          "name": "cycle_limit",
+          "move_type": "Option<u64>"
+        },
+        {
+          "name": "uploaded_on",
+          "move_type": "u64"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x759d1ac0d95901fc23f1d91725495df1b9cc4355609836ac72436e37ab832a37",
+        "config_id": "0xb0ac951cc680979c349d070b110f908aa688c3c63be398afa40acdee760f2682",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "stored_by": "0x8211809ff0bbbb781e609ff8c0488e216c29743c4c03928ea8c53a40b071b35e",
+        "blobs_obj_id": [
+          "0x1195483c778d36b9e25e9f92e25a2c81fd2e4d95d304796225c61e2ef57c5d52"
+        ],
+        "blob_sizes": [
+          "1024"
+        ],
+        "size": "1024",
+        "encoded_size": "1024",
+        "end_epoch": 13,
+        "epoch_set": 13,
+        "cycle_limit": "1024",
+        "uploaded_on": "1024"
+      }
+    },
+    "<PACKAGE>::storage_events::BlobWithdrawn": {
+      "module": "storage_events",
+      "summary": "A config was destroyed and the blobs it held handed back to its owner.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "blobs_obj_id",
+          "move_type": "vector<ID>"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x2b1b310e32002ec09edbbc7cebad13e6e747416d287d1fd544f7860d9f0f64f5",
+        "config_id": "0xe2ade3d2e0da642b00bd409f2fe6f228a66651bb921250e048cd09d8462f9bed",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "blobs_obj_id": [
+          "0x7debd2857976dc1daa0456f43fd85133223704808d3a33d0cd5749ed9aeb3374"
+        ]
+      }
+    },
+    "<PACKAGE>::storage_events::ForeignBlobsAdopted": {
+      "module": "storage_events",
+      "summary": "Blobs sourced outside the protocol were taken into its custody, in one config.",
+      "note": "The per-user ForeignMeta index this used to name is deleted. It covered only the adopted subset of a user's configs and said nothing about that. Two sources replace it: this event, and BlobConfig.owner, which answers ownership from the config object and survives a missed event. An adoption is one config per call, so the former config_ids vector is now a single config_id and blob_count says how many blobs went into it.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "adopted_by",
+          "move_type": "address"
+        },
+        {
+          "name": "config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "blob_count",
+          "move_type": "u64"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x161054ff87e4bbc4ed60254bef1d688a3e02ee83039f7999be36f0c6742abbff",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "adopted_by": "0x9c852a599b8df12fcb586228d0b7dbfb7204a83750d1a6a7e1000000000000000",
+        "config_id": "0x2878d35dc8f7eb9c52424b9ef0d2b3c70b00e96d1b39f151ce68e8b78fe1d496",
+        "blob_count": "3"
+      }
+    },
+    "<PACKAGE>::storage_events::LayoutRegistered": {
+      "module": "storage_events",
+      "summary": "A compaction's receipt was written onto the config it produced.",
+      "note": "The object keeps the two roots and the counts, which is constant in the file count; this keeps the members they commit to, so a consumer can still enumerate a generation after the quilt holding it has been deleted. paths and content_hashes are positionally paired and arrive in ascending path order, which is the order the root is folded in; superseded arrives in ascending id order. Every element of paths and content_hashes is a vector<u8> and therefore arrives base64 inside a JSON array. kind is 0 for raw blobs and 1 for a quilt. generation is strictly greater than every generation superseded. There is no accept, reject or expiry event because there is no accept, reject or expiry: the only consent signal is the owner's subsequent BlobWithdrawn.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "registered_by",
+          "move_type": "address"
+        },
+        {
+          "name": "kind",
+          "move_type": "u8"
+        },
+        {
+          "name": "generation",
+          "move_type": "u32"
+        },
+        {
+          "name": "file_count",
+          "move_type": "u64"
+        },
+        {
+          "name": "file_set_root",
+          "move_type": "vector<u8>"
+        },
+        {
+          "name": "paths",
+          "move_type": "vector<vector<u8>>"
+        },
+        {
+          "name": "content_hashes",
+          "move_type": "vector<vector<u8>>"
+        },
+        {
+          "name": "superseded_root",
+          "move_type": "vector<u8>"
+        },
+        {
+          "name": "superseded_count",
+          "move_type": "u64"
+        },
+        {
+          "name": "superseded",
+          "move_type": "vector<ID>"
+        },
+        {
+          "name": "created_at_ms",
+          "move_type": "u64"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x161054ff87e4bbc4ed60254bef1d688a3e02ee83039f7999be36f0c6742abbff",
+        "config_id": "0x7c2f9de1b0d1a5c33c5f2c2e0c6d5a04f8b1e5d7ac3e9f0b1d2c3a4b5e6f7081",
+        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "registered_by": "0x9c852a599b8df12fcb586228d0b7dbfb7204a83750d1a6a7e1000000000000000",
+        "kind": 1,
+        "generation": 2,
+        "file_count": "3",
+        "file_set_root": "9UtXYCvYmvOl6SccZkt3ZBsXZmXFHWBOJ34aheYq5gs=",
+        "paths": [
+          "ZG9jcy9hLnR4dA==",
+          "ZG9jcy9iLnR4dA==",
+          "aW1nL2MucG5n"
+        ],
+        "content_hashes": [
+          "VZrq0IJk1XldOQlxjN0Fq9SVcuhP5VWQ7vMaiKCP3/0=",
+          "335w5QIVRPSDS77mSp43if68S+gUcN9inK1t2wMyClw=",
+          "ayPA1fNdGxH5toPwsKYXNV3rESd9ka4JHTmcZVuHlA0="
+        ],
+        "superseded_root": "7RG7O4D+cDQzGFFfC+H5Me0zDSyt38EYsmuuXCO1n6c=",
+        "superseded_count": "3",
+        "superseded": [
+          "0x559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd",
+          "0x6b23c0d5f35d1b11f9b683f0b0a617355deb11277d91ae091d399c655b87940d",
+          "0xdf7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        ],
+        "created_at_ms": "1756400000000"
       }
     },
     "<PACKAGE>::storage_events::RenewCycleSpent": {
@@ -1326,97 +1482,42 @@
         "executed_by": "0x4b7b1612d93ddc347bc7df2f1c8a508a241144a355ae5dd1e4de013b722a7cf4"
       }
     },
-    "<PACKAGE>::storage_events::BlobWithdrawn": {
-      "module": "storage_events",
-      "summary": "A config was destroyed and the blobs it held handed back to its owner.",
+    "<PACKAGE>::system_events::AdminCapMinted": {
+      "module": "system_events",
+      "summary": "An admin capability reached an account.",
       "fields": [
         {
           "name": "system_id",
           "move_type": "ID"
         },
         {
-          "name": "config_id",
+          "name": "admin_cap",
           "move_type": "ID"
         },
         {
-          "name": "owner",
+          "name": "state",
+          "move_type": "u8"
+        },
+        {
+          "name": "total_system",
+          "move_type": "u8"
+        },
+        {
+          "name": "recipient",
           "move_type": "address"
         },
         {
-          "name": "blobs_obj_id",
-          "move_type": "vector<ID>"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x2b1b310e32002ec09edbbc7cebad13e6e747416d287d1fd544f7860d9f0f64f5",
-        "config_id": "0xe2ade3d2e0da642b00bd409f2fe6f228a66651bb921250e048cd09d8462f9bed",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
-        "blobs_obj_id": [
-          "0x7debd2857976dc1daa0456f43fd85133223704808d3a33d0cd5749ed9aeb3374"
-        ]
-      }
-    },
-    "<PACKAGE>::storage_events::ForeignMetaCreated": {
-      "module": "storage_events",
-      "summary": "A foreign-blob index was created for a user.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "foreign_meta_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "owner",
+          "name": "minted_by",
           "move_type": "address"
         }
       ],
       "parsedJson": {
-        "system_id": "0x8ddec3d830aeafc108f3cd108728128bc5171dfc630be038e6ac31741c8ddf81",
-        "foreign_meta_id": "0x5b2cbfad92f8d2be9f7dc78b5523ca58a6a896a13a6c1961a740292fe1dcf701",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581"
-      }
-    },
-    "<PACKAGE>::storage_events::ForeignBlobsAdopted": {
-      "module": "storage_events",
-      "summary": "Externally-sourced configs were recorded in a user's foreign-blob index.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "foreign_meta_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "owner",
-          "move_type": "address"
-        },
-        {
-          "name": "adopted_by",
-          "move_type": "address"
-        },
-        {
-          "name": "chunk_index",
-          "move_type": "u64"
-        },
-        {
-          "name": "config_ids",
-          "move_type": "vector<ID>"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x161054ff87e4bbc4ed60254bef1d688a3e02ee83039f7999be36f0c6742abbff",
-        "foreign_meta_id": "0x2878d35dc8f7eb9c52424b9ef0d2b3c70b00e96d1b39f151ce68e8b78fe1d496",
-        "owner": "0x4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
-        "adopted_by": "0x9c852a599b8df12fcb586228d0b7dbfb7204a83750d1a6a7e1fab75a3b2a95fe",
-        "chunk_index": "1024",
-        "config_ids": [
-          "0x84369b6fdc1e2234caebb5ca0f2fe33407c7707582a71b7a07123e88ee1ce593"
-        ]
+        "system_id": "0x5864529a88368339feb992c25b56ae2ffc1c3c0c9b4cce307b2ae9d31f58365f",
+        "admin_cap": "0x98864d9a507aeb63af01aa22cdb679bb45a88a4358d6108f8943771e2e0ca1df",
+        "state": 1,
+        "total_system": 1,
+        "recipient": "0x665d0698dbc8fb95afc25c3a4d9cf280d87a585b7999243ca6008fd03258975f",
+        "minted_by": "0x97c10e5ed0a7a3ce4b37df0fa87745eb5315e8a9ce3674bced83a20e70b67d77"
       }
     },
     "<PACKAGE>::system_events::SystemCreated": {
@@ -1479,29 +1580,6 @@
         "cost_to_delete": "1024"
       }
     },
-    "<PACKAGE>::system_events::SystemSucceeded": {
-      "module": "system_events",
-      "summary": "A system named its successor, closing the mint chain behind it.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "next_system",
-          "move_type": "ID"
-        },
-        {
-          "name": "minted_by",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0xd36e9c6d17d3c2c5b2a10a7d63d5a7cffd8b71855bb49d44ea7599664803e546",
-        "next_system": "0x9b889f6174e60b54b5c5ea4ba137f473eddd7a544bab08e453db51ed4ca90595",
-        "minted_by": "0x97c10e5ed0a7a3ce4b37df0fa87745eb5315e8a9ce3674bced83a20e70b67d77"
-      }
-    },
     "<PACKAGE>::system_events::SystemFeesChanged": {
       "module": "system_events",
       "summary": "The registry modification fees were replaced.",
@@ -1538,97 +1616,6 @@
         "cost_to_update_name": "1024",
         "cost_to_delete": "1024",
         "changed_by": "0x1827b6b6b3e9acaac761b2ddbf8a61455f87a8f3a46bd0ff7c5549d2c4cfc3a0"
-      }
-    },
-    "<PACKAGE>::system_events::SystemTiersChanged": {
-      "module": "system_events",
-      "summary": "The storage terms a system sells were replaced.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "tier_table",
-          "move_type": "vector<u32>"
-        },
-        {
-          "name": "max_epochs_ahead",
-          "move_type": "u32"
-        },
-        {
-          "name": "changed_by",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x2c1f8442bbfe7e32e5db08280529b3d3944ad84e2c82d65fb3356c9b81f59c1e",
-        "tier_table": [
-          13
-        ],
-        "max_epochs_ahead": 13,
-        "changed_by": "0x1827b6b6b3e9acaac761b2ddbf8a61455f87a8f3a46bd0ff7c5549d2c4cfc3a0"
-      }
-    },
-    "<PACKAGE>::system_events::SystemVersionMigrated": {
-      "module": "system_events",
-      "summary": "A system was raised to the package version.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "version",
-          "move_type": "u64"
-        },
-        {
-          "name": "migrated_by",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x205e777fb7651bbf61c5bbe1b164b2e1e42eef8646d0fd810e52a7d0a718b90c",
-        "version": "1024",
-        "migrated_by": "0x8eab6353d26005a7553bb98d1702ec64fda48d7bc31ed6e77c24f0e9a8ba7575"
-      }
-    },
-    "<PACKAGE>::system_events::AdminCapMinted": {
-      "module": "system_events",
-      "summary": "An admin capability reached an account.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "admin_cap",
-          "move_type": "ID"
-        },
-        {
-          "name": "state",
-          "move_type": "u8"
-        },
-        {
-          "name": "total_system",
-          "move_type": "u8"
-        },
-        {
-          "name": "recipient",
-          "move_type": "address"
-        },
-        {
-          "name": "minted_by",
-          "move_type": "address"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x5864529a88368339feb992c25b56ae2ffc1c3c0c9b4cce307b2ae9d31f58365f",
-        "admin_cap": "0x98864d9a507aeb63af01aa22cdb679bb45a88a4358d6108f8943771e2e0ca1df",
-        "state": 1,
-        "total_system": 1,
-        "recipient": "0x665d0698dbc8fb95afc25c3a4d9cf280d87a585b7999243ca6008fd03258975f",
-        "minted_by": "0x97c10e5ed0a7a3ce4b37df0fa87745eb5315e8a9ce3674bced83a20e70b67d77"
       }
     },
     "<PACKAGE>::system_events::SystemOperatorEnrolled": {
@@ -1720,6 +1707,115 @@
         "retired_by": "0x4edacbc4ed332da6dd193297f1c54ef1d1aa81d997d411fc9079805a24b24003"
       }
     },
+    "<PACKAGE>::system_events::SystemSucceeded": {
+      "module": "system_events",
+      "summary": "A system named its successor, closing the mint chain behind it.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "next_system",
+          "move_type": "ID"
+        },
+        {
+          "name": "minted_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0xd36e9c6d17d3c2c5b2a10a7d63d5a7cffd8b71855bb49d44ea7599664803e546",
+        "next_system": "0x9b889f6174e60b54b5c5ea4ba137f473eddd7a544bab08e453db51ed4ca90595",
+        "minted_by": "0x97c10e5ed0a7a3ce4b37df0fa87745eb5315e8a9ce3674bced83a20e70b67d77"
+      }
+    },
+    "<PACKAGE>::system_events::SystemTiersChanged": {
+      "module": "system_events",
+      "summary": "The storage terms a system sells were replaced.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "tier_table",
+          "move_type": "vector<u32>"
+        },
+        {
+          "name": "max_epochs_ahead",
+          "move_type": "u32"
+        },
+        {
+          "name": "changed_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x2c1f8442bbfe7e32e5db08280529b3d3944ad84e2c82d65fb3356c9b81f59c1e",
+        "tier_table": [
+          13
+        ],
+        "max_epochs_ahead": 13,
+        "changed_by": "0x1827b6b6b3e9acaac761b2ddbf8a61455f87a8f3a46bd0ff7c5549d2c4cfc3a0"
+      }
+    },
+    "<PACKAGE>::system_events::SystemVersionMigrated": {
+      "module": "system_events",
+      "summary": "A system was raised to the package version.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "version",
+          "move_type": "u64"
+        },
+        {
+          "name": "migrated_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x205e777fb7651bbf61c5bbe1b164b2e1e42eef8646d0fd810e52a7d0a718b90c",
+        "version": "1024",
+        "migrated_by": "0x8eab6353d26005a7553bb98d1702ec64fda48d7bc31ed6e77c24f0e9a8ba7575"
+      }
+    },
+    "<PACKAGE>::treasury_events::SystemWithdraw": {
+      "module": "treasury_events",
+      "summary": "The treasury paid out.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "operator",
+          "move_type": "address"
+        },
+        {
+          "name": "coin_type",
+          "move_type": "String"
+        },
+        {
+          "name": "amount",
+          "move_type": "u64"
+        },
+        {
+          "name": "new_balance",
+          "move_type": "u64"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x721ffd417511054e3c6552ee5cc7397753e09dddcd54ed9d45bd14b5424eb8a0",
+        "operator": "0x06e55b633481f7bb072957eabcf110c972e86691c3cfedabe088024bffe42f23",
+        "coin_type": "0x2::sui::SUI",
+        "amount": "1024",
+        "new_balance": "1024"
+      }
+    },
     "<PACKAGE>::treasury_events::VaultCoinSupportChanged": {
       "module": "treasury_events",
       "summary": "A coin type was added to or removed from the treasury's accepted list.",
@@ -1766,39 +1862,6 @@
       ],
       "parsedJson": {
         "system_id": "0xd2dead5e478af2d954c2580211544e3c86b754672189e442093d0f3e7cbef3da",
-        "coin_type": "0x2::sui::SUI",
-        "amount": "1024",
-        "new_balance": "1024"
-      }
-    },
-    "<PACKAGE>::treasury_events::SystemWithdraw": {
-      "module": "treasury_events",
-      "summary": "The treasury paid out.",
-      "fields": [
-        {
-          "name": "system_id",
-          "move_type": "ID"
-        },
-        {
-          "name": "operator",
-          "move_type": "address"
-        },
-        {
-          "name": "coin_type",
-          "move_type": "String"
-        },
-        {
-          "name": "amount",
-          "move_type": "u64"
-        },
-        {
-          "name": "new_balance",
-          "move_type": "u64"
-        }
-      ],
-      "parsedJson": {
-        "system_id": "0x721ffd417511054e3c6552ee5cc7397753e09dddcd54ed9d45bd14b5424eb8a0",
-        "operator": "0x06e55b633481f7bb072957eabcf110c972e86691c3cfedabe088024bffe42f23",
         "coin_type": "0x2::sui::SUI",
         "amount": "1024",
         "new_balance": "1024"

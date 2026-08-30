@@ -14,7 +14,10 @@ use sui::{clock, test_scenario as ts};
 use walrus::blob::Blob;
 use warlot::{
     blob_config::{Self, BlobConfig},
-    entry_innerfile,
+    entry_file_access,
+    entry_file_draft,
+    entry_file_fallback,
+    entry_file_write,
     entry_permission,
     entry_register,
     file_data,
@@ -68,7 +71,7 @@ fun root_change_can_be_set() {
 
     assert!(!file.has_root_change(), 0);
 
-    entry_innerfile::set_root_change(
+    entry_file_fallback::set_root_change(
         &sys,
         &mut file,
         &mut owner_pass,
@@ -82,7 +85,7 @@ fun root_change_can_be_set() {
     assert!(file_data::commit(file.root_change()) == fixtures::commit_for(b"first"), 2);
 
     // And the second call takes the swap branch rather than the fill branch.
-    entry_innerfile::set_root_change(
+    entry_file_fallback::set_root_change(
         &sys,
         &mut file,
         &mut owner_pass,
@@ -136,7 +139,7 @@ fun recovery_sequence() {
     // Alice delegates to Bob: the account bit that lets him store under her
     // address, and a pass that lets him skip the draft queue.
     entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
-    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, sc.ctx());
 
     // Bob is compromised and writes straight into the history.
     sc.next_tx(BOB);
@@ -149,7 +152,7 @@ fun recovery_sequence() {
         &mut funds,
         sc.ctx(),
     );
-    entry_innerfile::write_(
+    entry_file_write::write_(
         &mut file,
         &mut bob_pass,
         false,
@@ -167,14 +170,14 @@ fun recovery_sequence() {
     // Alice takes both delegations back. The pass object never leaves Bob's
     // account; the record on the file is what stops it being accepted.
     sc.next_tx(ALICE);
-    entry_innerfile::revoke_pass(&sys, &mut file, bob_pass_id, sc.ctx());
+    entry_file_access::revoke_pass(&sys, &mut file, bob_pass_id, sc.ctx());
     entry_permission::revoke(&mut sys, ALICE, BOB, sc.ctx());
 
     assert!(file.is_pass_revoked(bob_pass_id), 1);
 
     // And she names the revision she does accept.
     let known_good_config = ts::take_shared_by_id<BlobConfig>(&sc, known_good);
-    entry_innerfile::set_root_change(
+    entry_file_fallback::set_root_change(
         &sys,
         &mut file,
         &mut owner_pass,
@@ -255,7 +258,7 @@ fun no_leak() {
             sc.ctx(),
         );
 
-        entry_innerfile::force_write_innerfile(
+        entry_file_write::force_write_innerfile(
             &mut file,
             &mut owner_pass,
             &clk,
@@ -326,7 +329,7 @@ fun merge_reparents() {
     // cannot store for the owner, without asking which half of the pass the
     // recipient means to use.
     entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
-    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
     let mut bob_pass = sc.take_from_sender<WriterPass>();
@@ -337,7 +340,7 @@ fun merge_reparents() {
         &mut funds,
         sc.ctx(),
     );
-    entry_innerfile::write_(
+    entry_file_write::write_(
         &mut file,
         &mut bob_pass,
         true,
@@ -356,7 +359,7 @@ fun merge_reparents() {
     let mut draft_config = ts::take_shared_by_id<BlobConfig>(&sc, draft_config_id);
     assert!(blob_config::owner(&draft_config) == BOB, 0);
 
-    entry_innerfile::merge_draft_into_file(
+    entry_file_draft::merge_draft_into_file(
         &sys,
         &mut file,
         &mut owner_pass,

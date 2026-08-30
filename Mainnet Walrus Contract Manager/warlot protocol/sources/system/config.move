@@ -119,6 +119,21 @@ public fun operator_set(system_cfg: &SystemConfig): &OperatorSet {
     &system_cfg.operators
 }
 
+/// Abort unless `admin_cap` is a live operator credential for this system, and
+/// hand back the proof that it is.
+///
+/// Written once here rather than at each entry point that offers an operator
+/// sibling: every one of them needs the same four checks against the same set,
+/// and a copy of the call that drifted would be an authorisation gate that is
+/// weaker in one place than in the others.
+public fun authorise_operator(
+    system_cfg: &SystemConfig,
+    admin_cap: &AdminCap,
+    now_ms: u64,
+): operator::OperatorAuth {
+    operator::authorise(&system_cfg.operators, admin_cap, object::id(system_cfg), now_ms)
+}
+
 /// The fee charged to delete a registry.
 public fun cost_to_delete(system_cfg: &SystemConfig): u64 {
     system_cfg.user_modification_cfg.cost_to_delete

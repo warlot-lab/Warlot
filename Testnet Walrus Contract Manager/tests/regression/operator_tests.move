@@ -21,7 +21,10 @@ use warlot::{
     admin_cap::AdminCap,
     draft,
     entry_admin,
-    entry_innerfile,
+    entry_file_access,
+    entry_file_create,
+    entry_file_draft,
+    entry_file_write,
     entry_permission,
     entry_register,
     fixtures,
@@ -133,7 +136,7 @@ fun stage(
         &mut funds,
         sc.ctx(),
     );
-    let file_id = entry_innerfile::create_file(
+    let file_id = entry_file_create::create_file(
         &sys,
         ALICE,
         fixtures::file_writers(),
@@ -174,7 +177,7 @@ fun operator_write(
         sc.ctx(),
     );
 
-    entry_innerfile::write_as_operator(
+    entry_file_write::write_as_operator(
         file,
         admin_cap,
         to_draft,
@@ -255,7 +258,7 @@ fun an_enrolled_operator_creates_a_file() {
         sc.ctx(),
     );
 
-    let made = entry_innerfile::create_file_as_operator(
+    let made = entry_file_create::create_file_as_operator(
         &sys,
         &cap,
         ALICE,
@@ -297,7 +300,7 @@ fun an_explicit_address_grant_still_works_with_no_capability() {
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
     entry_permission::grant(&mut sys, ALICE, MALLORY, true, true, true, true, true, sc.ctx());
-    entry_innerfile::create_pass(&sys, &file, MALLORY, PAST_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, MALLORY, PAST_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(MALLORY);
     let pass = sc.take_from_sender<warlot::writer_pass::WriterPass>();
@@ -309,7 +312,7 @@ fun an_explicit_address_grant_still_works_with_no_capability() {
         sc.ctx(),
     );
     // A pass without the admin privilege proposes rather than writes.
-    entry_innerfile::write_(
+    entry_file_write::write_(
         &mut file,
         &pass,
         true,
@@ -418,7 +421,7 @@ fun a_user_who_never_granted_the_role_is_not_acted_for() {
         sc.ctx(),
     );
 
-    let _ = entry_innerfile::create_file_as_operator(
+    let _ = entry_file_create::create_file_as_operator(
         &sys,
         &cap,
         MALLORY,
@@ -495,7 +498,7 @@ fun a_denied_address_is_refused_while_holding_a_live_capability() {
     assert!(file.track_back().length() == 2, 0);
 
     sc.next_tx(ALICE);
-    entry_innerfile::deny_writer(&sys, &mut file, BACKEND, FOREVER, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, BACKEND, FOREVER, &clk, sc.ctx());
 
     // Same capability, same slot, same role grant. The owner denied the address.
     sc.next_tx(BACKEND);
@@ -543,7 +546,7 @@ fun a_revoked_capability_id_is_refused() {
     // id names, so the call that refuses one pass refuses one capability too ,
     // on this file, without waiting for the admin to retire the slot.
     sc.next_tx(ALICE);
-    entry_innerfile::revoke_pass(&sys, &mut file, cap_id, sc.ctx());
+    entry_file_access::revoke_pass(&sys, &mut file, cap_id, sc.ctx());
     assert!(file.is_pass_revoked(cap_id), 1);
 
     sc.next_tx(BACKEND);
@@ -729,7 +732,7 @@ fun the_owner_wins() {
     // slot still carries it, the role is still granted, the file still admits
     // operators.
     sc.next_tx(ALICE);
-    entry_innerfile::set_operator_policy(&sys, &mut file, true, false, sc.ctx());
+    entry_file_access::set_operator_policy(&sys, &mut file, true, false, sc.ctx());
     assert!(operator::operator_may_bypass_draft(sys.operator_set(), cap_id), 2);
     assert!(file.operators_allowed(), 3);
     assert!(!file.operators_may_bypass_draft(), 4);
@@ -758,7 +761,7 @@ fun the_owner_wins() {
 }
 
 #[test]
-#[expected_failure(abort_code = warlot::entry_innerfile::ENotFileOwner)]
+#[expected_failure(abort_code = warlot::entry_file_access::ENotFileOwner)]
 fun only_the_file_owner_sets_the_operator_policy() {
     let mut sc = ts::begin(ADMIN);
     let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, false);
@@ -767,7 +770,7 @@ fun only_the_file_owner_sets_the_operator_policy() {
     // itself. The bits are gated on the sender for exactly this reason.
     sc.next_tx(BACKEND);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_innerfile::set_operator_policy(&sys, &mut file, true, true, sc.ctx());
+    entry_file_access::set_operator_policy(&sys, &mut file, true, true, sc.ctx());
 
     ts::return_shared(file);
     finish(sys, wsys, funds, clk, sc);
@@ -1135,7 +1138,7 @@ fun a_file_holds_no_queue_and_no_deny_list_until_it_needs_them() {
 
     // Lifting a denial nobody made does not give the file a deny list to hold
     // one in.
-    entry_innerfile::remove_deny_writer(&sys, &mut file, MALLORY, sc.ctx());
+    entry_file_access::remove_deny_writer(&sys, &mut file, MALLORY, sc.ctx());
     assert!(!file.has_deny_list(), 2);
 
     // The first draft builds the queue.
@@ -1157,7 +1160,7 @@ fun a_file_holds_no_queue_and_no_deny_list_until_it_needs_them() {
 
     // The first denial builds the deny list.
     sc.next_tx(ALICE);
-    entry_innerfile::deny_writer(&sys, &mut file, MALLORY, FOREVER, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, MALLORY, FOREVER, &clk, sc.ctx());
     assert!(file.has_deny_list(), 5);
 
     ts::return_to_address(BACKEND, cap);
@@ -1175,7 +1178,7 @@ fun merging_from_a_file_that_never_drafted_is_refused_by_name() {
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
     let pass = sc.take_from_sender<warlot::writer_pass::WriterPass>();
 
-    entry_innerfile::clear_drafts(&sys, &mut file, &pass, 0, 4, &clk, sc.ctx());
+    entry_file_draft::clear_drafts(&sys, &mut file, &pass, 0, 4, &clk, sc.ctx());
 
     destroy(pass);
     ts::return_shared(file);
@@ -1335,11 +1338,11 @@ fun a_denial_is_made_once_and_moved_after_that() {
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
 
-    entry_innerfile::deny_writer(&sys, &mut file, MALLORY, OPERATOR_UNTIL_MS, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, MALLORY, OPERATOR_UNTIL_MS, &clk, sc.ctx());
     assert!(file.has_deny_list(), 0);
 
     // The owner shortens it. Asking for the deadline to move says so.
-    entry_innerfile::redeny_writer(&sys, &mut file, MALLORY, NOW_MS + 1, &clk, sc.ctx());
+    entry_file_access::redeny_writer(&sys, &mut file, MALLORY, NOW_MS + 1, &clk, sc.ctx());
 
     ts::return_shared(file);
     finish(sys, wsys, funds, clk, sc);
@@ -1357,8 +1360,8 @@ fun denying_an_already_denied_writer_is_refused() {
     // Indefinite, and then what looks like a second denial. It would have moved
     // the deadline to a date, quietly turning a permanent refusal into a
     // temporary one.
-    entry_innerfile::deny_writer(&sys, &mut file, MALLORY, FOREVER, &clk, sc.ctx());
-    entry_innerfile::deny_writer(&sys, &mut file, MALLORY, OPERATOR_UNTIL_MS, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, MALLORY, FOREVER, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, MALLORY, OPERATOR_UNTIL_MS, &clk, sc.ctx());
 
     ts::return_shared(file);
     finish(sys, wsys, funds, clk, sc);
@@ -1373,17 +1376,17 @@ fun moving_a_denial_that_was_never_made_is_refused() {
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
 
-    entry_innerfile::deny_writer(&sys, &mut file, BACKEND, FOREVER, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, BACKEND, FOREVER, &clk, sc.ctx());
     // The list exists now, so the refusal below is the writer's own absence from
     // it rather than the file having no list at all.
-    entry_innerfile::redeny_writer(&sys, &mut file, MALLORY, OPERATOR_UNTIL_MS, &clk, sc.ctx());
+    entry_file_access::redeny_writer(&sys, &mut file, MALLORY, OPERATOR_UNTIL_MS, &clk, sc.ctx());
 
     ts::return_shared(file);
     finish(sys, wsys, funds, clk, sc);
 }
 
 #[test]
-#[expected_failure(abort_code = warlot::entry_innerfile::ENotDenied)]
+#[expected_failure(abort_code = warlot::entry_file_access::ENotDenied)]
 fun moving_a_denial_on_a_file_with_no_deny_list_is_refused() {
     let mut sc = ts::begin(ADMIN);
     let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true);
@@ -1392,7 +1395,7 @@ fun moving_a_denial_on_a_file_with_no_deny_list_is_refused() {
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
     assert!(!file.has_deny_list(), 0);
 
-    entry_innerfile::redeny_writer(&sys, &mut file, MALLORY, OPERATOR_UNTIL_MS, &clk, sc.ctx());
+    entry_file_access::redeny_writer(&sys, &mut file, MALLORY, OPERATOR_UNTIL_MS, &clk, sc.ctx());
 
     ts::return_shared(file);
     finish(sys, wsys, funds, clk, sc);

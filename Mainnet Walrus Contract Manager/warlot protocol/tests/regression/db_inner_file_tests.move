@@ -17,7 +17,7 @@ use walrus::system::System;
 use wal::wal::WAL;
 use sui::coin::Coin;
 use warlot::{
-    entry_innerfile,
+    entry_file_project,
     entry_register,
     file_set,
     fixtures,
@@ -241,7 +241,7 @@ fun init_db(
         sc.ctx(),
     );
 
-    entry_innerfile::initialize_project_file(
+    entry_file_project::initialize_project_file(
         holder,
         project_id,
         sys,

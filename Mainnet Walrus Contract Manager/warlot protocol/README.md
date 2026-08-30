@@ -20,16 +20,15 @@ sources/
 ├── events/       every event struct and its emitter, in one module
 ├── system/       protocol configuration, admin capability, treasury, version
 ├── identity/     registry, user, delegated permissions, wallet
-├── storage/      blob configs, storage tiers, renewal accounting
+├── storage/      blob configs, storage tiers, renewal accounting, compaction
 ├── innerfile/    mutable-state anchoring on immutable storage
-├── foreign/      blob configs adopted from outside the protocol
 └── product/      file, project, bucket and drive records
 ```
 
 ### The dependency rule
 
 ```
-entry     ──► events, system, identity, storage, innerfile, foreign, product
+entry     ──► events, system, identity, storage, innerfile, product
 innerfile ──► storage
 storage   ──► identity
 identity  ──► system
@@ -63,7 +62,13 @@ in `entry/` carries an `entry_` prefix.
 | `entry/renew.move` | `entry_renew` | Renew one blob config, one call per config in a block |
 | `entry/withdraw.move` | `entry_withdraw` | Return a user's blobs to them |
 | `entry/permission.move` | `entry_permission` | Grant, replace and revoke a delegate's or the operator role's capability bits |
-| `entry/innerfile.move` | `entry_innerfile` | Create a file, write to it, merge a draft, mint a pass |
+| `entry/file_create.move` | `entry_file_create` | Create an inner file |
+| `entry/file_project.move` | `entry_file_project` | Create a file and name it as a project's database |
+| `entry/file_write.move` | `entry_file_write` | Write into a file's history or into its draft queue |
+| `entry/file_fallback.move` | `entry_file_fallback` | Record and drop the revision an owner can fall back to |
+| `entry/file_draft.move` | `entry_file_draft` | Merge, reject and clear drafts |
+| `entry/file_access.move` | `entry_file_access` | A file's terms for delegates: passes, denials, revocations |
+| `entry/compaction.move` | `entry_compaction` | Plan a compaction, name what it replaces, register the receipt |
 | `entry/admin.move` | `entry_admin` | Treasury withdrawal, fee changes, system and cap minting, the operator set |
 | `events/system_events.move` | `system_events` | System configuration, lineage and capability events |
 | `events/treasury_events.move` | `treasury_events` | Treasury custody events |
@@ -86,6 +91,9 @@ in `entry/` carries an `entry_` prefix.
 | `storage/store.move` | `store` | Take blobs into custody as shared configs |
 | `storage/tier.move` | `tier` | Resolve a requested `epoch_set` to a term on offer |
 | `storage/renew.move` | `renew` | Compute the extension and account for one cycle |
+| `storage/layout.move` | `layout` | A compaction's receipt: two roots, constant in the file count |
+| `storage/compaction.move` | `compaction` | Assemble a compaction and write its receipt |
+| `storage/id_set.move` | `id_set` | The root committing to the configs a compaction replaces |
 | `innerfile/inner_file.move` | `inner_file` | The authoritative head, rollback window and fallback |
 | `innerfile/file_data.move` | `file_data` | One revision: its commit, author and blob config |
 | `innerfile/writer_pass.move` | `writer_pass` | Delegated write authority |
@@ -94,8 +102,9 @@ in `entry/` carries an `entry_` prefix.
 | `innerfile/draft.move` | `draft` | Proposals awaiting the owner's merge |
 | `innerfile/commit.move` | `commit` | The Merkle root a revision commits to |
 | `innerfile/eviction.move` | `eviction` | What becomes of a revision that leaves the window |
+| `innerfile/creation.move` | `creation` | Build a file from its first revision |
+| `innerfile/revision.move` | `revision` | Store blobs as one revision of a file |
 | `storage/file_set.move` | `file_set` | The root binding logical paths to the bytes they resolve to |
-| `foreign/foreign_meta.move` | `foreign_meta` | Index of adopted blob configs |
 | `product/project_object.move` | `project_object` | A project's database and its commitment, keyed by id |
 
 ### Conventions

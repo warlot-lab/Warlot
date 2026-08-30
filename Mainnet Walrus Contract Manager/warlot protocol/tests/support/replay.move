@@ -75,7 +75,6 @@ use warlot::{
         BlobStored,
         BlobWithdrawn,
         ForeignBlobsAdopted,
-        ForeignMetaCreated,
         RenewCycleSpent,
         RenewSkipped
     },
@@ -142,11 +141,12 @@ public struct UserRow has drop {
     decay_at: u64,
     updated_at: u64,
     wallet_id: ID,
-    foreign_meta_id: Option<ID>,
     /// Deposits minus withdrawals, never read off an event.
     wallet_wal: u64,
-    foreign_configs: u64,
-    foreign_chunk: u64,
+    /// The configs the stream says this user adopted from outside the protocol.
+    foreign_configs: vector<ID>,
+    /// How many blobs those adoptions carried.
+    foreign_blobs: u64,
     joined: bool,
 }
 
@@ -475,11 +475,9 @@ public fun user_wallet(row: &UserRow): ID { row.wallet_id }
 
 public fun user_wallet_wal(row: &UserRow): u64 { row.wallet_wal }
 
-public fun user_foreign_meta(row: &UserRow): Option<ID> { row.foreign_meta_id }
+public fun user_foreign_configs(row: &UserRow): vector<ID> { row.foreign_configs }
 
-public fun user_foreign_configs(row: &UserRow): u64 { row.foreign_configs }
-
-public fun user_foreign_chunk(row: &UserRow): u64 { row.foreign_chunk }
+public fun user_foreign_blobs(row: &UserRow): u64 { row.foreign_blobs }
 
 public fun user_joined(row: &UserRow): bool { row.joined }
 
@@ -766,10 +764,9 @@ fun apply_identity(ledger: &mut Ledger) {
             decay_at,
             updated_at: created_at,
             wallet_id: user_id,
-            foreign_meta_id: option::none(),
             wallet_wal: 0,
-            foreign_configs: 0,
-            foreign_chunk: 0,
+            foreign_configs: vector<ID>[],
+            foreign_blobs: 0,
             joined: false,
         });
         ledger.applied = ledger.applied + 1;
@@ -778,12 +775,6 @@ fun apply_identity(ledger: &mut Ledger) {
     event::events_by_type<WalletCreated>().do_ref!(|e| {
         let (_system_id, wallet_id, user, _created_at) = identity_events::read_wallet_created(e);
         ledger.user_mut(user).wallet_id = wallet_id;
-        ledger.applied = ledger.applied + 1;
-    });
-
-    event::events_by_type<ForeignMetaCreated>().do_ref!(|e| {
-        let (_system_id, foreign_meta_id, owner) = storage_events::read_foreign_meta_created(e);
-        ledger.user_mut(owner).foreign_meta_id.fill(foreign_meta_id);
         ledger.applied = ledger.applied + 1;
     });
 
@@ -1023,11 +1014,11 @@ fun apply_storage(ledger: &mut Ledger) {
     });
 
     event::events_by_type<ForeignBlobsAdopted>().do_ref!(|e| {
-        let (_system_id, _meta_id, owner, _adopted_by, chunk_index, config_ids) =
+        let (_system_id, owner, _adopted_by, config_id, blob_count) =
             storage_events::read_foreign_blobs_adopted(e);
         let row = ledger.user_mut(owner);
-        row.foreign_configs = row.foreign_configs + config_ids.length();
-        row.foreign_chunk = chunk_index;
+        row.foreign_configs.push_back(config_id);
+        row.foreign_blobs = row.foreign_blobs + blob_count;
         ledger.applied = ledger.applied + 1;
     });
 

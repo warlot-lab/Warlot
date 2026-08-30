@@ -46,6 +46,7 @@ public fun grant(
         writer_pass,
         init_db,
         compact,
+        ctx,
     );
 }
 

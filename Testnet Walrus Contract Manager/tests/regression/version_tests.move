@@ -18,7 +18,12 @@ use warlot::{
     admin_cap::AdminCap,
     blob_config::BlobConfig,
     entry_admin,
-    entry_innerfile,
+    entry_file_access,
+    entry_file_create,
+    entry_file_draft,
+    entry_file_fallback,
+    entry_file_project,
+    entry_file_write,
     entry_permission,
     entry_register,
     entry_renew,
@@ -26,7 +31,6 @@ use warlot::{
     entry_wallet,
     entry_withdraw,
     fixtures,
-    foreign_meta::ForeignMeta,
     inner_file::InnerFile,
     project_object::{Self, ProjectHolder},
     registry::Registry,
@@ -78,7 +82,7 @@ fun finish_admin(sys: SystemConfig, cap: AdminCap, funds: Coin<WAL>, clk: Clock,
 /// to, with the system one version behind.
 fun stale_account(
     sc: &mut ts::Scenario,
-): (SystemConfig, SystemConfig, AdminCap, Registry, ForeignMeta, Coin<WAL>, Clock) {
+): (SystemConfig, SystemConfig, AdminCap, Registry, Coin<WAL>, Clock) {
     system_config::init_for_testing(sc.ctx());
 
     sc.next_tx(ALICE);
@@ -95,11 +99,10 @@ fun stale_account(
     sc.next_tx(ALICE);
     let next = ts::take_shared_by_id<SystemConfig>(sc, next_id);
     let registry = sc.take_from_sender<Registry>();
-    let meta = sc.take_from_sender<ForeignMeta>();
 
     system_config::set_version_for_testing(&mut sys, STALE_VERSION);
 
-    (sys, next, cap, registry, meta, funds, clk)
+    (sys, next, cap, registry, funds, clk)
 }
 
 fun finish_account(
@@ -107,14 +110,12 @@ fun finish_account(
     next: SystemConfig,
     cap: AdminCap,
     registry: Registry,
-    meta: ForeignMeta,
     funds: Coin<WAL>,
     clk: Clock,
     sc: ts::Scenario,
 ) {
     destroy(cap);
     destroy(registry);
-    destroy(meta);
     destroy(funds);
     clock::destroy_for_testing(clk);
     ts::return_shared(next);
@@ -342,7 +343,7 @@ fun gate_withdraw_all_wal() {
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_update_username() {
     let mut sc = ts::begin(ALICE);
-    let (mut sys, next, cap, mut registry, meta, mut funds, clk) = stale_account(&mut sc);
+    let (mut sys, next, cap, mut registry, mut funds, clk) = stale_account(&mut sc);
     entry_register::update_username(
         &mut sys,
         &mut registry,
@@ -350,14 +351,14 @@ fun gate_update_username() {
         &mut funds,
         sc.ctx(),
     );
-    finish_account(sys, next, cap, registry, meta, funds, clk, sc);
+    finish_account(sys, next, cap, registry, funds, clk, sc);
 }
 
 #[test]
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_migrate_system() {
     let mut sc = ts::begin(ALICE);
-    let (mut sys, mut next, cap, mut registry, meta, mut funds, clk) = stale_account(&mut sc);
+    let (mut sys, mut next, cap, mut registry, mut funds, clk) = stale_account(&mut sc);
     entry_register::migrate_system(
         &mut registry,
         &mut sys,
@@ -366,25 +367,24 @@ fun gate_migrate_system() {
         &clk,
         sc.ctx(),
     );
-    finish_account(sys, next, cap, registry, meta, funds, clk, sc);
+    finish_account(sys, next, cap, registry, funds, clk, sc);
 }
 
 #[test]
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_foreign_blob_add() {
     let mut sc = ts::begin(ALICE);
-    let (sys, next, cap, registry, mut meta, funds, clk) = stale_account(&mut sc);
+    let (sys, next, cap, registry, funds, clk) = stale_account(&mut sc);
     entry_upload::foreign_blob_add(
-        &registry,
         &sys,
-        &mut meta,
+        ALICE,
         CYCLES,
         fixtures::file_epoch_set(),
         vector[],
         &clk,
         sc.ctx(),
     );
-    finish_account(sys, next, cap, registry, meta, funds, clk, sc);
+    finish_account(sys, next, cap, registry, funds, clk, sc);
 }
 
 #[test]
@@ -392,7 +392,7 @@ fun gate_foreign_blob_add() {
 fun gate_create_file() {
     let mut sc = ts::begin(ALICE);
     let (sys, file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    let _ = entry_innerfile::create_file(
+    let _ = entry_file_create::create_file(
         &sys,
         ALICE,
         fixtures::file_writers(),
@@ -417,7 +417,7 @@ fun gate_create_file() {
 fun gate_initialize_project_file() {
     let mut sc = ts::begin(ALICE);
     let (sys, file, pass, config, mut holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::initialize_project_file(
+    entry_file_project::initialize_project_file(
         &mut holder,
         object::id_from_address(@0x0),
         &sys,
@@ -444,7 +444,7 @@ fun gate_initialize_project_file() {
 fun gate_deny_writer() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::deny_writer(&sys, &mut file, BOB, 0, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, BOB, 0, &clk, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -453,7 +453,7 @@ fun gate_deny_writer() {
 fun gate_remove_deny_writer() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::remove_deny_writer(&sys, &mut file, BOB, sc.ctx());
+    entry_file_access::remove_deny_writer(&sys, &mut file, BOB, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -463,7 +463,7 @@ fun gate_revoke_pass() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
     let pass_id = object::id(&pass);
-    entry_innerfile::revoke_pass(&sys, &mut file, pass_id, sc.ctx());
+    entry_file_access::revoke_pass(&sys, &mut file, pass_id, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -472,7 +472,7 @@ fun gate_revoke_pass() {
 fun gate_force_write_innerfile() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::force_write_innerfile(
+    entry_file_write::force_write_innerfile(
         &mut file,
         &mut pass,
         &clk,
@@ -490,7 +490,7 @@ fun gate_force_write_innerfile() {
 fun gate_write_() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::write_(
+    entry_file_write::write_(
         &mut file,
         &mut pass,
         true,
@@ -510,7 +510,7 @@ fun gate_write_() {
 fun gate_set_root_change() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::set_root_change(
+    entry_file_fallback::set_root_change(
         &sys,
         &mut file,
         &mut pass,
@@ -527,7 +527,7 @@ fun gate_set_root_change() {
 fun gate_remove_root_change() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::remove_root_change(&sys, &mut file, &mut pass, &clk, sc.ctx());
+    entry_file_fallback::remove_root_change(&sys, &mut file, &mut pass, &clk, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -537,7 +537,7 @@ fun gate_merge_draft_into_file() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, mut pass, mut config, holder, wsys, funds, clk) =
         file_world(&mut sc, true);
-    entry_innerfile::merge_draft_into_file(
+    entry_file_draft::merge_draft_into_file(
         &sys,
         &mut file,
         &mut pass,
@@ -556,7 +556,7 @@ fun gate_merge_draft_into_file() {
 fun gate_delete_draft() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::delete_draft(&sys, &mut file, &mut pass, 0, &clk, sc.ctx());
+    entry_file_draft::delete_draft(&sys, &mut file, &mut pass, 0, &clk, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -565,7 +565,7 @@ fun gate_delete_draft() {
 fun gate_clear_drafts() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::clear_drafts(&sys, &mut file, &mut pass, 0, 1, &clk, sc.ctx());
+    entry_file_draft::clear_drafts(&sys, &mut file, &mut pass, 0, 1, &clk, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -574,7 +574,7 @@ fun gate_clear_drafts() {
 fun gate_create_pass() {
     let mut sc = ts::begin(ALICE);
     let (sys, file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -613,7 +613,7 @@ fun a_current_system_is_accepted() {
     let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, false);
 
     // The same call the stale system refuses, against one at the package version.
-    entry_innerfile::deny_writer(&sys, &mut file, BOB, 0, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, BOB, 0, &clk, sc.ctx());
 
     assert!(sys.get_system_version() == 1, 0);
 

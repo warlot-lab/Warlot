@@ -28,7 +28,11 @@ use warlot::{
     deny_list,
     draft,
     entry_admin,
-    entry_innerfile,
+    entry_file_access,
+    entry_file_create,
+    entry_file_draft,
+    entry_file_fallback,
+    entry_file_write,
     entry_permission,
     entry_register,
     entry_renew,
@@ -37,7 +41,6 @@ use warlot::{
     entry_withdraw,
     file_data,
     fixtures,
-    foreign_meta::{Self, ForeignMeta},
     inner_file::{Self, InnerFile},
     operator,
     permission,
@@ -165,17 +168,21 @@ fun rebuild_matches_chain() {
     );
     ledger.absorb();
 
-    // --- blobs adopted from outside the protocol ---------------------------
+    // --- blobs adopted from outside the protocol, by a delegate ------------
+    // Bob adopts on Alice's behalf, so the custody and the act have different
+    // addresses. That is what makes the comparison below load-bearing: an
+    // adoption that stored under the acting address rather than the owner's
+    // would read the same on both sides if the two were ever the same party.
     sc.next_tx(ALICE);
-    let mut alice_meta = sc.take_from_sender<ForeignMeta>();
     let mut alice_registry = sc.take_from_sender<Registry>();
     let alice_registry_id = object::id(&alice_registry);
-    let foreign_one = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut funds, sc.ctx());
-    let foreign_two = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut funds, sc.ctx());
+
+    sc.next_tx(BOB);
+    let foreign_one = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut bob_funds, sc.ctx());
+    let foreign_two = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut bob_funds, sc.ctx());
     entry_upload::foreign_blob_add(
-        &alice_registry,
         &sys,
-        &mut alice_meta,
+        ALICE,
         CYCLES,
         SET,
         vector[foreign_one, foreign_two],
@@ -200,7 +207,7 @@ fun rebuild_matches_chain() {
     // --- a file, and its rollback window overflowing -----------------------
     sc.next_tx(ALICE);
     let first_revision = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut funds, sc.ctx());
-    let file_id = entry_innerfile::create_file(
+    let file_id = entry_file_create::create_file(
         &sys,
         ALICE,
         FILE_WRITERS,
@@ -241,7 +248,7 @@ fun rebuild_matches_chain() {
         };
 
         let revision = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut funds, sc.ctx());
-        entry_innerfile::force_write_innerfile(
+        entry_file_write::force_write_innerfile(
             &mut file,
             &mut owner_pass,
             &clk,
@@ -260,7 +267,7 @@ fun rebuild_matches_chain() {
     sc.next_tx(ALICE);
     let head_config_id = file_data::blob_config_id(&file.track_back()[0]);
     let head_config = ts::take_shared_by_id<BlobConfig>(&sc, head_config_id);
-    entry_innerfile::set_root_change(
+    entry_file_fallback::set_root_change(
         &sys,
         &mut file,
         &mut owner_pass,
@@ -273,12 +280,12 @@ fun rebuild_matches_chain() {
     tick(&mut clk);
 
     sc.next_tx(ALICE);
-    entry_innerfile::remove_root_change(&sys, &mut file, &mut owner_pass, &clk, sc.ctx());
+    entry_file_fallback::remove_root_change(&sys, &mut file, &mut owner_pass, &clk, sc.ctx());
     ledger.absorb();
 
     // --- a pass, a draft, and the merge that accepts it --------------------
     sc.next_tx(ALICE);
-    entry_innerfile::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
     ledger.absorb();
     tick(&mut clk);
 
@@ -286,7 +293,7 @@ fun rebuild_matches_chain() {
     let mut bob_pass = sc.take_from_sender<WriterPass>();
     let bob_pass_id = object::id(&bob_pass);
     let proposal = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut bob_funds, sc.ctx());
-    entry_innerfile::write_(
+    entry_file_write::write_(
         &mut file,
         &mut bob_pass,
         true,
@@ -306,7 +313,7 @@ fun rebuild_matches_chain() {
     let mut draft_config = ts::take_shared_by_id<BlobConfig>(&sc, draft_config_id);
     let oldest = file_data::blob_config_id(&file.track_back()[file.track_back().length() - 1]);
     let displaced = ts::take_shared_by_id<BlobConfig>(&sc, oldest);
-    entry_innerfile::merge_draft_into_file(
+    entry_file_draft::merge_draft_into_file(
         &sys,
         &mut file,
         &mut owner_pass,
@@ -321,22 +328,22 @@ fun rebuild_matches_chain() {
 
     // --- the two revocations, and a pass destroyed by its holder ------------
     sc.next_tx(ALICE);
-    entry_innerfile::deny_writer(&sys, &mut file, MALLORY, DENY_UNTIL_MS, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, MALLORY, DENY_UNTIL_MS, &clk, sc.ctx());
     ledger.absorb();
     tick(&mut clk);
 
     sc.next_tx(ALICE);
-    entry_innerfile::remove_deny_writer(&sys, &mut file, MALLORY, sc.ctx());
+    entry_file_access::remove_deny_writer(&sys, &mut file, MALLORY, sc.ctx());
     ledger.absorb();
     tick(&mut clk);
 
     sc.next_tx(ALICE);
-    entry_innerfile::deny_writer(&sys, &mut file, BOB, DENY_UNTIL_MS, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, BOB, DENY_UNTIL_MS, &clk, sc.ctx());
     ledger.absorb();
     tick(&mut clk);
 
     sc.next_tx(ALICE);
-    entry_innerfile::revoke_pass(&sys, &mut file, bob_pass_id, sc.ctx());
+    entry_file_access::revoke_pass(&sys, &mut file, bob_pass_id, sc.ctx());
     ledger.absorb();
     tick(&mut clk);
 
@@ -419,11 +426,20 @@ fun rebuild_matches_chain() {
     assert!(alice_row.user_registry() == alice_registry_id, 19);
     assert!(alice_row.user_created_at() == alice_registry.created_at(), 20);
     assert!(alice_row.user_decay_at() == alice_registry.decay_at(), 21);
-    assert!(alice_row.user_foreign_meta().borrow() == object::id(&alice_meta), 22);
-    // Accumulated from the adoption events, against the ids the index itself
-    // holds. One chunk was opened, so its length is the whole total.
-    assert!(alice_row.user_foreign_configs() == foreign_meta::verify_peak(&alice_meta), 23);
-    assert!(alice_row.user_foreign_chunk() == alice_meta.current_index(), 24);
+    // Accumulated from the adoption events, against the config the adoption
+    // actually produced. The per-user index this used to compare against is
+    // gone, so the comparison is now against the state it summarised ,
+    // `BlobConfig.owner`, which answers ownership from the config object and
+    // therefore survives an event the replay never saw.
+    let adopted = alice_row.user_foreign_configs();
+    assert!(adopted.length() == 1, 22);
+    let adopted_config = ts::take_shared_by_id<BlobConfig>(&sc, adopted[0]);
+    assert!(blob_config::owner(&adopted_config) == ALICE, 23);
+    assert!(adopted_config.blob_ids().length() == alice_row.user_foreign_blobs(), 24);
+    // The stream separates the custody from the act, and the config agrees with
+    // the first half of that. Collapsing the two would lose the audit trail.
+    assert!(ledger.config(adopted[0]).config_stored_by() == BOB, 86);
+    ts::return_shared(adopted_config);
 
     let alice_user = user::get_user(&sys, ALICE);
     assert!(alice_row.user_id() == object::id(alice_user), 25);
@@ -579,7 +595,6 @@ fun rebuild_matches_chain() {
     owned.do_ref!(|blob_id| destroy(sc.take_from_sender_by_id<Blob>(*blob_id)));
     ts::return_to_address(ADMIN, cap);
     sc.return_to_sender(alice_registry);
-    sc.return_to_sender(alice_meta);
     destroy(owner_pass);
     destroy(funds);
     destroy(bob_funds);
