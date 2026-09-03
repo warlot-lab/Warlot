@@ -1,4 +1,19 @@
-/// Owns `BlobConfig`: the shared object holding a user's blobs and their renewal mandate.
+/// Owns `BlobConfig`: the shared object holding a user's blobs and their renewal
+/// mandate.
+///
+/// Custody moves between users only with the recipient's consent. The owner names
+/// an address in `pending_owner` and nothing changes until that address acts.
+/// Ownership decides who may withdraw, so a one-sided move would let anybody make
+/// anybody else the holder of content they never asked for, and there is no
+/// accounting rule that closes that as cleanly as requiring the recipient to act.
+///
+/// That consent layer governs the transfer of an **existing** config between
+/// users. It does not govern a store authorised by a delegation, and must never
+/// be applied to one. A store under another address is already consented to, once,
+/// at grant time: `add_blob_to_address` is that consent, and `store::raw_store_blob`
+/// is the single place every byte-billing path asks for it. Extending
+/// offer-and-accept to a store would break every operator write and every
+/// delegated upload.
 module warlot::blob_config;
 
 // === Imports ===
@@ -14,6 +29,13 @@ const ENotOwner: vector<u8> = b"NOT THE OWNER OF THIS BLOB CONFIG";
 #[error]
 const ELayoutAlreadyRegistered: vector<u8> =
     b"THIS CONFIG ALREADY CARRIES A LAYOUT";
+#[error]
+const ENoStandingOffer: vector<u8> = b"THIS CONFIG CARRIES NO OWNERSHIP OFFER";
+#[error]
+const ENotTheOfferedRecipient: vector<u8> =
+    b"THIS CONFIG'S OWNERSHIP OFFER NAMES A DIFFERENT ADDRESS";
+#[error]
+const EOfferToSelf: vector<u8> = b"A CONFIG CANNOT BE OFFERED TO ITS CURRENT OWNER";
 #[test_only]
 #[error]
 const ENoLayout: vector<u8> = b"THIS CONFIG CARRIES NO LAYOUT";
@@ -36,6 +58,14 @@ public struct BlobConfig has key {
     /// The address that may withdraw these blobs. The only authorization this
     /// object needs.
     owner: address,
+    /// The address that may take custody, once it asks for it.
+    ///
+    /// `none` on every config until its owner offers it, which costs a config
+    /// that is never handed on one byte. Cleared by any move of `owner`,
+    /// deliberate or not ,  an offer is a statement about the custody standing
+    /// when it was made, and a stale one would let the address it named take the
+    /// config from an owner who never offered it anything.
+    pending_owner: Option<address>,
     /// The blobs under this config's custody.
     blobs: vector<Blob>,
     /// How many epochs ahead the blobs are kept paid for.
@@ -61,6 +91,16 @@ public(package) fun config_id(blob_cfg: &BlobConfig): ID {
 /// The address entitled to withdraw these blobs.
 public(package) fun owner(blob_cfg: &BlobConfig): address {
     blob_cfg.owner
+}
+
+#[test_only]
+/// The address this config has been offered to, if it stands offered.
+///
+/// Test-only, like the layout accessors beside it. Nothing in `sources/` asks the
+/// question: the offer is checked where it is acted on, and an off-chain reader
+/// fetches the field from the shared object rather than through a call.
+public fun pending_owner(blob_cfg: &BlobConfig): Option<address> {
+    blob_cfg.pending_owner
 }
 
 /// How many epochs ahead the blobs are kept paid for.
@@ -149,6 +189,7 @@ public(package) fun new(
     let blob_cfg = BlobConfig {
         id: object::new(ctx),
         owner,
+        pending_owner: option::none(),
         blobs,
         epoch_set,
         cycle_limit,
@@ -235,6 +276,89 @@ public(package) fun set_layout(blob_cfg: &mut BlobConfig, layout: Layout) {
     blob_cfg.layout.fill(layout);
 }
 
+/// Name `recipient` as the address that may take custody of this config.
+///
+/// The offer moves nothing. It only records who is allowed to complete the move,
+/// which is what makes the handover two-sided: withdrawal follows `owner`, so a
+/// config pushed onto an address is content that address is now responsible for
+/// and never asked for.
+///
+/// A second offer replaces the first rather than accumulating. There is one
+/// custody to hand over, so a queue of candidates would be a queue in which only
+/// the first to act mattered, and the owner would have no way to tell which of
+/// their offers was still live.
+public(package) fun offer_ownership(
+    blob_cfg: &mut BlobConfig,
+    system_id: ID,
+    recipient: address,
+    ctx: &TxContext,
+) {
+    assert!(ctx.sender() == blob_cfg.owner, ENotOwner);
+
+    // Refused rather than treated as a no-op. Accepting it would raise a custody
+    // change in which nothing changed hands, which is a row a consumer replaying
+    // the stream has to special-case.
+    assert!(recipient != blob_cfg.owner, EOfferToSelf);
+
+    blob_cfg.pending_owner = option::some(recipient);
+
+    storage_events::emit_blob_config_ownership_offered(
+        system_id,
+        object::id(blob_cfg),
+        blob_cfg.owner,
+        recipient,
+    );
+}
+
+/// Withdraw the standing offer, leaving custody where it is.
+///
+/// Refuses a config with no offer rather than passing silently: the owner is
+/// acting on a belief about the config's state, and a no-op would confirm a
+/// belief that may be wrong.
+public(package) fun cancel_ownership_offer(
+    blob_cfg: &mut BlobConfig,
+    system_id: ID,
+    ctx: &TxContext,
+) {
+    assert!(ctx.sender() == blob_cfg.owner, ENotOwner);
+    assert!(blob_cfg.pending_owner.is_some(), ENoStandingOffer);
+
+    let recipient = blob_cfg.pending_owner.extract();
+
+    storage_events::emit_blob_config_ownership_offer_cancelled(
+        system_id,
+        object::id(blob_cfg),
+        blob_cfg.owner,
+        recipient,
+    );
+}
+
+/// Take up an offer made to the sender, moving custody.
+///
+/// The offer is cleared before the move rather than after, so `transfer_ownership`
+/// sees no standing offer and raises no cancellation for one that was in fact
+/// taken up.
+public(package) fun accept_ownership(
+    blob_cfg: &mut BlobConfig,
+    system_id: ID,
+    ctx: &TxContext,
+) {
+    assert!(blob_cfg.pending_owner.is_some(), ENoStandingOffer);
+    assert!(blob_cfg.pending_owner.borrow() == ctx.sender(), ENotTheOfferedRecipient);
+
+    let new_owner = blob_cfg.pending_owner.extract();
+    let previous_owner = blob_cfg.owner;
+
+    transfer_ownership(blob_cfg, system_id, new_owner);
+
+    storage_events::emit_blob_config_ownership_accepted(
+        system_id,
+        object::id(blob_cfg),
+        previous_owner,
+        new_owner,
+    );
+}
+
 /// Re-parent the config to `new_owner`.
 ///
 /// Custody is a field rather than Sui object ownership, so moving it is a write
@@ -249,12 +373,28 @@ public(package) fun transfer_ownership(
     new_owner: address,
 ) {
     let previous_owner = blob_cfg.owner;
+    let config_id = object::id(blob_cfg);
 
     blob_cfg.owner = new_owner;
 
+    // Custody moving voids any offer left standing, however it moved. This is
+    // also the function that hands a merged draft's config to the file's owner,
+    // and an offer its writer had left open would otherwise let the address it
+    // named take the config from an owner who offered it nothing.
+    if (blob_cfg.pending_owner.is_some()) {
+        let stale_recipient = blob_cfg.pending_owner.extract();
+
+        storage_events::emit_blob_config_ownership_offer_cancelled(
+            system_id,
+            config_id,
+            previous_owner,
+            stale_recipient,
+        );
+    };
+
     storage_events::emit_blob_config_owner_changed(
         system_id,
-        object::id(blob_cfg),
+        config_id,
         previous_owner,
         new_owner,
     );
@@ -299,7 +439,8 @@ public(package) fun unwrap_for_owner(
 /// adds reconstructs a state that never existed.
 fun destroy(blob_cfg: BlobConfig, system_id: ID): (address, vector<Blob>) {
     let config_id = object::id(&blob_cfg);
-    let BlobConfig { id, owner, blobs, epoch_set: _, cycle_limit: _, layout: _ } = blob_cfg;
+    let BlobConfig { id, owner, pending_owner: _, blobs, epoch_set: _, cycle_limit: _, layout: _ }
+        = blob_cfg;
     id.delete();
 
     let mut blobs_obj_id = vector<ID>[];

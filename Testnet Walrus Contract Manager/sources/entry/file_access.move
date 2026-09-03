@@ -148,6 +148,40 @@ public fun revoke_pass(
     deny_list::revoke_pass(deny_obj, pass_id, system_id, file_id, revoked_by);
 }
 
+/// Revoke several passes on one file in one transaction.
+///
+/// An owner who has decided a delegate is finished usually has more than one id
+/// to refuse: a pass can be handed on, and an address can hold several. Doing
+/// that one transaction at a time leaves a window in which some of them still
+/// write.
+///
+/// The deny list is attached once for the whole batch rather than once per id,
+/// and an id already refused is passed over by `revoke_pass` itself, so a caller
+/// resubmitting a list it is unsure of is not an error.
+public fun revoke_passes(
+    system_cfg: &SystemConfig,
+    file: &mut InnerFile,
+    pass_ids: vector<ID>,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
+    assert!(file.owner() == ctx.sender(), ENotFileOwner);
+
+    let system_id = object::id(system_cfg);
+    let file_id = object::id(file);
+    let revoked_by = ctx.sender();
+    let deny_obj = deny_list::borrow_mut_or_attach(file.uid_mut(), ctx);
+
+    // Bounded by the ids the transaction carries.
+    pass_ids.do!(|pass_id| deny_list::revoke_pass(
+        deny_obj,
+        pass_id,
+        system_id,
+        file_id,
+        revoked_by,
+    ));
+}
+
 /// Mint a writer pass for `writer`, with or without the draft-queue bypass.
 ///
 /// An **admin** pass is refused unless `writer` may already store blobs under the

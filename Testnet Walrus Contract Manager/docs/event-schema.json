@@ -203,6 +203,10 @@
         {
           "name": "can_compact",
           "move_type": "bool"
+        },
+        {
+          "name": "can_set_root",
+          "move_type": "bool"
         }
       ],
       "parsedJson": {
@@ -212,7 +216,8 @@
         "create_inner_file": true,
         "create_writer_pass": true,
         "can_init_db": true,
-        "can_compact": true
+        "can_compact": true,
+        "can_set_root": true
       }
     },
     "<PACKAGE>::identity_events::OperatorRoleRevoked": {
@@ -268,6 +273,10 @@
         {
           "name": "can_compact",
           "move_type": "bool"
+        },
+        {
+          "name": "can_set_root",
+          "move_type": "bool"
         }
       ],
       "parsedJson": {
@@ -278,7 +287,8 @@
         "create_inner_file": true,
         "create_writer_pass": true,
         "can_init_db": true,
-        "can_compact": true
+        "can_compact": true,
+        "can_set_root": true
       }
     },
     "<PACKAGE>::identity_events::PermissionRevoked": {
@@ -1104,6 +1114,90 @@
         "config_id": "0x0497c244bd7b3b123635d24bd05b0a702f876f2a1dfc76f47ed9ce4078f66f93",
         "previous_owner": "0x162b9bd81c0442ce8551f8a5879fcbe93d7b9a32b9460dcd5c95ae364d2370f5",
         "new_owner": "0xfd9fd9c0f025b0d5e15cd64347a832deb6ac86bd064a087028a5dc176515d98c"
+      }
+    },
+    "<PACKAGE>::storage_events::BlobConfigOwnershipOffered": {
+      "module": "storage_events",
+      "summary": "A config's owner named an address it may pass to. The offer alone moves nothing.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "recipient",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x83830529c0769028b3fc800ac81741f94f4bf02123c25b3699cb924b8d489bb2",
+        "config_id": "0x0497c244bd7b3b123635d24bd05b0a702f876f2a1dfc76f47ed9ce4078f66f93",
+        "owner": "0x162b9bd81c0442ce8551f8a5879fcbe93d7b9a32b9460dcd5c95ae364d2370f5",
+        "recipient": "0xfd9fd9c0f025b0d5e15cd64347a832deb6ac86bd064a087028a5dc176515d98c"
+      }
+    },
+    "<PACKAGE>::storage_events::BlobConfigOwnershipAccepted": {
+      "module": "storage_events",
+      "summary": "The named recipient took up an offer, and custody moved. Raised alongside BlobConfigOwnerChanged, which it explains.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "previous_owner",
+          "move_type": "address"
+        },
+        {
+          "name": "new_owner",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x83830529c0769028b3fc800ac81741f94f4bf02123c25b3699cb924b8d489bb2",
+        "config_id": "0x0497c244bd7b3b123635d24bd05b0a702f876f2a1dfc76f47ed9ce4078f66f93",
+        "previous_owner": "0x162b9bd81c0442ce8551f8a5879fcbe93d7b9a32b9460dcd5c95ae364d2370f5",
+        "new_owner": "0xfd9fd9c0f025b0d5e15cd64347a832deb6ac86bd064a087028a5dc176515d98c"
+      }
+    },
+    "<PACKAGE>::storage_events::BlobConfigOwnershipOfferCancelled": {
+      "module": "storage_events",
+      "summary": "An offer stopped standing without being taken up, either withdrawn by the owner or voided by custody moving some other way.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "config_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "owner",
+          "move_type": "address"
+        },
+        {
+          "name": "recipient",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x83830529c0769028b3fc800ac81741f94f4bf02123c25b3699cb924b8d489bb2",
+        "config_id": "0x0497c244bd7b3b123635d24bd05b0a702f876f2a1dfc76f47ed9ce4078f66f93",
+        "owner": "0x162b9bd81c0442ce8551f8a5879fcbe93d7b9a32b9460dcd5c95ae364d2370f5",
+        "recipient": "0xfd9fd9c0f025b0d5e15cd64347a832deb6ac86bd064a087028a5dc176515d98c"
       }
     },
     "<PACKAGE>::storage_events::BlobRenewed": {

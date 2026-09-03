@@ -148,9 +148,9 @@ same shapes.
 | `WalletCreated` | identity/wallet.move , `create_wallet` | `system_id`, `wallet_id`, `user`, `created_at` |
 | `WalletDeposited` | identity/wallet.move , `deposit` | `system_id`, `user`, `coin_type`, `amount`, `new_balance` |
 | `WalletWithdrawn` | identity/wallet.move , `withdraw`, `withdraw_all` | `system_id`, `user`, `coin_type`, `amount`, `new_balance` |
-| `PermissionGranted` | identity/permission.move , `create_permission_state`, `replace_permission_state` | `system_id`, `owner`, `delegate`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact` |
+| `PermissionGranted` | identity/permission.move , `create_permission_state`, `replace_permission_state` | `system_id`, `owner`, `delegate`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact`, `can_set_root` |
 | `PermissionRevoked` | identity/permission.move , `revoke_permission_state` | `system_id`, `owner`, `delegate` |
-| `OperatorRoleGranted` | identity/permission.move , `create_operator_role_state`, `replace_operator_role_state` | `system_id`, `owner`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact` |
+| `OperatorRoleGranted` | identity/permission.move , `create_operator_role_state`, `replace_operator_role_state` | `system_id`, `owner`, `add_blob_to_address`, `create_inner_file`, `create_writer_pass`, `can_init_db`, `can_compact`, `can_set_root` |
 | `OperatorRoleRevoked` | identity/permission.move , `revoke_operator_role_state` | `system_id`, `owner` |
 
 ### Blob custody ,  `storage_events`
@@ -159,12 +159,39 @@ same shapes.
 |---|---|---|
 | `BlobStored` | storage/blob_config.move , `new` | `system_id`, `config_id`, `owner`, `stored_by`, `blobs_obj_id`, `blob_sizes`, `size`, `encoded_size`, `end_epoch`, `epoch_set`, `cycle_limit`, `uploaded_on` |
 | `BlobConfigOwnerChanged` | storage/blob_config.move , `transfer_ownership` | `system_id`, `config_id`, `previous_owner`, `new_owner` |
+| `BlobConfigOwnershipOffered` | storage/blob_config.move , `offer_ownership` | `system_id`, `config_id`, `owner`, `recipient` |
+| `BlobConfigOwnershipAccepted` | storage/blob_config.move , `accept_ownership` | `system_id`, `config_id`, `previous_owner`, `new_owner` |
+| `BlobConfigOwnershipOfferCancelled` | storage/blob_config.move , `cancel_ownership_offer` and `transfer_ownership` | `system_id`, `config_id`, `owner`, `recipient` |
 | `BlobRenewed` | storage/renew.move , inside the per-blob loop | `system_id`, `config_id`, `owner`, `blob_obj_id`, `epoch_set`, `current_epoch`, `epochs_extended`, `new_end_epoch`, `wal_spent`, `executed_by` |
 | `RenewCycleSpent` | storage/renew.move , after the cycle is charged | `system_id`, `config_id`, `owner`, `blobs_extended`, `wal_spent`, `cycles_remaining`, `executed_by` |
 | `RenewSkipped` | storage/renew.move , on every path that does no work | `system_id`, `config_id`, `owner`, `blob_obj_id`, `reason`, `epoch_set`, `current_epoch`, `executed_by` |
 | `BlobWithdrawn` | storage/blob_config.move , `destroy` | `system_id`, `config_id`, `owner`, `blobs_obj_id` |
 | `ForeignBlobsAdopted` | entry/upload.move , `adopt` | `system_id`, `owner`, `adopted_by`, `config_id`, `blob_count` |
 | `LayoutRegistered` | storage/compaction.move , `register` | `system_id`, `config_id`, `owner`, `registered_by`, `kind`, `generation`, `file_count`, `file_set_root`, `paths`, `content_hashes`, `superseded_root`, `superseded_count`, `superseded`, `created_at_ms` |
+
+#### Custody moves in two acts, and the stream says which act happened
+
+`BlobConfigOwnerChanged` is the event that says custody moved. It is not the
+event that says *why*, because a draft merge re-parents a config too, on a path
+nobody offered or accepted anything on.
+
+A handover between users is therefore three rows, not one. `offer` raises
+`BlobConfigOwnershipOffered` and moves nothing. The named recipient's `accept`
+raises `BlobConfigOwnerChanged` and `BlobConfigOwnershipAccepted` together, in
+that order. The owner's `cancel` raises `BlobConfigOwnershipOfferCancelled` on
+its own.
+
+A consumer tracking whether an offer stands needs one more rule:
+`BlobConfigOwnershipOfferCancelled` is also raised when custody moves by any
+other route, because that voids a standing offer. Those two cases are told apart
+by what accompanies the row in the same transaction ,  a void carries
+`BlobConfigOwnerChanged` and no `BlobConfigOwnershipAccepted`; a deliberate
+withdrawal carries neither.
+
+There is no expiry, no auto-accept and no inbound policy. Ownership decides who
+may withdraw, so requiring the recipient to act is what stops content being
+pushed onto an address that never asked for it, and once it is required none of
+the accounting rules that would otherwise be needed are.
 
 #### The adoption record has no on-chain index behind it
 

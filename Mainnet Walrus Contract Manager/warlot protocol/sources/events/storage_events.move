@@ -1,6 +1,6 @@
-/// Declares the events blob custody raises: storing, re-parenting, renewing,
-/// skipping a renewal, adopting from outside, registering a compaction layout,
-/// and withdrawing.
+/// Declares the events blob custody raises: storing, offering custody, taking it
+/// up, withdrawing an offer, re-parenting, renewing, skipping a renewal, adopting
+/// from outside, registering a compaction layout, and withdrawing.
 ///
 /// Structs and emitters only ,  this module imports nothing from the rest of the
 /// package, so it can never take part in an import cycle and every domain module
@@ -61,6 +61,44 @@ public struct BlobConfigOwnerChanged has copy, drop, store {
     config_id: ID,
     previous_owner: address,
     new_owner: address,
+}
+
+/// A config's owner named an address it may pass to.
+///
+/// The offer alone moves nothing. It is the first half of a two-party handover:
+/// custody decides who may withdraw, so a one-sided move would let anybody make
+/// anybody else the holder of content they never asked for.
+public struct BlobConfigOwnershipOffered has copy, drop, store {
+    system_id: ID,
+    config_id: ID,
+    owner: address,
+    recipient: address,
+}
+
+/// The named recipient took up an offer, and custody moved.
+///
+/// `BlobConfigOwnerChanged` is raised alongside this and is the event that says
+/// custody moved; this one says why it moved, which that event cannot, because a
+/// draft merge re-parents a config too.
+public struct BlobConfigOwnershipAccepted has copy, drop, store {
+    system_id: ID,
+    config_id: ID,
+    previous_owner: address,
+    new_owner: address,
+}
+
+/// An offer stopped standing without being taken up.
+///
+/// Raised both when the owner withdraws the offer and when custody moves by some
+/// other route, which voids it. The two are told apart by what accompanies them
+/// in the same transaction: a void carries a `BlobConfigOwnerChanged` with no
+/// `BlobConfigOwnershipAccepted`, and a deliberate withdrawal carries neither. A
+/// consumer that only tracks whether an offer stands needs neither distinction.
+public struct BlobConfigOwnershipOfferCancelled has copy, drop, store {
+    system_id: ID,
+    config_id: ID,
+    owner: address,
+    recipient: address,
 }
 
 /// One blob's storage was extended.
@@ -240,6 +278,36 @@ public(package) fun emit_blob_config_owner_changed(
         previous_owner,
         new_owner,
     })
+}
+
+/// Announce an address named as a config's next owner.
+public(package) fun emit_blob_config_ownership_offered(
+    system_id: ID,
+    config_id: ID,
+    owner: address,
+    recipient: address,
+) {
+    event::emit(BlobConfigOwnershipOffered { system_id, config_id, owner, recipient })
+}
+
+/// Announce an offer taken up.
+public(package) fun emit_blob_config_ownership_accepted(
+    system_id: ID,
+    config_id: ID,
+    previous_owner: address,
+    new_owner: address,
+) {
+    event::emit(BlobConfigOwnershipAccepted { system_id, config_id, previous_owner, new_owner })
+}
+
+/// Announce an offer that stopped standing without being taken up.
+public(package) fun emit_blob_config_ownership_offer_cancelled(
+    system_id: ID,
+    config_id: ID,
+    owner: address,
+    recipient: address,
+) {
+    event::emit(BlobConfigOwnershipOfferCancelled { system_id, config_id, owner, recipient })
 }
 
 /// Announce one blob's storage extended.
@@ -440,6 +508,51 @@ public fun read_blob_config_owner_changed(e: &BlobConfigOwnerChanged): (ID, ID, 
     } = e;
 
     (*_system_id, *_config_id, *_previous_owner, *_new_owner)
+}
+
+#[test_only]
+/// Every field of `BlobConfigOwnershipOffered`, in declaration order.
+public fun read_blob_config_ownership_offered(
+    e: &BlobConfigOwnershipOffered,
+): (ID, ID, address, address) {
+    let BlobConfigOwnershipOffered {
+        system_id: _system_id,
+        config_id: _config_id,
+        owner: _owner,
+        recipient: _recipient,
+    } = e;
+
+    (*_system_id, *_config_id, *_owner, *_recipient)
+}
+
+#[test_only]
+/// Every field of `BlobConfigOwnershipAccepted`, in declaration order.
+public fun read_blob_config_ownership_accepted(
+    e: &BlobConfigOwnershipAccepted,
+): (ID, ID, address, address) {
+    let BlobConfigOwnershipAccepted {
+        system_id: _system_id,
+        config_id: _config_id,
+        previous_owner: _previous_owner,
+        new_owner: _new_owner,
+    } = e;
+
+    (*_system_id, *_config_id, *_previous_owner, *_new_owner)
+}
+
+#[test_only]
+/// Every field of `BlobConfigOwnershipOfferCancelled`, in declaration order.
+public fun read_blob_config_ownership_offer_cancelled(
+    e: &BlobConfigOwnershipOfferCancelled,
+): (ID, ID, address, address) {
+    let BlobConfigOwnershipOfferCancelled {
+        system_id: _system_id,
+        config_id: _config_id,
+        owner: _owner,
+        recipient: _recipient,
+    } = e;
+
+    (*_system_id, *_config_id, *_owner, *_recipient)
 }
 
 #[test_only]

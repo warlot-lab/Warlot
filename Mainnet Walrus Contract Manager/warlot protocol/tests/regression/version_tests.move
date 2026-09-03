@@ -27,6 +27,7 @@ use warlot::{
     entry_permission,
     entry_register,
     entry_renew,
+    entry_transfer,
     entry_upload,
     entry_wallet,
     entry_withdraw,
@@ -470,6 +471,43 @@ fun gate_revoke_pass() {
 
 #[test]
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_revoke_passes() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let pass_id = object::id(&pass);
+    entry_file_access::revoke_passes(&sys, &mut file, vector[pass_id], sc.ctx());
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_offer() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, mut config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_transfer::offer(&sys, &mut config, BOB, sc.ctx());
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_accept() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, mut config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_transfer::accept(&sys, &mut config, sc.ctx());
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_cancel() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, mut config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_transfer::cancel(&sys, &mut config, sc.ctx());
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_force_write_innerfile() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
@@ -595,6 +633,23 @@ fun gate_self_withdraw_blob() {
     let mut sc = ts::begin(ALICE);
     let (sys, file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
     entry_withdraw::self_withdraw_blob(&sys, config, sc.ctx());
+
+    destroy(pass);
+    destroy(wsys);
+    destroy(funds);
+    clock::destroy_for_testing(clk);
+    ts::return_shared(holder);
+    ts::return_shared(file);
+    ts::return_shared(sys);
+    sc.end();
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_self_withdraw_blobs() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_withdraw::self_withdraw_blobs(&sys, vector[config], sc.ctx());
 
     destroy(pass);
     destroy(wsys);

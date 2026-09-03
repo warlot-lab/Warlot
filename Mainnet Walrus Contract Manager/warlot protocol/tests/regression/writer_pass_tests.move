@@ -14,7 +14,7 @@
 module warlot::writer_pass_tests;
 
 use std::unit_test::destroy;
-use sui::{clock, test_scenario as ts};
+use sui::{clock, event, test_scenario as ts};
 use warlot::{
     entry_file_access,
     entry_file_create,
@@ -23,6 +23,7 @@ use warlot::{
     entry_register,
     fixtures,
     inner_file::{Self, InnerFile},
+    pass_events::WriterPassRevoked,
     permission,
     system_config::{Self, SystemConfig},
     user,
@@ -134,6 +135,67 @@ fun immortal_is_deniable() {
     inner_file::verify_pass(&file, BOB, &bob_pass, &clk);
 
     destroy(bob_pass);
+    destroy(funds);
+    destroy(wsys);
+    clock::destroy_for_testing(clk);
+    ts::return_shared(file);
+    ts::return_shared(sys);
+    sc.end();
+}
+
+#[test]
+fun the_batch_refuses_every_pass_in_one_call() {
+    let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut sys = sc.take_shared<SystemConfig>();
+    let clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
+    let file_id = fixtures::inner_file(
+        &mut wsys,
+        &mut sys,
+        ALICE,
+        b"alice",
+        fixtures::commit_for(b"first"),
+        &mut funds,
+        &clk,
+        sc.ctx(),
+    );
+
+    sc.next_tx(BOB);
+    entry_register::all_register_user_publicly(&mut sys, b"bob".to_string(), &clk, sc.ctx());
+
+    // A pass can be handed on and an address can hold more than one, so an owner
+    // finishing with a delegate usually has several ids to refuse.
+    sc.next_tx(ALICE);
+    let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+
+    sc.next_tx(BOB);
+    let pass_ids = ts::ids_for_sender<WriterPass>(&sc);
+    assert!(pass_ids.length() == 2, 0);
+
+    // Doing this one transaction at a time leaves a window in which the passes
+    // not yet reached still write.
+    sc.next_tx(ALICE);
+    entry_file_access::revoke_passes(&sys, &mut file, pass_ids, sc.ctx());
+
+    pass_ids.do_ref!(|pass_id| assert!(file.is_pass_revoked(*pass_id), 1));
+    assert!(event::events_by_type<WriterPassRevoked>().length() == 2, 2);
+
+    // An id already refused is passed over rather than aborting, so a caller
+    // resubmitting a list it is unsure of is not an error.
+    sc.next_tx(ALICE);
+    entry_file_access::revoke_passes(&sys, &mut file, pass_ids, sc.ctx());
+
+    assert!(event::events_by_type<WriterPassRevoked>().length() == 0, 3);
+    pass_ids.do_ref!(|pass_id| assert!(file.is_pass_revoked(*pass_id), 4));
+
     destroy(funds);
     destroy(wsys);
     clock::destroy_for_testing(clk);
