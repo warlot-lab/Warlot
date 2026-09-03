@@ -345,7 +345,7 @@ fun requires_bit() {
     let packed = three_files();
 
     sc.next_tx(ALICE);
-    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, true, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, true, false, false, sc.ctx());
 
     sc.next_tx(BOB);
     let mut target = ts::take_shared_by_id<BlobConfig>(&sc, target_id);
@@ -363,7 +363,7 @@ fun a_granted_delegate_may_compact() {
     let packed = three_files();
 
     sc.next_tx(ALICE);
-    entry_permission::grant(&mut sys, ALICE, BOB, false, false, false, false, true, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, false, false, false, false, true, false, sc.ctx());
 
     sc.next_tx(BOB);
     let mut target = ts::take_shared_by_id<BlobConfig>(&sc, target_id);
@@ -978,7 +978,7 @@ fun a_target_that_changes_hands_mid_compaction_is_refused() {
     // nothing else.
     sc.next_tx(BOB);
     entry_register::all_register_user_publicly(&mut sys, b"bob".to_string(), &clk, sc.ctx());
-    entry_permission::grant(&mut sys, BOB, ALICE, false, false, false, false, true, sc.ctx());
+    entry_permission::grant(&mut sys, BOB, ALICE, false, false, false, false, true, false, sc.ctx());
 
     sc.next_tx(ALICE);
     let mut target = ts::take_shared_by_id<BlobConfig>(&sc, target_id);

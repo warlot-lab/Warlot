@@ -43,7 +43,7 @@ fun grant_then_use() {
 
     // Registering publicly leaves the delegation table empty.
     entry_register::all_register_user_publicly(&mut sys, b"alice".to_string(), &clk, sc.ctx());
-    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, true, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, true, false, false, sc.ctx());
 
     // Bob now stores under Alice's address, on Alice's account, as himself.
     sc.next_tx(BOB);
@@ -130,7 +130,7 @@ fun revoke_then_denied() {
     let mut funds = fixtures::wal(sc.ctx());
 
     entry_register::all_register_user_publicly(&mut sys, b"alice".to_string(), &clk, sc.ctx());
-    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, true, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, true, false, false, sc.ctx());
     entry_permission::revoke(&mut sys, ALICE, BOB, sc.ctx());
 
     // The same call that succeeds in `grant_then_use`, by the same address.
@@ -198,7 +198,7 @@ fun only_owner_may_grant() {
 
     // Mallory names Alice's account and hands the bits to herself.
     sc.next_tx(MALLORY);
-    entry_permission::grant(&mut sys, ALICE, MALLORY, true, true, true, true, true, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, MALLORY, true, true, true, true, true, true, sc.ctx());
 
     clock::destroy_for_testing(clk);
     ts::return_shared(sys);

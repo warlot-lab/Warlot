@@ -85,6 +85,27 @@ public fun check_permission_can_compact(
     permission::check_can_compact(&user_obj.id, user_obj.owner, operator, ctx);
 }
 
+/// Assert the sender may move `user_obj`'s project file-set roots.
+public fun check_permission_can_set_root(
+    user_obj: &User,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+) {
+    permission::check_can_set_root(&user_obj.id, user_obj.owner, operator, ctx);
+}
+
+/// Whether the sender may store blobs under `user_obj`, counting both grants.
+///
+/// `grants_add_blob` below answers a narrower question ,  one named address,
+/// blind to the operator role ,  and the two are not interchangeable.
+public fun may_add_blob(
+    user_obj: &User,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+): bool {
+    permission::may_add_blob(&user_obj.id, user_obj.owner, operator, ctx)
+}
+
 /// Whether `writer` holds an address-keyed grant to store blobs under `user_obj`.
 public(package) fun grants_add_blob(user_obj: &User, writer: address): bool {
     permission::grants_add_blob(&user_obj.id, user_obj.owner, writer)
@@ -156,7 +177,6 @@ public(package) fun create_user(
         public_username,
         object::id(&new_user),
         system_id,
-        option::none(),
         clock,
         ctx,
     );

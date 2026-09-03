@@ -164,6 +164,7 @@ public struct PermRow has drop {
     create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
     live: bool,
 }
 
@@ -333,7 +334,7 @@ public fun delegation_bits(
     ledger: &Ledger,
     owner: address,
     delegate: address,
-): (bool, bool, bool, bool, bool) {
+): (bool, bool, bool, bool, bool, bool) {
     let i = ledger.permissions.find_index!(|row| row.owner == owner && row.delegate == delegate);
     assert!(i.is_some(), ENoSuchRow);
     let row = &ledger.permissions[i.destroy_some()];
@@ -344,6 +345,7 @@ public fun delegation_bits(
         row.create_writer_pass,
         row.can_init_db,
         row.can_compact,
+        row.can_set_root,
     )
 }
 
@@ -354,7 +356,10 @@ public fun operator_role_live(ledger: &Ledger, owner: address): bool {
 }
 
 /// The capability bits the stream shows the operator role holding on `owner`.
-public fun operator_role_bits(ledger: &Ledger, owner: address): (bool, bool, bool, bool, bool) {
+public fun operator_role_bits(
+    ledger: &Ledger,
+    owner: address,
+): (bool, bool, bool, bool, bool, bool) {
     ledger.delegation_bits(owner, OPERATOR_ROLE)
 }
 
@@ -840,6 +845,7 @@ fun apply_identity(ledger: &mut Ledger) {
             create_writer_pass,
             can_init_db,
             can_compact,
+            can_set_root,
         ) = identity_events::read_permission_granted(e);
 
         let held = ledger
@@ -853,6 +859,7 @@ fun apply_identity(ledger: &mut Ledger) {
             row.create_writer_pass = create_writer_pass;
             row.can_init_db = can_init_db;
             row.can_compact = can_compact;
+            row.can_set_root = can_set_root;
             row.live = true;
         } else {
             ledger.permissions.push_back(PermRow {
@@ -864,6 +871,7 @@ fun apply_identity(ledger: &mut Ledger) {
                 create_writer_pass,
                 can_init_db,
                 can_compact,
+                can_set_root,
                 live: true,
             });
         };
@@ -890,6 +898,7 @@ fun apply_identity(ledger: &mut Ledger) {
             create_writer_pass,
             can_init_db,
             can_compact,
+            can_set_root,
         ) = identity_events::read_operator_role_granted(e);
 
         let held = ledger
@@ -903,6 +912,7 @@ fun apply_identity(ledger: &mut Ledger) {
             row.create_writer_pass = create_writer_pass;
             row.can_init_db = can_init_db;
             row.can_compact = can_compact;
+            row.can_set_root = can_set_root;
             row.live = true;
         } else {
             ledger.permissions.push_back(PermRow {
@@ -914,6 +924,7 @@ fun apply_identity(ledger: &mut Ledger) {
                 create_writer_pass,
                 can_init_db,
                 can_compact,
+                can_set_root,
                 live: true,
             });
         };

@@ -103,8 +103,12 @@ fun the_operator_role_needs_no_table() {
     assert!(permission::has_operator_role(alice.uid()), 0);
     assert!(!permission::has_delegation_table(alice.uid()), 1);
 
-    let (add, file, pass, db, compact) = permission::operator_role_bits(alice.uid());
-    assert!(add && file && pass && db && compact, 2);
+    // Five of the six. The pass bit is the one the role cannot hold, because a
+    // pass binds to one address and the credential rotates between wallets, so
+    // the registration that grants everything grants everything but that.
+    let (add, file, pass, db, compact, root) = permission::operator_role_bits(alice.uid());
+    assert!(add && file && db && compact && root, 2);
+    assert!(!pass, 3);
 
     ts::return_shared(sys);
     sc.end();
@@ -168,14 +172,14 @@ fun the_first_grant_attaches_the_table() {
     let mut sys = registered(&mut sc, false);
 
     sc.next_tx(ALICE);
-    entry_permission::grant(&mut sys, ALICE, BOB, true, false, true, false, true, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, true, false, true, false, sc.ctx());
 
     let alice = user::get_user(&sys, ALICE);
     assert!(permission::has_delegation_table(alice.uid()), 0);
     assert!(permission::has_delegate(alice.uid(), BOB), 1);
 
-    let (add, file, pass, db, compact) = permission::delegate_bits(alice.uid(), BOB);
-    assert!(add && !file && pass && !db && compact, 2);
+    let (add, file, pass, db, compact, root) = permission::delegate_bits(alice.uid(), BOB);
+    assert!(add && !file && pass && !db && compact && !root, 2);
     assert!(user::grants_add_blob(alice, BOB), 3);
     assert!(event::events_by_type<PermissionGranted>().length() == 1, 4);
 
@@ -192,7 +196,7 @@ fun replacing_a_grant_that_was_never_made_is_refused() {
     let mut sys = registered(&mut sc, false);
 
     sc.next_tx(ALICE);
-    entry_permission::replace_grant(&mut sys, ALICE, BOB, true, true, true, true, true, sc.ctx());
+    entry_permission::replace_grant(&mut sys, ALICE, BOB, true, true, true, true, true, true, sc.ctx());
 
     ts::return_shared(sys);
     sc.end();

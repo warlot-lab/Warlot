@@ -121,7 +121,7 @@ fun rebuild_matches_chain() {
 
     // --- delegation granted, taken back, and granted again -----------------
     sc.next_tx(ALICE);
-    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, true, true, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, true, true, true, sc.ctx());
     ledger.absorb();
     tick(&mut clk);
 
@@ -131,7 +131,7 @@ fun rebuild_matches_chain() {
     tick(&mut clk);
 
     sc.next_tx(ALICE);
-    entry_permission::grant(&mut sys, ALICE, BOB, true, true, false, false, true, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, true, false, false, true, false, sc.ctx());
     ledger.absorb();
 
     // --- an upload for herself, and one on her behalf ----------------------
@@ -448,11 +448,12 @@ fun rebuild_matches_chain() {
     // Delegation, bit by bit, against the table itself.
     assert!(ledger.delegation_live(ALICE, BOB), 27);
     assert!(permission::has_delegate(alice_user.uid(), BOB), 28);
-    let (l_add, l_file, l_pass, l_db, l_compact) = ledger.delegation_bits(ALICE, BOB);
-    let (c_add, c_file, c_pass, c_db, c_compact) =
+    let (l_add, l_file, l_pass, l_db, l_compact, l_root) = ledger.delegation_bits(ALICE, BOB);
+    let (c_add, c_file, c_pass, c_db, c_compact, c_root) =
         permission::delegate_bits(alice_user.uid(), BOB);
     assert!(l_add == c_add && l_file == c_file, 29);
     assert!(l_pass == c_pass && l_db == c_db && l_compact == c_compact, 30);
+    assert!(l_root == c_root, 86);
 
     // Bob's registration handed the system operator role every bit, before Bob
     // had done anything. The grant names no address, so both sides are asked
@@ -460,11 +461,12 @@ fun rebuild_matches_chain() {
     assert!(ledger.operator_role_live(BOB), 31);
     let bob_user = user::get_user(&sys, BOB);
     assert!(permission::has_operator_role(bob_user.uid()), 32);
-    let (r_add, r_file, r_pass, r_db, r_compact) = ledger.operator_role_bits(BOB);
-    let (b_add, b_file, b_pass, b_db, b_compact) =
+    let (r_add, r_file, r_pass, r_db, r_compact, r_root) = ledger.operator_role_bits(BOB);
+    let (b_add, b_file, b_pass, b_db, b_compact, b_root) =
         permission::operator_role_bits(bob_user.uid());
     assert!(r_add == b_add && r_file == b_file, 84);
     assert!(r_pass == b_pass && r_db == b_db && r_compact == b_compact, 85);
+    assert!(r_root == b_root, 87);
 
     // Deposits minus withdrawals, against the balance the wallet holds.
     let expected_wallet = alice_row.user_wallet_wal();

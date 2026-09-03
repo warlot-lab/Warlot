@@ -21,7 +21,7 @@ public struct Registry has key {
     user: address,
     /// The one label the user claims on chain.
     public_username: String,
-    /// Which system, user object and project holder this registry points at.
+    /// Which system and user object this registry points at.
     system_details: SystemDetail,
     created_at: u64,
     updated_at: u64,
@@ -33,7 +33,6 @@ public struct Registry has key {
 public struct SystemDetail has store {
     user_object_id: ID,
     system_id: ID,
-    project_holder: Option<ID>,
 }
 
 // === View functions ===
@@ -81,7 +80,6 @@ public(package) fun create_registry(
     public_username: String,
     user_object_id: ID,
     system_id: ID,
-    project_holder: Option<ID>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -92,7 +90,6 @@ public(package) fun create_registry(
         system_details: SystemDetail {
             user_object_id,
             system_id,
-            project_holder,
         },
         created_at: clock.timestamp_ms(),
         updated_at: clock.timestamp_ms(),

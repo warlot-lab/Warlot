@@ -229,7 +229,7 @@ fun delegated_pass_has_duration() {
     let mut funds = fixtures::wal(sc.ctx());
 
     entry_register::all_register_user_publicly(&mut sys, b"alice".to_string(), &clk, sc.ctx());
-    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, false, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, false, false, false, sc.ctx());
 
     // Bob creates the file on Alice's behalf and keeps a pass to it.
     sc.next_tx(BOB);
@@ -286,7 +286,7 @@ fun a_delegated_pass_cannot_be_immortal() {
     let mut funds = fixtures::wal(sc.ctx());
 
     entry_register::all_register_user_publicly(&mut sys, b"alice".to_string(), &clk, sc.ctx());
-    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, false, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, true, true, false, false, false, sc.ctx());
 
     sc.next_tx(BOB);
     let raw_blob = fixtures::certified_blob(
@@ -385,7 +385,7 @@ fun a_granted_recipient_gets_a_pass_and_can_use_it() {
     // The order the refusal makes load-bearing: grant, then mint.
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, false, sc.ctx());
     entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, sc.ctx());
 
     sc.next_tx(BOB);

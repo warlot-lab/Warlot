@@ -276,7 +276,7 @@ fun gate_mint_admin() {
 fun gate_grant() {
     let mut sc = ts::begin(ALICE);
     let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
-    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, false, sc.ctx());
     finish_admin(sys, cap, funds, clk, sc);
 }
 

@@ -312,7 +312,7 @@ fun stored_by_differs() {
     let mut funds = fixtures::wal(sc.ctx());
 
     entry_register::all_register_user_publicly(&mut sys, b"alice".to_string(), &clk, sc.ctx());
-    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, false, sc.ctx());
 
     // Bob uploads on Alice's behalf. Without `stored_by` this is indistinguishable
     // from Alice uploading for herself, which is the whole of what delegation
@@ -452,7 +452,7 @@ fun permission_events() {
     assert!(event::events_by_type<PermissionGranted>().is_empty(), 0);
 
     sc.next_tx(ALICE);
-    entry_permission::grant(&mut sys, ALICE, BOB, true, true, false, false, true, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, true, false, false, true, false, sc.ctx());
 
     let grants = event::events_by_type<PermissionGranted>();
     assert!(grants.length() == 1, 1);
@@ -466,6 +466,7 @@ fun permission_events() {
         create_writer_pass,
         can_init_db,
         can_compact,
+        can_set_root,
     ) = identity_events::read_permission_granted(&grants[0]);
 
     assert!(system_id == object::id(&sys), 2);
@@ -479,6 +480,7 @@ fun permission_events() {
     assert!(!create_writer_pass, 7);
     assert!(!can_init_db, 8);
     assert!(can_compact, 9);
+    assert!(!can_set_root, 15);
 
     sc.next_tx(ALICE);
     entry_permission::revoke(&mut sys, ALICE, BOB, sc.ctx());
@@ -524,11 +526,15 @@ fun a_default_delegation_is_announced() {
     let grants = event::events_by_type<OperatorRoleGranted>();
     assert!(grants.length() == 1, 0);
 
-    let (_, owner, add_blob, inner_file, writer_pass, init_db, compact) =
+    let (_, owner, add_blob, inner_file, writer_pass, init_db, compact, set_root) =
         identity_events::read_operator_role_granted(&grants[0]);
 
     assert!(owner == ALICE, 1);
-    assert!(add_blob && inner_file && writer_pass && init_db && compact, 2);
+    assert!(add_blob && inner_file && init_db && compact && set_root, 2);
+
+    // Every bit but one. The role cannot mint passes, and the event says so
+    // rather than leaving a reader to infer it from the entry point's signature.
+    assert!(!writer_pass, 4);
 
     // And no address was named anywhere, which is the whole point of the change:
     // a registration no longer writes any key's address into the user's table.

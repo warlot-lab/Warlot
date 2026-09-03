@@ -16,6 +16,7 @@ use warlot::{
     operator::OperatorAuth,
     revision,
     system_config::SystemConfig,
+    user,
     writer_pass::WriterPass,
 };
 
@@ -25,6 +26,9 @@ use warlot::{
 const ACCESSDENIED: vector<u8> = b"invalid writer pass";
 #[error]
 const INVALIDACCESS: vector<u8> = b"Invalid access";
+#[error]
+const ENoAddBlobGrant: vector<u8> =
+    b"THIS FILE'S OWNER HAS NOT GRANTED ADD_BLOB_TO_ADDRESS TO THIS OPERATOR";
 
 // === Public functions ===
 
@@ -143,6 +147,26 @@ public fun write_as_operator(
     inner_file.verify_operator(ctx.sender(), &auth, clock);
 
     let may_bypass = auth.auth_may_bypass_draft() && inner_file.operators_may_bypass_draft();
+
+    // Only a write that reaches history stores under the file's owner, and that
+    // store asks the owner for `add_blob_to_address` three frames down in
+    // `store::raw_store_blob`. A queued write is custodied by the sender and
+    // asks the owner for nothing, so the grant is required in exactly the case
+    // the routing below sends to history.
+    //
+    // The refusal is the same one `store` would give, moved to where the caller
+    // can act on it and given a name. `store`'s denial is shared by every
+    // delegated path and cannot say which grant was missing.
+    if (!to_draft && may_bypass) {
+        assert!(
+            user::may_add_blob(
+                user::get_user(system_cfg, inner_file.owner()),
+                option::some(auth),
+                ctx,
+            ),
+            ENoAddBlobGrant,
+        );
+    };
 
     write_core(
         inner_file,

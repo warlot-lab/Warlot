@@ -28,6 +28,7 @@ public fun grant(
     writer_pass: bool,
     init_db: bool,
     compact: bool,
+    set_root: bool,
     ctx: &mut TxContext,
 ) {
     system_cfg.assert_version();
@@ -46,6 +47,7 @@ public fun grant(
         writer_pass,
         init_db,
         compact,
+        set_root,
         ctx,
     );
 }
@@ -64,6 +66,7 @@ public fun replace_grant(
     writer_pass: bool,
     init_db: bool,
     compact: bool,
+    set_root: bool,
     ctx: &mut TxContext,
 ) {
     system_cfg.assert_version();
@@ -82,6 +85,7 @@ public fun replace_grant(
         writer_pass,
         init_db,
         compact,
+        set_root,
     );
 }
 
@@ -113,14 +117,20 @@ public fun revoke(
 /// Refuses an account that has already granted the role, for the reason `grant`
 /// refuses an address that already holds one. Changing it is
 /// `replace_operator_role`.
+///
+/// There is no writer-pass argument, unlike `grant`. A pass binds to one address
+/// and the operator credential rotates between wallets, so the role cannot hold
+/// pass-minting authority in any form that could be exercised. Taking the bit
+/// and storing `false` would announce an authority that does not exist, so the
+/// parameter is absent instead and the refusal is by signature.
 public fun grant_operator_role(
     system_cfg: &mut SystemConfig,
     owner: address,
     add_blob: bool,
     inner_file: bool,
-    writer_pass: bool,
     init_db: bool,
     compact: bool,
+    set_root: bool,
     ctx: &mut TxContext,
 ) {
     system_cfg.assert_version();
@@ -135,9 +145,9 @@ public fun grant_operator_role(
         owner,
         add_blob,
         inner_file,
-        writer_pass,
         init_db,
         compact,
+        set_root,
     );
 }
 
@@ -146,14 +156,19 @@ public fun grant_operator_role(
 ///
 /// This is how an account narrows what the operator may do without withdrawing
 /// the role outright. Refuses an account that never granted it.
+///
+/// Narrowing `set_root` alone freezes the account's project commitments at their
+/// last honest value while leaving storing, file creation, database
+/// initialisation and compaction running. That is the precision the bit exists
+/// for, and it is why it is not folded into `init_db`.
 public fun replace_operator_role(
     system_cfg: &mut SystemConfig,
     owner: address,
     add_blob: bool,
     inner_file: bool,
-    writer_pass: bool,
     init_db: bool,
     compact: bool,
+    set_root: bool,
     ctx: &mut TxContext,
 ) {
     system_cfg.assert_version();
@@ -168,9 +183,9 @@ public fun replace_operator_role(
         owner,
         add_blob,
         inner_file,
-        writer_pass,
         init_db,
         compact,
+        set_root,
     );
 }
 

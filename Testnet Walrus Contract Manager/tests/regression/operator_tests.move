@@ -299,7 +299,7 @@ fun an_explicit_address_grant_still_works_with_no_capability() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_permission::grant(&mut sys, ALICE, MALLORY, true, true, true, true, true, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, MALLORY, true, true, true, true, true, true, sc.ctx());
     entry_file_access::create_pass(&sys, &file, MALLORY, PAST_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(MALLORY);
@@ -616,7 +616,173 @@ fun retiring_a_slot_refuses_the_operator_everywhere_at_once() {
 }
 
 #[test]
-#[expected_failure(abort_code = warlot::permission::INVALIDACCESS)]
+#[expected_failure(abort_code = warlot::entry_file_write::ENoAddBlobGrant)]
+/// The root grant withdrawn on its own, with the rest of the role intact.
+///
+/// Every other bit stays true, so nothing but `add_blob_to_address` can be the
+/// reason. This is the case the named refusal exists for: the role is still
+/// granted and the credential is still live, so the generic denial from `store`
+/// would have said only that permission was refused, not which one.
+fun narrowing_add_blob_alone_names_the_missing_grant() {
+    let mut sc = ts::begin(ADMIN);
+    let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
+        stage(&mut sc, true, true, true);
+
+    sc.next_tx(ALICE);
+    entry_permission::replace_operator_role(
+        &mut sys,
+        ALICE,
+        false,
+        true,
+        true,
+        true,
+        true,
+        sc.ctx(),
+    );
+
+    let alice = user::get_user(&sys, ALICE);
+    let (add_blob, inner, _pass, db, compact, root) =
+        permission::operator_role_bits(alice.uid());
+    assert!(!add_blob, 0);
+    assert!(inner && db && compact && root, 1);
+
+    sc.next_tx(BACKEND);
+    let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    let cap = sc.take_from_sender<AdminCap>();
+    operator_write(
+        &mut sc,
+        &sys,
+        &mut wsys,
+        &mut funds,
+        &clk,
+        &mut file,
+        &cap,
+        false,
+        b"no grant to store under alice",
+    );
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+/// The same missing grant, on a write that never reaches the owner.
+///
+/// A queued write is custodied by whoever pushed it, so it stores under the
+/// backend's own address and asks Alice for nothing. The refusal above is placed
+/// on the routing rather than on the entry point for exactly this reason: an
+/// account that has taken `add_blob_to_address` away from the operator has
+/// stopped it writing *history*, not stopped it proposing.
+fun a_queued_operator_write_needs_no_grant_from_the_owner() {
+    let mut sc = ts::begin(ADMIN);
+    let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
+        stage(&mut sc, true, true, true);
+
+    sc.next_tx(ALICE);
+    entry_permission::replace_operator_role(
+        &mut sys,
+        ALICE,
+        false,
+        true,
+        true,
+        true,
+        true,
+        sc.ctx(),
+    );
+
+    sc.next_tx(BACKEND);
+    let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    let cap = sc.take_from_sender<AdminCap>();
+    operator_write(
+        &mut sc,
+        &sys,
+        &mut wsys,
+        &mut funds,
+        &clk,
+        &mut file,
+        &cap,
+        true,
+        b"a proposal costs alice nothing",
+    );
+
+    // The head did not move and the revision is waiting for the owner.
+    assert!(file.track_back().length() == 1, 0);
+    assert!(file.has_draft_queue(), 1);
+    assert!(draft::total_draft(inner_file::get_draft_holder(&mut file)) == 1, 2);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+/// `can_set_root` narrows on its own, leaving every other bit standing.
+///
+/// The reason it is a bit of its own rather than a reuse of `can_init_db`:
+/// withdrawing it freezes the account's project commitments while storing, file
+/// creation, database initialisation and compaction all keep running. Folding it
+/// into `can_init_db` would take three of those down with it.
+fun the_root_bit_narrows_on_its_own() {
+    let mut sc = ts::begin(ADMIN);
+    let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
+        stage(&mut sc, true, true, true);
+
+    // Alice's registration granted every bit the role can hold, this one
+    // included.
+    sc.next_tx(ALICE);
+    let alice = user::get_user(&sys, ALICE);
+    let (_, _, _, _, _, granted_root) = permission::operator_role_bits(alice.uid());
+    assert!(granted_root, 0);
+
+    sc.next_tx(ALICE);
+    entry_permission::replace_operator_role(
+        &mut sys,
+        ALICE,
+        true,
+        true,
+        true,
+        true,
+        false,
+        sc.ctx(),
+    );
+
+    let alice = user::get_user(&sys, ALICE);
+    let (add_blob, inner, pass, db, compact, root) =
+        permission::operator_role_bits(alice.uid());
+    assert!(!root, 1);
+    assert!(add_blob && inner && db && compact, 2);
+    assert!(!pass, 3);
+
+    // And the operator still writes history, which is what "leaving every other
+    // bit standing" has to mean to be worth anything.
+    sc.next_tx(BACKEND);
+    let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    let cap = sc.take_from_sender<AdminCap>();
+    operator_write(
+        &mut sc,
+        &sys,
+        &mut wsys,
+        &mut funds,
+        &clk,
+        &mut file,
+        &cap,
+        false,
+        b"still writing",
+    );
+    assert!(file.track_back().length() == 2, 4);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+// The refusal now comes from the entry point rather than from `store` three
+// frames down, and names the grant that is missing rather than denying
+// generically. Revoking the role takes `add_blob_to_address` with it, and that
+// is the bit the write needs.
+#[expected_failure(abort_code = warlot::entry_file_write::ENoAddBlobGrant)]
 fun revoking_the_role_refuses_the_operator_on_that_account() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
@@ -1302,9 +1468,10 @@ fun the_operator_role_narrows_without_being_withdrawn() {
 
     let alice = user::get_user(&sys, ALICE);
     assert!(permission::has_operator_role(alice.uid()), 0);
-    let (add_blob, inner, pass, db, compact) = permission::operator_role_bits(alice.uid());
+    let (add_blob, inner, pass, db, compact, root) =
+        permission::operator_role_bits(alice.uid());
     assert!(add_blob, 1);
-    assert!(!inner && !pass && !db && !compact, 2);
+    assert!(!inner && !pass && !db && !compact && !root, 2);
 
     // Writing an existing file only needs `add_blob`, so it still lands.
     sc.next_tx(BACKEND);

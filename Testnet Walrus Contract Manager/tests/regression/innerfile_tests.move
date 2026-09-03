@@ -138,7 +138,7 @@ fun recovery_sequence() {
 
     // Alice delegates to Bob: the account bit that lets him store under her
     // address, and a pass that lets him skip the draft queue.
-    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, false, sc.ctx());
     entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, sc.ctx());
 
     // Bob is compromised and writes straight into the history.
@@ -328,7 +328,7 @@ fun merge_reparents() {
     // asks for the grant anyway: it refuses any pass minted to an address that
     // cannot store for the owner, without asking which half of the pass the
     // recipient means to use.
-    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, sc.ctx());
+    entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, false, sc.ctx());
     entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);

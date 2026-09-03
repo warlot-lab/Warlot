@@ -1,4 +1,18 @@
 /// Stores, writes and checks the capability bits a user has delegated to another address.
+///
+/// `add_blob_to_address` is the root grant. Every path that causes bytes to be
+/// billed under the owner passes through `store::raw_store_blob`, and that call
+/// asks for this bit and no other. So `create_inner_file`, `can_init_db` and a
+/// compaction's target are all inert without it: each of them stores, and each
+/// of those stores is refused. A grant that names one of them and withholds this
+/// one has granted nothing that can be exercised, and revoking this one alone is
+/// enough to stop every delegated write on the account.
+///
+/// `can_set_root` is the exception and is meant to be. Moving a root replaces a
+/// 32-byte commitment and stores nothing, so it neither needs this grant nor is
+/// stopped by withdrawing it. An account that revokes the root bit alone has
+/// frozen what its projects claim while leaving every write running, and an
+/// account that revokes this one alone has done the reverse.
 module warlot::permission;
 
 // === Imports ===
@@ -59,6 +73,14 @@ public struct SubPermission has store {
     can_init_db: bool,
     /// May register a compaction layout against the owner's blob configs.
     can_compact: bool,
+    /// May move a project's file-set root.
+    ///
+    /// Its own bit rather than a reuse of `can_init_db`, because moving the root
+    /// overwrites the previous commitment while initialising a database and
+    /// writing a quilt are both additive. An account under attack revokes this
+    /// one and freezes the commitment at its last honest value, while renewal,
+    /// reads and database writes keep running.
+    can_set_root: bool,
 }
 
 // === View functions ===
@@ -92,8 +114,11 @@ public(package) fun grants_add_blob(user_uid: &UID, owner: address, writer: addr
 
 // === Package functions ===
 
-/// Open `user_uid`'s delegation surface, granting the operator role every bit
-/// when `grant_operator_role` is set.
+/// Open `user_uid`'s delegation surface, granting the operator role every bit it
+/// can hold when `grant_operator_role` is set.
+///
+/// Five bits rather than six: `create_writer_pass` is not among them and cannot
+/// be, since `create_operator_role_state` does not take it.
 ///
 /// Nothing is attached when the flag is clear. The delegation table arrives with
 /// the first address grant and the operator role is a dynamic field of its own,
@@ -118,15 +143,21 @@ public(package) fun open_delegations(
 /// changing one are different acts: a grant that quietly became a replacement
 /// would take bits away from a role the account had already widened, and the
 /// caller would see the same success either way.
+///
+/// There is no `create_writer_pass` parameter. A pass binds to one address and
+/// the operator credential rotates between wallets, so a pass minted on the
+/// role's authority would name whichever wallet happened to be leased and would
+/// outlive it. The bit is stored `false` here rather than refused at the entry
+/// point, so no signature in the package can express the grant.
 public(package) fun create_operator_role_state(
     user_uid: &mut UID,
     system_id: ID,
     owner: address,
     add_blob_to_address: bool,
     create_inner_file: bool,
-    create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
 ) {
     assert!(
         !dfield::exists_with_type<vector<u8>, SubPermission>(user_uid, OPERATOR_ROLE_KEY),
@@ -139,9 +170,10 @@ public(package) fun create_operator_role_state(
         SubPermission {
             add_blob_to_address,
             create_inner_file,
-            create_writer_pass,
+            create_writer_pass: false,
             can_init_db,
             can_compact,
+            can_set_root,
         },
     );
 
@@ -150,9 +182,10 @@ public(package) fun create_operator_role_state(
         owner,
         add_blob_to_address,
         create_inner_file,
-        create_writer_pass,
+        false,
         can_init_db,
         can_compact,
+        can_set_root,
     );
 }
 
@@ -168,9 +201,9 @@ public(package) fun replace_operator_role_state(
     owner: address,
     add_blob_to_address: bool,
     create_inner_file: bool,
-    create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
 ) {
     assert!(
         dfield::exists_with_type<vector<u8>, SubPermission>(user_uid, OPERATOR_ROLE_KEY),
@@ -180,18 +213,20 @@ public(package) fun replace_operator_role_state(
     let held = dfield::borrow_mut<vector<u8>, SubPermission>(user_uid, OPERATOR_ROLE_KEY);
     held.add_blob_to_address = add_blob_to_address;
     held.create_inner_file = create_inner_file;
-    held.create_writer_pass = create_writer_pass;
+    held.create_writer_pass = false;
     held.can_init_db = can_init_db;
     held.can_compact = can_compact;
+    held.can_set_root = can_set_root;
 
     identity_events::emit_operator_role_granted(
         system_id,
         owner,
         add_blob_to_address,
         create_inner_file,
-        create_writer_pass,
+        false,
         can_init_db,
         can_compact,
+        can_set_root,
     );
 }
 
@@ -213,10 +248,30 @@ public(package) fun revoke_operator_role_state(
             create_writer_pass: _,
             can_init_db: _,
             can_compact: _,
+            can_set_root: _,
         } = dfield::remove<vector<u8>, SubPermission>(user_uid, OPERATOR_ROLE_KEY);
     };
 
     identity_events::emit_operator_role_revoked(system_id, owner);
+}
+
+/// Whether the sender may store blobs under `owner`, counting both grants.
+///
+/// The predicate `check_add_blob` asserts on. It is separate because the root
+/// grant is checked three frames below the entry point a caller invoked, where
+/// a generic denial cannot say which grant was missing; a caller that wants to
+/// name it asks this first. Unlike `grants_add_blob` it counts the operator
+/// role, so it answers for the sender actually making the call.
+public(package) fun may_add_blob(
+    user_uid: &UID,
+    owner: address,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+): bool {
+    if (ctx.sender() == owner) return true;
+    let (add_blob_to_address, _, _, _, _, _) = effective_bits(user_uid, operator, ctx);
+
+    add_blob_to_address
 }
 
 /// Assert the sender may store blobs under `owner`.
@@ -226,9 +281,7 @@ public(package) fun check_add_blob(
     operator: Option<OperatorAuth>,
     ctx: &TxContext,
 ) {
-    if (ctx.sender() == owner) return;
-    let (add_blob_to_address, _, _, _, _) = effective_bits(user_uid, operator, ctx);
-    assert!(add_blob_to_address, INVALIDACCESS);
+    assert!(may_add_blob(user_uid, owner, operator, ctx), INVALIDACCESS);
 }
 
 /// Assert the sender may create inner files owned by `owner`.
@@ -239,7 +292,7 @@ public(package) fun check_inner_file(
     ctx: &TxContext,
 ) {
     if (ctx.sender() == owner) return;
-    let (_, create_inner_file, _, _, _) = effective_bits(user_uid, operator, ctx);
+    let (_, create_inner_file, _, _, _, _) = effective_bits(user_uid, operator, ctx);
     assert!(create_inner_file, INVALIDACCESS);
 }
 
@@ -251,7 +304,7 @@ public(package) fun check_writer_pass(
     ctx: &TxContext,
 ) {
     if (ctx.sender() == owner) return;
-    let (_, _, create_writer_pass, _, _) = effective_bits(user_uid, operator, ctx);
+    let (_, _, create_writer_pass, _, _, _) = effective_bits(user_uid, operator, ctx);
     assert!(create_writer_pass, INVALIDACCESS);
 }
 
@@ -263,7 +316,7 @@ public(package) fun check_can_init_db(
     ctx: &TxContext,
 ) {
     if (ctx.sender() == owner) return;
-    let (_, _, _, can_init_db, _) = effective_bits(user_uid, operator, ctx);
+    let (_, _, _, can_init_db, _, _) = effective_bits(user_uid, operator, ctx);
     assert!(can_init_db, INVALIDACCESS);
 }
 
@@ -281,8 +334,26 @@ public(package) fun check_can_compact(
     ctx: &TxContext,
 ) {
     if (ctx.sender() == owner) return;
-    let (_, _, _, _, can_compact) = effective_bits(user_uid, operator, ctx);
+    let (_, _, _, _, can_compact, _) = effective_bits(user_uid, operator, ctx);
     assert!(can_compact, INVALIDACCESS);
+}
+
+/// Assert the sender may move `owner`'s project file-set roots.
+///
+/// The counterpart to the reasoning above. A compaction is additive and
+/// supersedes nothing until the owner acts, so it is safely delegable; moving a
+/// root replaces the commitment in place. The event carries `previous_root` so
+/// the change stays auditable, but the value a reader resolves against is gone.
+/// The less delegable of the two gets the finer switch.
+public(package) fun check_can_set_root(
+    user_uid: &UID,
+    owner: address,
+    operator: Option<OperatorAuth>,
+    ctx: &TxContext,
+) {
+    if (ctx.sender() == owner) return;
+    let (_, _, _, _, _, can_set_root) = effective_bits(user_uid, operator, ctx);
+    assert!(can_set_root, INVALIDACCESS);
 }
 
 /// Delegate capability bits to an address that holds none.
@@ -305,6 +376,7 @@ public(package) fun create_permission_state(
     create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
     ctx: &mut TxContext,
 ) {
     let sub_permission = borrow_table_mut_or_attach(user_uid, ctx);
@@ -319,6 +391,7 @@ public(package) fun create_permission_state(
             create_writer_pass,
             can_init_db,
             can_compact,
+            can_set_root,
         },
     );
 
@@ -331,6 +404,7 @@ public(package) fun create_permission_state(
         create_writer_pass,
         can_init_db,
         can_compact,
+        can_set_root,
     );
 }
 
@@ -350,6 +424,7 @@ public(package) fun replace_permission_state(
     create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
 ) {
     // An account that has never delegated to any address has not delegated to
     // this one, so the missing table answers exactly as an empty one would.
@@ -367,6 +442,7 @@ public(package) fun replace_permission_state(
     privilege_permission.create_writer_pass = create_writer_pass;
     privilege_permission.can_init_db = can_init_db;
     privilege_permission.can_compact = can_compact;
+    privilege_permission.can_set_root = can_set_root;
 
     identity_events::emit_permission_granted(
         system_id,
@@ -377,6 +453,7 @@ public(package) fun replace_permission_state(
         create_writer_pass,
         can_init_db,
         can_compact,
+        can_set_root,
     );
 }
 
@@ -411,6 +488,7 @@ fun remove_delegation(user_uid: &mut UID, privilege_address: address) {
             create_writer_pass: _,
             can_init_db: _,
             can_compact: _,
+            can_set_root: _,
         } = sub_permission.remove(privilege_address);
     };
 }
@@ -463,12 +541,13 @@ fun effective_bits(
     user_uid: &UID,
     operator: Option<OperatorAuth>,
     ctx: &TxContext,
-): (bool, bool, bool, bool, bool) {
+): (bool, bool, bool, bool, bool, bool) {
     let mut add_blob_to_address = false;
     let mut create_inner_file = false;
     let mut create_writer_pass = false;
     let mut can_init_db = false;
     let mut can_compact = false;
+    let mut can_set_root = false;
 
     if (has_delegation_table(user_uid) && borrow_table(user_uid).contains(ctx.sender())) {
         let row = borrow_table(user_uid).borrow(ctx.sender());
@@ -477,6 +556,7 @@ fun effective_bits(
         create_writer_pass = row.create_writer_pass;
         can_init_db = row.can_init_db;
         can_compact = row.can_compact;
+        can_set_root = row.can_set_root;
     };
 
     if (
@@ -489,6 +569,7 @@ fun effective_bits(
         create_writer_pass = create_writer_pass || row.create_writer_pass;
         can_init_db = can_init_db || row.can_init_db;
         can_compact = can_compact || row.can_compact;
+        can_set_root = can_set_root || row.can_set_root;
     };
 
     (
@@ -497,6 +578,7 @@ fun effective_bits(
         create_writer_pass,
         can_init_db,
         can_compact,
+        can_set_root,
     )
 }
 
@@ -510,7 +592,7 @@ public fun has_delegate(user_uid: &UID, delegate: address): bool {
 
 #[test_only]
 /// Every capability bit `delegate` holds, in declaration order.
-public fun delegate_bits(user_uid: &UID, delegate: address): (bool, bool, bool, bool, bool) {
+public fun delegate_bits(user_uid: &UID, delegate: address): (bool, bool, bool, bool, bool, bool) {
     let row = borrow_table(user_uid).borrow(delegate);
 
     (
@@ -519,12 +601,13 @@ public fun delegate_bits(user_uid: &UID, delegate: address): (bool, bool, bool, 
         row.create_writer_pass,
         row.can_init_db,
         row.can_compact,
+        row.can_set_root,
     )
 }
 
 #[test_only]
 /// Every capability bit the operator role holds, in declaration order.
-public fun operator_role_bits(user_uid: &UID): (bool, bool, bool, bool, bool) {
+public fun operator_role_bits(user_uid: &UID): (bool, bool, bool, bool, bool, bool) {
     let row = dfield::borrow<vector<u8>, SubPermission>(user_uid, OPERATOR_ROLE_KEY);
 
     (
@@ -533,5 +616,6 @@ public fun operator_role_bits(user_uid: &UID): (bool, bool, bool, bool, bool) {
         row.create_writer_pass,
         row.can_init_db,
         row.can_compact,
+        row.can_set_root,
     )
 }

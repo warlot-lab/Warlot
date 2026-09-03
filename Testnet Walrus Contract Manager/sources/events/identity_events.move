@@ -103,6 +103,7 @@ public struct PermissionGranted has copy, drop, store {
     create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
 }
 
 /// A user withdrew every capability bit from an address.
@@ -123,9 +124,13 @@ public struct OperatorRoleGranted has copy, drop, store {
     owner: address,
     add_blob_to_address: bool,
     create_inner_file: bool,
+    /// Always false. The field is kept so this event and `PermissionGranted`
+    /// stay the same shape, and so a consumer reading the operator's authority
+    /// sees the refusal rather than having to know about it.
     create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
 }
 
 /// A user withdrew every capability bit from the system operator role.
@@ -236,6 +241,7 @@ public(package) fun emit_permission_granted(
     create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
 ) {
     event::emit(PermissionGranted {
         system_id,
@@ -246,6 +252,7 @@ public(package) fun emit_permission_granted(
         create_writer_pass,
         can_init_db,
         can_compact,
+        can_set_root,
     })
 }
 
@@ -263,6 +270,7 @@ public(package) fun emit_operator_role_granted(
     create_writer_pass: bool,
     can_init_db: bool,
     can_compact: bool,
+    can_set_root: bool,
 ) {
     event::emit(OperatorRoleGranted {
         system_id,
@@ -272,6 +280,7 @@ public(package) fun emit_operator_role_granted(
         create_writer_pass,
         can_init_db,
         can_compact,
+        can_set_root,
     })
 }
 
@@ -406,6 +415,7 @@ public fun read_permission_granted(e: &PermissionGranted): (
     bool,
     bool,
     bool,
+    bool,
 ) {
     let PermissionGranted {
         system_id: _system_id,
@@ -416,6 +426,7 @@ public fun read_permission_granted(e: &PermissionGranted): (
         create_writer_pass: _create_writer_pass,
         can_init_db: _can_init_db,
         can_compact: _can_compact,
+        can_set_root: _can_set_root,
     } = e;
 
     (
@@ -427,6 +438,7 @@ public fun read_permission_granted(e: &PermissionGranted): (
         *_create_writer_pass,
         *_can_init_db,
         *_can_compact,
+        *_can_set_root,
     )
 }
 
@@ -452,6 +464,7 @@ public fun read_operator_role_granted(e: &OperatorRoleGranted): (
     bool,
     bool,
     bool,
+    bool,
 ) {
     let OperatorRoleGranted {
         system_id: _system_id,
@@ -461,6 +474,7 @@ public fun read_operator_role_granted(e: &OperatorRoleGranted): (
         create_writer_pass: _create_writer_pass,
         can_init_db: _can_init_db,
         can_compact: _can_compact,
+        can_set_root: _can_set_root,
     } = e;
 
     (
@@ -471,6 +485,7 @@ public fun read_operator_role_granted(e: &OperatorRoleGranted): (
         *_create_writer_pass,
         *_can_init_db,
         *_can_compact,
+        *_can_set_root,
     )
 }
 
