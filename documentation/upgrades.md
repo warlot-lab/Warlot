@@ -39,7 +39,7 @@ The rule of thumb: anything the chain does not have to read back out of an exist
 | Changing a public function's signature | Callers compiled against the old one would break |
 | Removing a public function | Same |
 | Changing a struct's abilities | `key`, `store`, `copy`, `drop` are part of the type |
-| Moving a value between a `dynamic_field` and a `dynamic_object_field` | Different storage shape, same name |
+| Moving a value between a `dynamic_field` and a `dynamic_object_field` | Different key spaces, same name. **Not caught by the compatibility check** — it compiles, publishes, and then finds nothing |
 
 A `public(package)` function is not part of the public surface, so its signature may change freely.
 That is one reason the domain modules keep their mutators `public(package)` and expose them through
@@ -151,10 +151,20 @@ lifecycle is an operational job, not a contract one, and the contract will not r
 | | |
 |---|---|
 | Slot capacity | `MAX_OPERATORS = 16`, a private constant, raisable by upgrade |
-| Slot lifetime | `until_ms` set to **two years** from enrolment |
-| Staggering | slots are enrolled on deliberately different dates, so a full set never lapses in one week |
-| Refresh | `admin::refresh_operator` before `until_ms`, by the multisig holding the **original** capability |
+| Refresh | `admin::refresh_operator` before `until_ms`, by the holder of the **original** capability |
 | Revocation | `admin::retire_operator`, which cannot abort — a slot can always be removed |
+
+**What the contract enforces about a slot's lifetime is one rule: `until_ms` must be strictly in the
+future** (`EInvalidOperatorExpiry`). There is no maximum and no default. Everything else is an
+operational decision made at the call site:
+
+| Policy | |
+|---|---|
+| Slot lifetime | `until_ms` two years out from enrolment |
+| Staggering | slots enrolled on deliberately different dates, so a full set never lapses in one week |
+
+Neither is expressible in the contract, and neither is checked by it. They are recorded here because
+the alternative is that they live in somebody's memory.
 
 `operator::authorise` aborts `EOperatorExpired` once a slot lapses, which takes that wallet out of
 service silently from the contract's side. **Nothing schedules the refresh.** That is a cron job on

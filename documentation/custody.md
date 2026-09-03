@@ -5,7 +5,8 @@ withdraw it. Everything below is about how that field gets its value and how it 
 
 Custody is a **field**, not Sui object ownership. A `BlobConfig` is a shared object, so moving
 custody is a write rather than a transfer, and the config stays reachable by everybody — which is
-what keeps renewal permissionless while withdrawal stays exclusive.
+what keeps renewal permissionless while withdrawal stays exclusive. The object itself is described in
+[objects.md](objects.md).
 
 ## Who owns a config, on every path that creates one
 
@@ -35,7 +36,8 @@ trivially and asks the file's owner for nothing.
 Two operational consequences:
 
 - **A signing key whose writes can be queued must itself be a registered user**, because
-  `raw_store_blob` resolves it. A key that always bypasses never stores under its own address and
+  `raw_store_blob` resolves it — an unregistered sender aborts `EUserNotFound` on a call that looks
+  nothing to do with registration. A key that always bypasses never stores under its own address and
   needs no registration at all.
 - **A rotating wallet must have its owned configs drained before it is retired from the pool.** A
   rejected draft stays with the writer who proposed it, and only that address can withdraw it. This
@@ -59,7 +61,8 @@ pays to keep the content alive. So nothing moves until they act. That closes the
 push-content-at-a-stranger vector by construction, with no inbound quota, byte budget or per-user
 policy — none of which are needed once the move requires the recipient to act.
 
-Details that matter:
+The states, the transitions and the four refusals are drawn in
+[entry-points.md](entry-points.md). What matters here is what each one means for custody:
 
 - A second offer **replaces** the first. There is one custody to hand over, so a queue of candidates
   would be a queue in which only the first to act mattered.

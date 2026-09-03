@@ -7,8 +7,9 @@ for one of these, stop looking — it is not hidden behind a permission bit or a
 
 ## There is no pause switch
 
-No flag freezes the protocol, per system, per user or per blob. An early plan had one; it was
-refused.
+No flag freezes the protocol, per system, per user or per blob. It sat on the package's own todo
+list for a long time and was never built; it is now recorded as refused rather than outstanding, in
+each package's `docs/todo.md`.
 
 A pause is a lever that stops a user renewing their own storage, and permissionless renewal is the
 one thing the protocol promises survives Warlot disappearing. A switch that can suspend it makes
@@ -98,10 +99,11 @@ decide deliberately rather than discover mid-implementation.
 no inbound quota and no byte budget — and none is needed, because requiring the recipient to act
 closes the vector by construction rather than by a policy that has to be tuned.
 
-An earlier design had an `auto_accept_budget` and a `max_auto_config_size` on each user. It was
-dropped once the consent gate existed, because no path needed auto-accept: a direct operator write
-is born owned by you and transfers nothing, a draft merge is your own explicit act, and a rejected
-draft stays with its writer.
+A per-user `auto_accept_budget` and `max_auto_config_size` were proposed and never built — neither
+field has ever existed in `sources/`. Once the consent gate was there, no path needed auto-accept: a
+direct operator write is born owned by you and transfers nothing, a draft merge is your own explicit
+act, and a rejected draft stays with its writer. A quota and a byte ceiling would have had to be
+tuned per user, for a vector the accept requirement closes outright.
 
 The exception that is not an exception: a **delegated store** puts content under your address
 without a further accept. That was consented to once already, at grant time —

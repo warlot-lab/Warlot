@@ -35,10 +35,20 @@ stream whole and join locally.
 
 ## What the payloads promise
 
-1. **Every event names the system it belongs to.** `mint_system` supports
-   concurrent systems, so an event without one cannot be attributed. The single
-   exception is `WriterPassDestroyed`: a pass names a file rather than a system,
-   its holder destroys it alone, and there is no `SystemConfig` on that path.
+1. **Almost every event names the system it belongs to.** `mint_system` supports
+   concurrent systems, so an event without one cannot be attributed. Five carry
+   no `system_id`, in two groups.
+
+   `WriterPassDestroyed` carries `file_id` and nothing above it: a pass names a
+   file rather than a system, its holder destroys it alone, and there is no
+   `SystemConfig` on that path.
+
+   The four `product_events` carry `holder_id` in its place. A `ProjectHolder`
+   holds an `admin` address and no system either, so attributing a project means
+   joining `holder_id` back to its `ProjectHolderCreated` row and that row's
+   `admin` to a registration. An address may hold one project holder per system,
+   and where it holds more than one the stream alone does not say which holder
+   belongs to which system.
 2. **Every removal is announced, not only every creation.** Withdrawal,
    revocation, eviction, user removal, fallback removal and pass destruction all
    emit. A consumer that replays from genesis and only ever adds rows would

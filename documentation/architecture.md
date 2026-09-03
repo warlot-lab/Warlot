@@ -14,36 +14,32 @@ It does not hold file bytes; Walrus does. It does not hold file names, descripti
 counters. Those are labels and running totals no contract reads, so they belong in a database, and
 putting them on chain would mean paying consensus for them and keeping them consistent for ever.
 
-What the chain holds in their place is a **commitment**: a 32-byte Merkle root binding logical
-paths to the content hashes they resolve to. A database can serve `project/bucket/config.json`
-quickly; the root is what stops it serving the wrong bytes. This is also why an operator holding
-`can_set_root` is the most carefully fenced credential in the protocol — it is the one that decides
-which content answers to which name.
+What the chain holds in their place is a **commitment**: a 32-byte Merkle root binding logical paths
+to the content hashes they resolve to. A database can serve `project/bucket/config.json` quickly; the
+root is what stops it serving the wrong bytes. This is also why an operator holding `can_set_root` is
+the most carefully fenced credential in the protocol — it is the one that decides which content
+answers to which name.
 
-## The objects
+The three roots, their exact preimages and their test vectors are in
+[commitments.md](commitments.md).
 
-| Object | Ownership | Holds |
-|---|---|---|
-| `SystemConfig` | shared | fees, storage tiers, the vault, the version, the operator set, and every `User` as a dynamic object field |
-| `Registry` | owned by the user | the user's public label and which system they belong to |
-| `User` | dynamic object field on `SystemConfig` | delegations, the operator role, the wallet, the project-holder marker |
-| `BlobConfig` | shared | the blobs, their storage term, the renewal mandate, the owner, and any standing custody offer |
-| `InnerFile` | shared | a mutable document's head, its bounded rollback window, its fallback, and its terms for operators |
-| `WriterPass` | owned by the delegate | authority to write one named file |
-| `AdminCap` | owned | administers one system; `original` or `duplicate` |
-| `ProjectHolder` | shared | one account's projects, each with its database and its file-set root |
+## Almost nothing is owned by Sui
 
-**Almost nothing is owned by Sui.** `BlobConfig`, `InnerFile`, `ProjectHolder` and `SystemConfig`
-are all shared objects carrying an `owner` or `admin` **field** that is the real authority. The
-reason is mechanical and worth stating once: an owned object can only enter a transaction its owner
-signed, and one transaction cannot take two different addresses' owned objects. An owned
+`SystemConfig`, `BlobConfig`, `InnerFile` and `ProjectHolder` are all shared objects carrying an
+`owner` or `admin` **field** that is the real authority.
+
+The reason is mechanical and worth stating once. An owned object can only enter a transaction its
+owner signed, and one transaction cannot take two different addresses' owned objects. An owned
 `ProjectHolder` could therefore never appear in a delegate's or an operator's transaction at all —
 which is the whole surface built on top of it. Sui ownership would have made delegation impossible.
 
-The exceptions are the two credentials, `WriterPass` and `AdminCap`, and they are owned precisely
-because holding one *is* the authority. A pass in a delegate's account cannot be reached by the file
-owner, which is why revocation is a record kept on the **file** rather than a destruction of the
-pass.
+The exceptions are the three credentials and the label. `AdminCap` and `WriterPass` are owned
+precisely because holding one *is* the authority — and a pass in a delegate's account cannot be
+reached by the file owner, which is why revocation is a record kept on the **file** rather than a
+destruction of the pass. `Registry` is owned because it is the user's own.
+
+Every object, what is inside it, what attaches to it and when, and what can destroy it:
+[objects.md](objects.md).
 
 ## The domain ladder
 
@@ -83,6 +79,12 @@ Three invariants, each checked by `scripts/check-events.sh` rather than left to 
 imports the other. `product` reaches `storage` for `file_set`, the Merkle commitment a project's
 file set resolves against.
 
+The ladder is also why two modules exist that look like they should not. `creation` and `revision`
+each hold one operation shared between two entry modules that may not import each other — creating a
+file and creating one a project immediately names as its database; creating a file and writing to
+one. A helper shared across the top of the ladder belongs below it rather than beside it, and keeping
+it there is what stops the creation path having two implementations that drift.
+
 ### Why every event lives under `sources/events/`
 
 One package-scoped event-type filter returns the protocol's whole history, however many modules
@@ -90,6 +92,16 @@ declare into it. An event declared in a domain module would still be emitted and
 but it would sit outside the surface `docs/events.md` describes — so a consumer that had built
 against that document would silently miss it. `check-events.sh` refuses any `event::emit` outside
 `sources/events/`, and refuses any emitter with no call site.
+
+What a consumer can rely on: [event-stream.md](event-stream.md).
+
+### Why the mutators are `public(package)`
+
+A `public(package)` function is not part of the package's public surface, so its signature may change
+freely across an upgrade. Every signature in `sources/entry/` is frozen at publish; almost nothing
+below it is. That is a deliberate trade, and `check-events.sh` section 5 keeps it honest by requiring
+every `public(package)` function to have a call site **in `sources/`** — call sites under `tests/` do
+not count, because a function only tests can reach is still dead on chain.
 
 ## The version gate
 
