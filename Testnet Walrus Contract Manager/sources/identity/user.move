@@ -4,7 +4,7 @@ module warlot::user;
 // === Imports ===
 
 use std::string::String;
-use sui::{clock::Clock, dynamic_object_field as ofields};
+use sui::{clock::Clock, dynamic_field as dfield, dynamic_object_field as ofields};
 use warlot::{
     identity_events,
     operator::OperatorAuth,
@@ -20,6 +20,25 @@ use warlot::{
 const EUserExist: vector<u8> = b"USER ALREADY EXISTS";
 #[error]
 const EUserNotFound: vector<u8> = b"USER IS NOT REGISTERED ON THIS SYSTEM";
+#[error]
+const EProjectHolderExists: vector<u8> = b"THIS ACCOUNT HAS ALREADY OPENED A PROJECT HOLDER";
+#[error]
+const ENoProjectHolder: vector<u8> = b"THIS ACCOUNT HAS NOT OPENED A PROJECT HOLDER";
+
+// === Constants ===
+
+/// Dynamic field key for the id of this account's project holder.
+///
+/// A marker, not the holder itself. The holder is a shared object standing on
+/// its own; putting it here would route every project write through
+/// `SystemConfig`, serialising it against registration, wallet operations and
+/// every permission change. The field costs one entry and is what makes the
+/// holder unique by construction: without it nothing stops an account minting a
+/// second one and splitting its projects across two roots nobody can reconcile.
+///
+/// It also answers "which holder is this account's" on chain, so a client does
+/// not have to scan `ProjectHolderCreated` to find out.
+const PROJECT_HOLDER_KEY: vector<u8> = b"project holder";
 
 // === Structs ===
 
@@ -104,6 +123,29 @@ public fun may_add_blob(
     ctx: &TxContext,
 ): bool {
     permission::may_add_blob(&user_obj.id, user_obj.owner, operator, ctx)
+}
+
+/// Whether this account has opened its project holder.
+public fun has_project_holder(user_obj: &User): bool {
+    dfield::exists_with_type<vector<u8>, ID>(&user_obj.id, PROJECT_HOLDER_KEY)
+}
+
+/// The id of this account's project holder, or an abort because it has none.
+public fun project_holder_id(user_obj: &User): ID {
+    assert!(has_project_holder(user_obj), ENoProjectHolder);
+
+    *dfield::borrow<vector<u8>, ID>(&user_obj.id, PROJECT_HOLDER_KEY)
+}
+
+/// Record `holder_id` as this account's one project holder.
+///
+/// Refuses an account that already has one. The holder is created lazily, so
+/// nothing but this assert stops a second one being minted, and a second holder
+/// would make `project_holder_id` a question with two answers.
+public(package) fun record_project_holder(user_obj: &mut User, holder_id: ID) {
+    assert!(!has_project_holder(user_obj), EProjectHolderExists);
+
+    dfield::add<vector<u8>, ID>(&mut user_obj.id, PROJECT_HOLDER_KEY, holder_id);
 }
 
 /// Whether `writer` holds an address-keyed grant to store blobs under `user_obj`.

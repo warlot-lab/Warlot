@@ -1,4 +1,11 @@
-/// Creates an inner file and names it as a project's database in one call.
+/// The project surface: opening a holder, minting a project, moving its file-set
+/// root, and creating an inner file that a project names as its database.
+///
+/// Every permission check in this package lives at this layer, because
+/// `project_object` cannot import `identity` without reaching upward through the
+/// dependency ladder. So each call below resolves the account the holder belongs
+/// to, tests the sender's grant against it, and only then hands the same address
+/// down to the mutator, which re-asserts that the holder is that account's.
 module warlot::entry_file_project;
 
 // === Imports ===
@@ -14,6 +21,114 @@ use warlot::{
 };
 
 // === Public functions ===
+
+/// Open the sender's project holder and publish it.
+///
+/// On first use rather than at registration, which is what every other optional
+/// container in this package does: an account that only stores blobs never needs
+/// one, and the delegation table, deny list, draft queue and wallet bank are all
+/// built by the first call that puts something in them.
+///
+/// The sender's own act, and only theirs. The holder is the authority root for
+/// this account's whole project surface, and its `admin` is fixed at creation
+/// with no setter, so opening it is the one thing here that cannot be delegated.
+/// A second one is refused by name.
+public fun open_project_holder(system_cfg: &mut SystemConfig, ctx: &mut TxContext) {
+    system_cfg.assert_version();
+
+    let owner = ctx.sender();
+    let project_holder = project_object::create_project_holder(owner, ctx);
+    let holder_id = object::id(&project_holder);
+
+    user::record_project_holder(user::get_user_mut(system_cfg, owner), holder_id);
+
+    project_object::share(project_holder);
+}
+
+/// Mint a project under `project_holder` and return its id.
+///
+/// Gated on `can_init_db`, the same bit as database initialisation: creating a
+/// project and naming its database are one act from the account's side, and the
+/// two calls stay separate only because initialisation stores a blob and a
+/// project may never want one.
+public fun create_project(
+    project_holder: &mut ProjectHolder,
+    system_cfg: &SystemConfig,
+    ctx: &mut TxContext,
+): ID {
+    system_cfg.assert_version();
+
+    let owner = project_object::project_admin(project_holder);
+    user::check_permission_can_init_db(user::get_user(system_cfg, owner), option::none(), ctx);
+
+    project_object::create_project(project_holder, owner, ctx)
+}
+
+/// The same mint, made on the strength of an operator credential.
+public fun create_project_as_operator(
+    project_holder: &mut ProjectHolder,
+    system_cfg: &SystemConfig,
+    admin_cap: &AdminCap,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): ID {
+    system_cfg.assert_version();
+
+    let auth = system_cfg.authorise_operator(admin_cap, clock.timestamp_ms());
+    let owner = project_object::project_admin(project_holder);
+    user::check_permission_can_init_db(
+        user::get_user(system_cfg, owner),
+        option::some(auth),
+        ctx,
+    );
+
+    project_object::create_project(project_holder, owner, ctx)
+}
+
+/// Move a project's commitment to the paths it resolves.
+///
+/// Gated on `can_set_root` rather than on `can_init_db`. Initialising a database
+/// and writing a quilt are additive and destroy nothing; moving a root replaces
+/// the previous commitment in place. Withdrawing this bit alone freezes what the
+/// account's projects claim while leaving storing, file creation, database
+/// initialisation and compaction running.
+public fun set_file_set_root(
+    project_holder: &mut ProjectHolder,
+    project_id: ID,
+    file_set_root: vector<u8>,
+    system_cfg: &SystemConfig,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
+
+    let owner = project_object::project_admin(project_holder);
+    user::check_permission_can_set_root(user::get_user(system_cfg, owner), option::none(), ctx);
+
+    project_object::set_file_set_root(project_holder, project_id, file_set_root, owner, ctx);
+}
+
+/// The same move, made on the strength of an operator credential.
+public fun set_file_set_root_as_operator(
+    project_holder: &mut ProjectHolder,
+    project_id: ID,
+    file_set_root: vector<u8>,
+    system_cfg: &SystemConfig,
+    admin_cap: &AdminCap,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
+
+    let auth = system_cfg.authorise_operator(admin_cap, clock.timestamp_ms());
+    let owner = project_object::project_admin(project_holder);
+    user::check_permission_can_set_root(
+        user::get_user(system_cfg, owner),
+        option::some(auth),
+        ctx,
+    );
+
+    project_object::set_file_set_root(project_holder, project_id, file_set_root, owner, ctx);
+}
 
 /// Create a file and name it as `project_id`'s database.
 public fun initialize_project_file(

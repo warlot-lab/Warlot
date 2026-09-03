@@ -32,7 +32,7 @@ use warlot::{
     entry_withdraw,
     fixtures,
     inner_file::InnerFile,
-    project_object::{Self, ProjectHolder},
+    project_object::ProjectHolder,
     registry::Registry,
     system_config::{Self, SystemConfig},
     writer_pass::WriterPass,
@@ -161,12 +161,13 @@ fun file_world(
         &clk,
         sc.ctx(),
     );
-    let holder = project_object::create_project_holder(sc.ctx());
+    entry_file_project::open_project_holder(&mut sys, sc.ctx());
 
     sc.next_tx(ALICE);
     let file = ts::take_shared_by_id<InnerFile>(sc, file_id);
     let config = ts::take_shared_by_id<BlobConfig>(sc, config_id);
     let pass = sc.take_from_sender<WriterPass>();
+    let holder = sc.take_shared<ProjectHolder>();
 
     if (stale) {
         system_config::set_version_for_testing(&mut sys, STALE_VERSION);
@@ -187,10 +188,10 @@ fun finish_file(
     sc: ts::Scenario,
 ) {
     destroy(pass);
-    destroy(holder);
     destroy(wsys);
     destroy(funds);
     clock::destroy_for_testing(clk);
+    ts::return_shared(holder);
     ts::return_shared(config);
     ts::return_shared(file);
     ts::return_shared(sys);
@@ -596,10 +597,10 @@ fun gate_self_withdraw_blob() {
     entry_withdraw::self_withdraw_blob(&sys, config, sc.ctx());
 
     destroy(pass);
-    destroy(holder);
     destroy(wsys);
     destroy(funds);
     clock::destroy_for_testing(clk);
+    ts::return_shared(holder);
     ts::return_shared(file);
     ts::return_shared(sys);
     sc.end();

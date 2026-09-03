@@ -6,6 +6,11 @@
 /// counters no contract function read. The invariant is the thing in that
 /// migration most easily lost by accident, so it is asserted here rather than
 /// assumed to have come across.
+///
+/// Every world below is built the way a client builds one, through
+/// `entry_file_project`. The holder used to be minted here by a package call no
+/// client can make, which is how a product domain that nothing on chain could
+/// reach passed a suite this size.
 #[test_only]
 module warlot::db_inner_file_tests;
 
@@ -44,7 +49,7 @@ const A_ROOT: vector<u8> = x"f54b57602bd89af3a5e9271c664b77641b176665c51d604e277
 fun still_unique() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut holder, mut wsys, mut funds, clk) = world(&mut sc);
-    let project_id = project_object::create_project(&mut holder, sc.ctx());
+    let project_id = entry_file_project::create_project(&mut holder, &sys, sc.ctx());
 
     sc.next_tx(ALICE);
     init_db(&mut holder, project_id, &sys, &mut wsys, &mut funds, &clk, &mut sc);
@@ -61,7 +66,7 @@ fun still_unique() {
 fun the_first_database_is_recorded() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut holder, mut wsys, mut funds, clk) = world(&mut sc);
-    let project_id = project_object::create_project(&mut holder, sc.ctx());
+    let project_id = entry_file_project::create_project(&mut holder, &sys, sc.ctx());
 
     assert!(project_object::has_project(&holder, project_id), 0);
     assert!(project_object::db_inner_file(&holder, project_id).is_none(), 1);
@@ -114,8 +119,8 @@ fun projects_are_keyed_by_a_minted_id() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut holder, wsys, funds, clk) = world(&mut sc);
 
-    let first = project_object::create_project(&mut holder, sc.ctx());
-    let second = project_object::create_project(&mut holder, sc.ctx());
+    let first = entry_file_project::create_project(&mut holder, &sys, sc.ctx());
+    let second = entry_file_project::create_project(&mut holder, &sys, sc.ctx());
 
     // Two projects, no names, and nothing to collide. Under a name key the second
     // would have had to be called something else.
@@ -137,13 +142,28 @@ fun projects_are_keyed_by_a_minted_id() {
 }
 
 #[test]
-#[expected_failure(abort_code = warlot::project_object::INVALIDACCESS)]
+#[expected_failure(abort_code = warlot::permission::INVALIDACCESS)]
 fun a_stranger_cannot_create_a_project() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut holder, wsys, funds, clk) = world(&mut sc);
 
     sc.next_tx(BOB);
-    project_object::create_project(&mut holder, sc.ctx());
+    entry_file_project::create_project(&mut holder, &sys, sc.ctx());
+
+    finish(sys, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::project_object::INVALIDACCESS)]
+fun the_record_refuses_a_holder_that_is_not_the_accounts() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, mut holder, wsys, funds, clk) = world(&mut sc);
+
+    // The entry layer establishes which account a caller acts for and hands that
+    // address down; this is the record's own check that the holder it was given
+    // is that account's. No published path can reach it, which is the point ,  it
+    // is what a future entry point that forgot the first check would hit.
+    project_object::create_project(&mut holder, BOB, sc.ctx());
 
     finish(sys, holder, wsys, funds, clk, sc);
 }
@@ -152,13 +172,13 @@ fun a_stranger_cannot_create_a_project() {
 fun the_commitment_opens_empty_and_every_move_is_announced() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut holder, wsys, funds, clk) = world(&mut sc);
-    let project_id = project_object::create_project(&mut holder, sc.ctx());
+    let project_id = entry_file_project::create_project(&mut holder, &sys, sc.ctx());
 
     // A project with no files commits to the empty set rather than to nothing.
     assert!(project_object::file_set_root(&holder, project_id) == file_set::empty_root(), 0);
 
     sc.next_tx(ALICE);
-    project_object::set_file_set_root(&mut holder, project_id, A_ROOT, sc.ctx());
+    entry_file_project::set_file_set_root(&mut holder, project_id, A_ROOT, &sys, sc.ctx());
 
     assert!(project_object::file_set_root(&holder, project_id) == A_ROOT, 1);
 
@@ -179,32 +199,32 @@ fun the_commitment_opens_empty_and_every_move_is_announced() {
 fun the_commitment_refuses_the_wrong_width() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut holder, wsys, funds, clk) = world(&mut sc);
-    let project_id = project_object::create_project(&mut holder, sc.ctx());
+    let project_id = entry_file_project::create_project(&mut holder, &sys, sc.ctx());
 
     sc.next_tx(ALICE);
-    project_object::set_file_set_root(&mut holder, project_id, x"0011", sc.ctx());
+    entry_file_project::set_file_set_root(&mut holder, project_id, x"0011", &sys, sc.ctx());
 
     finish(sys, holder, wsys, funds, clk, sc);
 }
 
 #[test]
-#[expected_failure(abort_code = warlot::project_object::INVALIDACCESS)]
+#[expected_failure(abort_code = warlot::permission::INVALIDACCESS)]
 fun a_stranger_cannot_move_the_commitment() {
     let mut sc = ts::begin(ALICE);
     let (sys, mut holder, wsys, funds, clk) = world(&mut sc);
-    let project_id = project_object::create_project(&mut holder, sc.ctx());
+    let project_id = entry_file_project::create_project(&mut holder, &sys, sc.ctx());
 
     // The root is the whole of what the chain says about a naming layer living
     // off chain, so whoever can move it decides what the names resolve to.
     sc.next_tx(BOB);
-    project_object::set_file_set_root(&mut holder, project_id, A_ROOT, sc.ctx());
+    entry_file_project::set_file_set_root(&mut holder, project_id, A_ROOT, &sys, sc.ctx());
 
     finish(sys, holder, wsys, funds, clk, sc);
 }
 
 // === Private functions ===
 
-/// A registered Alice, a holder she admins, and the Walrus side a file needs.
+/// A registered Alice, the holder she opened, and the Walrus side a file needs.
 fun world(sc: &mut ts::Scenario): (SystemConfig, ProjectHolder, System, Coin<WAL>, clock::Clock) {
     system_config::init_for_testing(sc.ctx());
 
@@ -217,8 +237,10 @@ fun world(sc: &mut ts::Scenario): (SystemConfig, ProjectHolder, System, Coin<WAL
     let funds = fixtures::wal(sc.ctx());
 
     entry_register::all_register_user_publicly(&mut sys, b"alice".to_string(), &clk, sc.ctx());
+    entry_file_project::open_project_holder(&mut sys, sc.ctx());
 
-    let holder = project_object::create_project_holder(sc.ctx());
+    sc.next_tx(ALICE);
+    let holder = sc.take_shared<ProjectHolder>();
 
     (sys, holder, wsys, funds, clk)
 }
@@ -270,10 +292,10 @@ fun finish(
     clk: clock::Clock,
     sc: ts::Scenario,
 ) {
-    destroy(holder);
     destroy(wsys);
     destroy(funds);
     clock::destroy_for_testing(clk);
+    ts::return_shared(holder);
     ts::return_shared(sys);
     sc.end();
 }

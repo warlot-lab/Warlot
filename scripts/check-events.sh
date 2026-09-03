@@ -117,7 +117,49 @@ for pkg in "$MAINNET" "$TESTNET"; do
 done
 
 # ---------------------------------------------------------------------------
-# 5. Both packages stay byte-identical in sources/ and tests/.
+# 5. Every `public(package)` function has a call site in sources/.
+#
+# The generalisation of check 1, and the check that would have caught the worst
+# thing this script has ever missed. An emitter with no caller is one shape of
+# dead code; the shape that got through was one hop further up. Nothing in
+# `sources/` called `create_project_holder`, so no `ProjectHolder` could exist
+# on a published package and the entire product domain was unreachable ,  while
+# the emitter it called still counted as covered here, because the orphan itself
+# was the call site.
+#
+# Neither the build nor the suite can find this. The compiler raises no unused
+# warning for `public(package)`, and a test may call one directly, which is how
+# the project tests built a world through a door no client could open. Call
+# sites under `tests/` are therefore not counted: a function only tests reach is
+# still dead on chain.
+#
+# The match is the name followed by `(` or `<`, so a generic call such as
+# `vault::withdraw<WAL>(...)` counts as a call site.
+# ---------------------------------------------------------------------------
+echo "== reachable package functions =="
+for pkg in "$MAINNET" "$TESTNET"; do
+    label="$(basename "$pkg")"
+
+    orphans=0
+    while read -r fn; do
+        [ -z "$fn" ] && continue
+        uses=$(grep -rhoE "\b${fn}[[:space:]]*[(<]" \
+                 "$pkg/sources" --include='*.move' | wc -l)
+        declared=$(grep -rhoE "^[[:space:]]*public\(package\) fun ${fn}[[:space:]]*[(<]" \
+                     "$pkg/sources" --include='*.move' | wc -l)
+        if [ "$((uses - declared))" -lt 1 ]; then
+            fail "$label: public(package) fun $fn has no call site in sources/"
+            orphans=$((orphans + 1))
+        fi
+    done < <(grep -rhoE '^[[:space:]]*public\(package\) fun [a-z0-9_]+' \
+                "$pkg/sources" --include='*.move' \
+             | sed -E 's/.*fun //' | sort -u)
+
+    [ "$orphans" -eq 0 ] && pass "$label: every package function is reached from sources/"
+done
+
+# ---------------------------------------------------------------------------
+# 6. Both packages stay byte-identical in sources/ and tests/.
 # ---------------------------------------------------------------------------
 echo "== packages identical =="
 for dir in sources tests; do

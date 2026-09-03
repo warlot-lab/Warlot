@@ -9,11 +9,18 @@
 /// act on the holder, and the one inner file the project may name as its
 /// database ,  plus the 32-byte root that binds the names now living off chain
 /// to the content they resolve to.
+///
+/// Nothing here decides whether a caller is allowed to act. The holder's `admin`
+/// is checked against an address the caller supplies, and establishing that the
+/// address is the one whose permission was tested is the entry layer's job ,
+/// this module cannot reach `identity` without importing upward. Every
+/// `public(package)` function below therefore names the account it is acting
+/// for, and every call site must already have checked it.
 module warlot::project_object;
 
 // === Imports ===
 
-use sui::dynamic_object_field as ofields;
+use sui::dynamic_field as dfield;
 use warlot::{file_set, product_events};
 
 // === Errors ===
@@ -28,6 +35,12 @@ const DBEXIST: vector<u8> = b"db has been initialized";
 // === Structs ===
 
 /// A user's projects, indexed by the id each was minted with.
+///
+/// Shared, not owned. One transaction cannot take two different addresses' owned
+/// objects, so an owned holder could only ever enter a transaction its own admin
+/// signed ,  which would make every delegate and operator path impossible. This
+/// is the bug `entry_upload::foreign_blob_add` records about the `&Registry`
+/// argument it had to remove. `admin` is the gate here, not Sui ownership.
 public struct ProjectHolder has key, store {
     id: UID,
     /// The address that may create projects here and edit the ones it holds.
@@ -35,8 +48,15 @@ public struct ProjectHolder has key, store {
 }
 
 /// One project: the inner file acting as its database, and its commitment.
-public struct Project has key, store {
-    id: UID,
+///
+/// A plain `store` value in a `dynamic_field`, not an object in a
+/// `dynamic_object_field`. A project is never transferred, never shared and
+/// never fetched by its own id ,  it is only ever reached through its holder ,
+/// so it does not need to be an object. As a field entry it costs one entry
+/// rather than an object plus an entry, and one node fetch rather than two.
+/// `permission.move` already applies this rule to the operator role; this module
+/// simply had not.
+public struct Project has store {
     /// The inner file this project uses as its database. A project has one, and
     /// naming it is the one irreversible thing a project record does.
     db_inner_file: Option<ID>,
@@ -49,26 +69,77 @@ public struct Project has key, store {
     file_set_root: vector<u8>,
 }
 
-// === Public functions ===
+// === View functions ===
 
-/// Mint a project under the caller's holder and return its id.
+/// The address that owns this holder.
+public fun project_admin(project_holder: &ProjectHolder): address {
+    project_holder.admin
+}
+
+/// Whether this holder holds a project with that id.
+public fun has_project(project_holder: &ProjectHolder, project_id: ID): bool {
+    dfield::exists_with_type<ID, Project>(&project_holder.id, project_id)
+}
+
+/// The inner file a project names as its database, if it has named one.
+public fun db_inner_file(project_holder: &ProjectHolder, project_id: ID): Option<ID> {
+    borrow_project(project_holder, project_id).db_inner_file
+}
+
+/// A project's commitment to the paths it resolves.
+public fun file_set_root(project_holder: &ProjectHolder, project_id: ID): vector<u8> {
+    borrow_project(project_holder, project_id).file_set_root
+}
+
+// === Package functions ===
+
+/// Build an empty project holder whose admin is `owner`.
+///
+/// The holder is minted for the account rather than for the sender, so the
+/// caller has to have established that the two belong together. It is returned
+/// rather than shared here so the caller can record its id against the account
+/// before it becomes reachable.
+public(package) fun create_project_holder(owner: address, ctx: &mut TxContext): ProjectHolder {
+    let project_holder = ProjectHolder {
+        id: object::new(ctx),
+        admin: owner,
+    };
+
+    product_events::emit_project_holder_created(object::id(&project_holder), project_holder.admin);
+
+    project_holder
+}
+
+/// Publish the holder, after which anybody may name it as a transaction input
+/// and `admin` is what decides who may act on it.
+public(package) fun share(project_holder: ProjectHolder) {
+    transfer::share_object(project_holder);
+}
+
+/// Mint a project under `owner`'s holder and return its id.
 ///
 /// The id is the project's identity from here on, and it is announced rather
 /// than derivable: a project carries no name, so nothing off chain can compute
 /// it. It opens committed to the empty file set.
-public fun create_project(project_holder: &mut ProjectHolder, ctx: &mut TxContext): ID {
-    assert!(ctx.sender() == project_holder.admin, INVALIDACCESS);
+///
+/// With no `UID` of its own the id comes from `ctx.fresh_object_address()`,
+/// which the framework documents as a globally unique object id that can never
+/// collide with a user address.
+public(package) fun create_project(
+    project_holder: &mut ProjectHolder,
+    owner: address,
+    ctx: &mut TxContext,
+): ID {
+    assert!(project_holder.admin == owner, INVALIDACCESS);
 
+    let project_id = object::id_from_address(ctx.fresh_object_address());
     let project = Project {
-        id: object::new(ctx),
         db_inner_file: option::none(),
         file_set_root: file_set::empty_root(),
     };
-
-    let project_id = object::id(&project);
     let file_set_root = project.file_set_root;
 
-    ofields::add<ID, Project>(&mut project_holder.id, project_id, project);
+    dfield::add<ID, Project>(&mut project_holder.id, project_id, project);
 
     product_events::emit_project_created(
         object::id(project_holder),
@@ -86,15 +157,16 @@ public fun create_project(project_holder: &mut ProjectHolder, ctx: &mut TxContex
 /// under the previous shape a rename removed and re-added a whole object. The
 /// root is not recomputed on chain ,  the set it commits to lives off chain and
 /// can be far larger than a transaction ,  so what the chain enforces is that the
-/// value is a well-formed root, that only the holder's admin may move it, and
-/// that every move is announced.
-public fun set_file_set_root(
+/// value is a well-formed root, that the holder belongs to the account the
+/// caller checked, and that every move is announced.
+public(package) fun set_file_set_root(
     project_holder: &mut ProjectHolder,
     project_id: ID,
     file_set_root: vector<u8>,
+    owner: address,
     ctx: &TxContext,
 ) {
-    assert!(ctx.sender() == project_holder.admin, INVALIDACCESS);
+    assert!(project_holder.admin == owner, INVALIDACCESS);
     file_set::assert_valid_root(&file_set_root);
 
     let holder_id = object::id(project_holder);
@@ -110,42 +182,6 @@ public fun set_file_set_root(
         previous_root,
         ctx.sender(),
     );
-}
-
-// === View functions ===
-
-/// The address that owns this holder.
-public fun project_admin(project_holder: &ProjectHolder): address {
-    project_holder.admin
-}
-
-/// Whether this holder holds a project with that id.
-public fun has_project(project_holder: &ProjectHolder, project_id: ID): bool {
-    ofields::exists<ID>(&project_holder.id, project_id)
-}
-
-/// The inner file a project names as its database, if it has named one.
-public fun db_inner_file(project_holder: &ProjectHolder, project_id: ID): Option<ID> {
-    borrow_project(project_holder, project_id).db_inner_file
-}
-
-/// A project's commitment to the paths it resolves.
-public fun file_set_root(project_holder: &ProjectHolder, project_id: ID): vector<u8> {
-    borrow_project(project_holder, project_id).file_set_root
-}
-
-// === Package functions ===
-
-/// Build an empty project holder for the sender.
-public(package) fun create_project_holder(ctx: &mut TxContext): ProjectHolder {
-    let project_holder = ProjectHolder {
-        id: object::new(ctx),
-        admin: ctx.sender(),
-    };
-
-    product_events::emit_project_holder_created(object::id(&project_holder), project_holder.admin);
-
-    project_holder
 }
 
 /// Name `inner_file_id` as the project's database. A project has one.
@@ -177,12 +213,12 @@ public(package) fun init_db(
 fun borrow_project(project_holder: &ProjectHolder, project_id: ID): &Project {
     assert!(has_project(project_holder, project_id), ENoSuchProject);
 
-    ofields::borrow<ID, Project>(&project_holder.id, project_id)
+    dfield::borrow<ID, Project>(&project_holder.id, project_id)
 }
 
 /// Mutable access to the project `project_id`, or an abort naming the miss.
 fun borrow_project_mut(project_holder: &mut ProjectHolder, project_id: ID): &mut Project {
     assert!(has_project(project_holder, project_id), ENoSuchProject);
 
-    ofields::borrow_mut<ID, Project>(&mut project_holder.id, project_id)
+    dfield::borrow_mut<ID, Project>(&mut project_holder.id, project_id)
 }
