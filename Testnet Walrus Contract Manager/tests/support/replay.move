@@ -200,6 +200,7 @@ public struct FileRow has drop {
     cycle_end: u64,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
+    operators_may_draft: bool,
     created_at_ms: u64,
     last_modified: u64,
     window_commits: vector<vector<u8>>,
@@ -363,14 +364,14 @@ public fun operator_role_bits(
     ledger.delegation_bits(owner, OPERATOR_ROLE)
 }
 
-/// Whether the stream shows `file_id` admitting operators, and whether it lets
-/// them skip the draft queue.
-public fun file_operator_policy(ledger: &Ledger, file_id: ID): (bool, bool) {
+/// Whether the stream shows `file_id` admitting operators, and which of the two
+/// routes it leaves them: straight into history, into the draft queue, or both.
+public fun file_operator_policy(ledger: &Ledger, file_id: ID): (bool, bool, bool) {
     let i = ledger.files.find_index!(|row| row.file_id == file_id);
     assert!(i.is_some(), ENoSuchRow);
     let row = &ledger.files[i.destroy_some()];
 
-    (row.operators_allowed, row.operators_may_bypass_draft)
+    (row.operators_allowed, row.operators_may_bypass_draft, row.operators_may_draft)
 }
 
 /// How many writers the stream shows `file_id` denying.
@@ -1055,6 +1056,7 @@ fun apply_innerfile(ledger: &mut Ledger) {
             _draft_epoch_duration,
             operators_allowed,
             operators_may_bypass_draft,
+            operators_may_draft,
             created_at_ms,
             commit,
             blob_config_id,
@@ -1071,6 +1073,7 @@ fun apply_innerfile(ledger: &mut Ledger) {
             cycle_end,
             operators_allowed,
             operators_may_bypass_draft,
+            operators_may_draft,
             created_at_ms,
             last_modified: created_at_ms,
             window_commits: vector[commit],
@@ -1086,11 +1089,18 @@ fun apply_innerfile(ledger: &mut Ledger) {
     });
 
     event::events_by_type<FileOperatorPolicySet>().do_ref!(|e| {
-        let (_s, file_id, operators_allowed, operators_may_bypass_draft, _set_by) =
-            innerfile_events::read_file_operator_policy_set(e);
+        let (
+            _s,
+            file_id,
+            operators_allowed,
+            operators_may_bypass_draft,
+            operators_may_draft,
+            _set_by,
+        ) = innerfile_events::read_file_operator_policy_set(e);
         let row = ledger.file_mut(file_id);
         row.operators_allowed = operators_allowed;
         row.operators_may_bypass_draft = operators_may_bypass_draft;
+        row.operators_may_draft = operators_may_draft;
         ledger.applied = ledger.applied + 1;
     });
 

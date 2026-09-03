@@ -220,6 +220,7 @@ fun rebuild_matches_chain() {
         FILE_DRAFT_EPOCHS,
         true,
         true,
+        true,
         false,
         0,
         sc.ctx(),
@@ -388,6 +389,11 @@ fun rebuild_matches_chain() {
     entry_admin::update_tier_table(&mut cap, &mut sys, vector[1, 2, 7, 26], 30, sc.ctx());
     ledger.absorb();
 
+    // --- the file's terms for operators, moved after the fact ---------------
+    sc.next_tx(ALICE);
+    entry_file_access::set_operator_policy(&sys, &mut file, true, true, false, sc.ctx());
+    ledger.absorb();
+
     // === The comparison, written from the chain side =======================
 
     sc.next_tx(ALICE);
@@ -515,6 +521,14 @@ fun rebuild_matches_chain() {
     assert!(file_row.file_cycle_end() == file.cycle_end(), 63);
     assert!(file_row.file_created_at_ms() == file.created_at_ms(), 64);
     assert!(file_row.file_last_modified() == file.last_modified(), 65);
+
+    // The three operator bits, as the creation announced them and the later
+    // narrowing replaced them.
+    let (rebuilt_allowed, rebuilt_bypass, rebuilt_draft) = ledger.file_operator_policy(file_id);
+    assert!(rebuilt_allowed == file.operators_allowed(), 100);
+    assert!(rebuilt_bypass == file.operators_may_bypass_draft(), 101);
+    assert!(rebuilt_draft == file.operators_may_draft(), 102);
+    assert!(!file.operators_may_draft(), 103);
 
     // The rollback window, entry by entry, newest first.
     let window = file.track_back();

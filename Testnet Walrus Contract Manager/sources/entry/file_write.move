@@ -29,6 +29,11 @@ const INVALIDACCESS: vector<u8> = b"Invalid access";
 #[error]
 const ENoAddBlobGrant: vector<u8> =
     b"THIS FILE'S OWNER HAS NOT GRANTED ADD_BLOB_TO_ADDRESS TO THIS OPERATOR";
+#[error]
+const EOperatorDraftsRefused: vector<u8> = b"THIS FILE'S OWNER DOES NOT ADMIT OPERATOR DRAFTS";
+#[error]
+const EOperatorSlotCannotBypass: vector<u8> =
+    b"THIS OPERATOR'S SLOT CARRIES NO DRAFT BYPASS, AND THIS FILE ADMITS NO DRAFTS";
 
 // === Public functions ===
 
@@ -118,17 +123,21 @@ public fun write_(
 /// six assert that the sender is the file's owner, so a credential adds nothing
 /// to them: an operator that could satisfy that assert would be the owner.
 ///
-/// `to_draft` is a request rather than an instruction here. An operator asking to
-/// skip the queue is routed into it anyway unless its own slot **and** this file
-/// both carry the bypass ,  the owner's refusal is not something an admin can
-/// grant its way past. A pass without the privilege is refused outright instead,
-/// which is the behaviour that path has always had and keeps.
+/// `to_draft` is a request rather than an instruction here, but only where the
+/// file left both routes open. An operator asking to skip the queue needs its own
+/// slot **and** this file to carry the bypass ,  the owner's refusal is not
+/// something an admin can grant its way past ,  and is routed into the queue when
+/// the file admits drafts. Where it does not, the write is refused by name rather
+/// than absorbed. A pass without the privilege is refused outright instead, which
+/// is the behaviour that path has always had and keeps.
 ///
 /// A write that ends in the queue is custodied by whoever pushed it, exactly as a
 /// pass holder's draft is, so the routing carries the storage cost away from the
 /// owner along with the content. That means a signing key whose writes can be
 /// queued must itself be a registered user. A key that always bypasses never
-/// stores under its own address and needs no registration at all.
+/// stores under its own address and needs no registration at all ,  and an owner
+/// who wants that guaranteed sets `operators_may_draft: false`, which is the state
+/// that used to be unsayable.
 public fun write_as_operator(
     inner_file: &mut InnerFile,
     admin_cap: &AdminCap,
@@ -194,11 +203,21 @@ public fun write_as_operator(
 /// the file's own, so an owner who refused the bypass cannot be overridden by an
 /// admin who granted it.
 ///
-/// What a refused bypass does differs by kind, deliberately. A pass without the
-/// privilege asking to skip the queue is refused, which is what it has always
-/// done. An operator without it is routed into the queue instead, because the
-/// owner's answer to an operator is *where the write goes*, not whether it
-/// happens ,  that routing is the whole content of `operators_may_bypass_draft`.
+/// The two kinds are routed by different rules, deliberately.
+///
+/// A **pass holder** may always propose, and skipping the queue needs the pass's
+/// own privilege or the call is refused. Neither half consults the file's operator
+/// bits, which are about operators and say nothing about a pass minted on this
+/// file.
+///
+/// An **operator** is routed wherever the file left a route, and refused by name
+/// where it left none. Asking for a draft needs `operators_may_draft`. Asking to
+/// write directly without the bypass falls back to the queue only where the file
+/// admits one; the fallback is what `operators_may_bypass_draft: false` has always
+/// meant, and it is now a route the owner opened rather than one the routing
+/// assumed. The remaining refusal is narrow and reachable: a file may legally be
+/// direct-only, and an operator whose *slot* carries no bypass then has neither
+/// route open even though the file's own bits look ordinary.
 ///
 /// A routed write carries the sender's custody rather than the owner's, and
 /// retires nothing, so a caller that asked to skip the queue and passed the
@@ -219,12 +238,22 @@ fun write_core(
 ) {
     let mut queue = to_draft;
 
-    if (!to_draft) {
-        if (credential.is_operator()) {
-            queue = !may_bypass;
-        } else {
-            assert!(may_bypass, ACCESSDENIED);
+    if (credential.is_operator()) {
+        let may_draft = inner_file.operators_may_draft();
+
+        if (to_draft) {
+            assert!(may_draft, EOperatorDraftsRefused);
+        } else if (!may_bypass) {
+            // A file that admits operators opens at least one route, so reaching
+            // here with the queue shut means the file is direct-only and the
+            // bypass the slot was supposed to bring is missing. Naming that is
+            // the difference between an operator that can be fixed by refreshing
+            // its slot and one the owner has shut out.
+            assert!(may_draft, EOperatorSlotCannotBypass);
+            queue = true;
         };
+    } else if (!to_draft) {
+        assert!(may_bypass, ACCESSDENIED);
     };
 
     // A draft's blobs stay with the writer who pushed them; a merge's belong to

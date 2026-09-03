@@ -45,6 +45,44 @@ public fun open_project_holder(system_cfg: &mut SystemConfig, ctx: &mut TxContex
     project_object::share(project_holder);
 }
 
+/// Open `owner`'s project holder on the strength of an operator credential.
+///
+/// The sibling the owner-only form did without, so a backend can bootstrap an
+/// account's project surface with no user-signed transaction behind it. Gated on
+/// `can_init_db`, checked against `owner`'s account rather than the sender's:
+/// creating the authority root and creating the projects under it are the same
+/// grant, and an operator that may do the second has no reason to be stopped at
+/// the first.
+///
+/// The holder's `admin` is `owner` and never `ctx.sender()`. The credential
+/// decides that a holder is created, not who it belongs to ,  `admin` is fixed at
+/// creation with no setter, so a holder rooted on a rotating wallet would be an
+/// account's whole project surface tied to a key the pool retires. A second
+/// holder is refused by the same marker on `User` that refuses one to the owner.
+public fun open_project_holder_as_operator(
+    system_cfg: &mut SystemConfig,
+    admin_cap: &AdminCap,
+    owner: address,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    system_cfg.assert_version();
+
+    let auth = system_cfg.authorise_operator(admin_cap, clock.timestamp_ms());
+    user::check_permission_can_init_db(
+        user::get_user(system_cfg, owner),
+        option::some(auth),
+        ctx,
+    );
+
+    let project_holder = project_object::create_project_holder(owner, ctx);
+    let holder_id = object::id(&project_holder);
+
+    user::record_project_holder(user::get_user_mut(system_cfg, owner), holder_id);
+
+    project_object::share(project_holder);
+}
+
 /// Mint a project under `project_holder` and return its id.
 ///
 /// Gated on `can_init_db`, the same bit as database initialisation: creating a
@@ -146,6 +184,7 @@ public fun initialize_project_file(
     draft_epoch_duration: u32,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
+    operators_may_draft: bool,
     should_include_pass: bool,
     pass_duration: u64,
     ctx: &mut TxContext,
@@ -165,6 +204,7 @@ public fun initialize_project_file(
         draft_epoch_duration,
         operators_allowed,
         operators_may_bypass_draft,
+        operators_may_draft,
         option::none(),
         should_include_pass,
         pass_duration,
@@ -178,6 +218,11 @@ public fun initialize_project_file(
 }
 
 /// The same initialisation, made on the strength of an operator credential.
+///
+/// Like `create_file_as_operator`, it names no operator policy: `can_init_db` is a
+/// grant to build the account's database, and a database the operator cannot write
+/// is not one. The file is born admitting its creator on both routes and the owner
+/// narrows it with `entry_file_access::set_operator_policy`.
 public fun initialize_project_file_as_operator(
     project_holder: &mut ProjectHolder,
     project_id: ID,
@@ -192,8 +237,6 @@ public fun initialize_project_file_as_operator(
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
-    operators_allowed: bool,
-    operators_may_bypass_draft: bool,
     ctx: &mut TxContext,
 ) {
     system_cfg.assert_version();
@@ -211,8 +254,9 @@ public fun initialize_project_file_as_operator(
         clock,
         commit,
         draft_epoch_duration,
-        operators_allowed,
-        operators_may_bypass_draft,
+        true,
+        true,
+        true,
         option::some(auth),
         false,
         0,

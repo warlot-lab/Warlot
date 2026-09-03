@@ -112,6 +112,17 @@ public(package) fun create_project_holder(owner: address, ctx: &mut TxContext): 
 
 /// Publish the holder, after which anybody may name it as a transaction input
 /// and `admin` is what decides who may act on it.
+///
+/// Shared rather than owned, and not by preference: an owned object can only
+/// enter a transaction its owner signed, and one transaction cannot take two
+/// different addresses' owned objects. An owned holder could therefore never
+/// appear in a delegate's or an operator's transaction at all, which is the whole
+/// surface below it. `admin` is the gate, not Sui ownership.
+///
+/// Both lints on this line say the same thing back: the share is deliberate, and
+/// it is `share_object` rather than the public variant because nothing outside
+/// this module may publish a holder.
+#[allow(lint(share_owned, custom_state_change))]
 public(package) fun share(project_holder: ProjectHolder) {
     transfer::share_object(project_holder);
 }

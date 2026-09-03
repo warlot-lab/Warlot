@@ -236,12 +236,12 @@ configs, which raises `BlobWithdrawn` and which nobody but the owner can cause.
 
 | Event | Emitted from | Fields |
 |---|---|---|
-| `InnerFileCreated` | innerfile/inner_file.move , `share` | `system_id`, `file_id`, `owner`, `created_by`, `writers_length`, `track_back_length`, `epoch_set`, `cycle_end`, `draft_epoch_duration`, `operators_allowed`, `operators_may_bypass_draft`, `created_at_ms`, `commit`, `blob_config_id` |
+| `InnerFileCreated` | innerfile/inner_file.move , `share` | `system_id`, `file_id`, `owner`, `created_by`, `writers_length`, `track_back_length`, `epoch_set`, `cycle_end`, `draft_epoch_duration`, `operators_allowed`, `operators_may_bypass_draft`, `operators_may_draft`, `created_at_ms`, `commit`, `blob_config_id` |
 | `HeadAdvanced` | innerfile/eviction.move , `advance_history` | `system_id`, `file_id`, `commit`, `commit_by`, `blob_config_id`, `previous_commit`, `previous_blob_config`, `window_depth`, `last_modified` |
 | `RevisionRetired` | innerfile/eviction.move , `release` and `discard` | `system_id`, `file_id`, `blob_config`, `commit`, `commit_by`, `released` |
 | `RootChangeSet` | innerfile/inner_file.move , `swap_root_change` | `system_id`, `file_id`, `commit`, `commit_by`, `blob_config_id`, `previous_blob_config` |
 | `RootChangeRemoved` | innerfile/inner_file.move , `extract_root_change` | `system_id`, `file_id`, `blob_config_id`, `removed_by` |
-| `FileOperatorPolicySet` | innerfile/inner_file.move , `set_operator_policy` | `system_id`, `file_id`, `operators_allowed`, `operators_may_bypass_draft`, `set_by` |
+| `FileOperatorPolicySet` | innerfile/inner_file.move , `set_operator_policy` | `system_id`, `file_id`, `operators_allowed`, `operators_may_bypass_draft`, `operators_may_draft`, `set_by` |
 
 ### Drafts ,  `draft_events`
 

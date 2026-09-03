@@ -6,8 +6,9 @@
 /// These pin the credential that replaces it. A duplicate admin capability holds
 /// a slot in the system's operator set; a user grants the *role* rather than an
 /// address; and the file's owner decides, per file, whether operators may write
-/// at all and whether their writes may skip the draft queue. Rotating the key is
-/// a transfer of an owned object and writes nothing on chain.
+/// at all and which of the two routes ,  straight into history, into the draft
+/// queue ,  their writes may take. Rotating the key is a transfer of an owned
+/// object and writes nothing on chain.
 #[test_only]
 module warlot::operator_tests;
 
@@ -68,14 +69,15 @@ const FOREVER: u64 = 0;
 /// A system holding one enrolled operator, a user who granted the operator role,
 /// and one file that user owns.
 ///
-/// `slot_bypass` is the bit the admin puts on the operator's slot;
-/// `file_allowed` and `file_bypass` are the owner's terms for that file. Every
-/// test below is one combination of the three.
+/// `slot_bypass` is the bit the admin puts on the operator's slot; `file_allowed`,
+/// `file_bypass` and `file_draft` are the owner's terms for that file. Every test
+/// below is one combination of the four.
 fun stage(
     sc: &mut ts::Scenario,
     slot_bypass: bool,
     file_allowed: bool,
     file_bypass: bool,
+    file_draft: bool,
 ): (SystemConfig, System, Coin<WAL>, Clock, ID, ID) {
     system_config::init_for_testing(sc.ctx());
 
@@ -149,6 +151,7 @@ fun stage(
         DRAFT_EPOCHS,
         file_allowed,
         file_bypass,
+        file_draft,
         false,
         0,
         sc.ctx(),
@@ -211,7 +214,7 @@ fun finish(
 fun an_enrolled_operator_writes_into_history() {
     let mut sc = ts::begin(ADMIN);
     let (sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -246,7 +249,7 @@ fun an_enrolled_operator_writes_into_history() {
 fun an_enrolled_operator_creates_a_file() {
     let mut sc = ts::begin(ADMIN);
     let (sys, mut wsys, mut funds, clk, _file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let cap = sc.take_from_sender<AdminCap>();
@@ -270,8 +273,6 @@ fun an_enrolled_operator_creates_a_file() {
         &clk,
         fixtures::commit_for(b"made for alice"),
         DRAFT_EPOCHS,
-        true,
-        true,
         sc.ctx(),
     );
 
@@ -290,7 +291,7 @@ fun an_enrolled_operator_creates_a_file() {
 fun an_explicit_address_grant_still_works_with_no_capability() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // Mallory holds no capability and never will. Alice names her address
     // directly, which is the delegation the operator role does not replace.
@@ -339,7 +340,7 @@ fun an_explicit_address_grant_still_works_with_no_capability() {
 fun a_capability_with_no_slot_is_refused() {
     let mut sc = ts::begin(ADMIN);
     let (sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // A second duplicate, minted the same way and never enrolled.
     sc.next_tx(ADMIN);
@@ -373,7 +374,7 @@ fun a_capability_with_no_slot_is_refused() {
 fun an_expired_slot_is_refused() {
     let mut sc = ts::begin(ADMIN);
     let (sys, mut wsys, mut funds, mut clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // Nothing about the capability changed. The clock alone ends it, which is
     // what an expiry on the slot is for: a capability does not decay.
@@ -405,7 +406,7 @@ fun an_expired_slot_is_refused() {
 fun a_user_who_never_granted_the_role_is_not_acted_for() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, _file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // Mallory registers publicly, so her table is empty and she granted no role.
     sc.next_tx(MALLORY);
@@ -433,8 +434,6 @@ fun a_user_who_never_granted_the_role_is_not_acted_for() {
         &clk,
         fixtures::commit_for(b"uninvited"),
         DRAFT_EPOCHS,
-        true,
-        true,
         sc.ctx(),
     );
 
@@ -449,7 +448,7 @@ fun a_file_closed_to_operators_refuses_one() {
     // The account-level grant is in place and the slot is live. Only the file's
     // own bit is off.
     let (sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, false, false);
+        stage(&mut sc, true, false, false, false);
 
     sc.next_tx(BACKEND);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -477,7 +476,7 @@ fun a_file_closed_to_operators_refuses_one() {
 fun a_denied_address_is_refused_while_holding_a_live_capability() {
     let mut sc = ts::begin(ADMIN);
     let (sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // The write that proves the path is open, before anything is denied. Without
     // it the abort below would prove only that some earlier gate was shut.
@@ -524,7 +523,7 @@ fun a_denied_address_is_refused_while_holding_a_live_capability() {
 fun a_revoked_capability_id_is_refused() {
     let mut sc = ts::begin(ADMIN);
     let (sys, mut wsys, mut funds, clk, file_id, cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -572,7 +571,7 @@ fun a_revoked_capability_id_is_refused() {
 fun retiring_a_slot_refuses_the_operator_everywhere_at_once() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -626,7 +625,7 @@ fun retiring_a_slot_refuses_the_operator_everywhere_at_once() {
 fun narrowing_add_blob_alone_names_the_missing_grant() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ALICE);
     entry_permission::replace_operator_role(
@@ -677,7 +676,7 @@ fun narrowing_add_blob_alone_names_the_missing_grant() {
 fun a_queued_operator_write_needs_no_grant_from_the_owner() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ALICE);
     entry_permission::replace_operator_role(
@@ -726,7 +725,7 @@ fun a_queued_operator_write_needs_no_grant_from_the_owner() {
 fun the_root_bit_narrows_on_its_own() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // Alice's registration granted every bit the role can hold, this one
     // included.
@@ -786,7 +785,7 @@ fun the_root_bit_narrows_on_its_own() {
 fun revoking_the_role_refuses_the_operator_on_that_account() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -834,7 +833,7 @@ fun the_slot_bypass_alone_routes_the_write_into_the_queue() {
     let mut sc = ts::begin(ADMIN);
     // The admin granted the bypass. The file's owner did not.
     let (sys, mut wsys, mut funds, clk, file_id, cap_id) =
-        stage(&mut sc, true, true, false);
+        stage(&mut sc, true, true, false, true);
 
     assert!(operator::operator_may_bypass_draft(sys.operator_set(), cap_id), 0);
 
@@ -871,7 +870,7 @@ fun the_owner_wins() {
     // Both bits open, so the first write is a bypass. The admin's grant never
     // changes after this point ,  only the owner's answer does.
     let (sys, mut wsys, mut funds, clk, file_id, cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -898,7 +897,7 @@ fun the_owner_wins() {
     // slot still carries it, the role is still granted, the file still admits
     // operators.
     sc.next_tx(ALICE);
-    entry_file_access::set_operator_policy(&sys, &mut file, true, false, sc.ctx());
+    entry_file_access::set_operator_policy(&sys, &mut file, true, false, true, sc.ctx());
     assert!(operator::operator_may_bypass_draft(sys.operator_set(), cap_id), 2);
     assert!(file.operators_allowed(), 3);
     assert!(!file.operators_may_bypass_draft(), 4);
@@ -930,14 +929,292 @@ fun the_owner_wins() {
 #[expected_failure(abort_code = warlot::entry_file_access::ENotFileOwner)]
 fun only_the_file_owner_sets_the_operator_policy() {
     let mut sc = ts::begin(ADMIN);
-    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, false);
+    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, false, true);
 
     // The operator holding a live credential tries to re-open the bypass for
     // itself. The bits are gated on the sender for exactly this reason.
     sc.next_tx(BACKEND);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_file_access::set_operator_policy(&sys, &mut file, true, true, sc.ctx());
+    entry_file_access::set_operator_policy(&sys, &mut file, true, true, true, sc.ctx());
 
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+// === The four-state policy matrix ===
+
+// The three bits spell four states an owner can mean, and each has an answer for
+// both requests an operator can make. The eight tests below are that table, one
+// case each: a write lands where the policy says, or is refused by the error that
+// names why. Nothing here is left to a default.
+
+/// Stage one policy, make one operator write against it, and hand back the world.
+///
+/// Every case differs only in the bits it stages, what it asks for, and what it
+/// asserts afterwards, so sharing the rest is what makes the table legible as a
+/// table.
+fun write_under_policy(
+    sc: &mut ts::Scenario,
+    slot_bypass: bool,
+    file_allowed: bool,
+    file_bypass: bool,
+    file_draft: bool,
+    to_draft: bool,
+): (SystemConfig, System, Coin<WAL>, Clock, InnerFile, AdminCap) {
+    let (sys, mut wsys, mut funds, clk, file_id, _cap_id) =
+        stage(sc, slot_bypass, file_allowed, file_bypass, file_draft);
+
+    sc.next_tx(BACKEND);
+    let mut file = ts::take_shared_by_id<InnerFile>(sc, file_id);
+    let cap = sc.take_from_sender<AdminCap>();
+
+    operator_write(
+        sc,
+        &sys,
+        &mut wsys,
+        &mut funds,
+        &clk,
+        &mut file,
+        &cap,
+        to_draft,
+        b"under this policy",
+    );
+
+    (sys, wsys, funds, clk, file, cap)
+}
+
+/// The head moved and no queue was ever built.
+fun assert_wrote_history(file: &InnerFile) {
+    assert!(file.track_back().length() == 2, 0);
+    assert!(!file.has_draft_queue(), 1);
+}
+
+/// The head did not move and the revision is waiting for the owner.
+fun assert_queued(file: &mut InnerFile) {
+    assert!(file.track_back().length() == 1, 0);
+    assert!(draft::total_draft(inner_file::get_draft_holder(file)) == 1, 1);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::inner_file::EOperatorsRefused)]
+fun refused_takes_no_direct_write() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, file, cap) =
+        write_under_policy(&mut sc, true, false, false, false, false);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::inner_file::EOperatorsRefused)]
+fun refused_takes_no_draft() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, file, cap) =
+        write_under_policy(&mut sc, true, false, false, false, true);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+fun direct_only_takes_a_direct_write() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, file, cap) =
+        write_under_policy(&mut sc, true, true, true, false, false);
+
+    assert_wrote_history(&file);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::entry_file_write::EOperatorDraftsRefused)]
+fun direct_only_refuses_a_draft() {
+    let mut sc = ts::begin(ADMIN);
+    // The state that could not be said before. Clearing the bypass used to be
+    // the only way to keep an operator out of the history, and it filled the
+    // queue instead; this file takes the write or nothing.
+    let (sys, wsys, funds, clk, file, cap) =
+        write_under_policy(&mut sc, true, true, true, false, true);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+fun queue_only_routes_a_direct_write_into_the_queue() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, mut file, cap) =
+        write_under_policy(&mut sc, true, true, false, true, false);
+
+    // The behaviour the two-bit policy had for this combination, kept ,  but now
+    // because the owner opened the queue rather than because the routing had
+    // nowhere else to put it.
+    assert_queued(&mut file);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+fun queue_only_takes_a_draft() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, mut file, cap) =
+        write_under_policy(&mut sc, true, true, false, true, true);
+
+    assert_queued(&mut file);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+fun either_takes_a_direct_write() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, file, cap) =
+        write_under_policy(&mut sc, true, true, true, true, false);
+
+    assert_wrote_history(&file);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+fun either_takes_a_draft() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, mut file, cap) =
+        write_under_policy(&mut sc, true, true, true, true, true);
+
+    assert_queued(&mut file);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::entry_file_write::EOperatorSlotCannotBypass)]
+fun a_slot_without_the_bypass_has_no_route_into_a_direct_only_file() {
+    let mut sc = ts::begin(ADMIN);
+    // The file's own bits are legal and ordinary ,  it admits operators and
+    // takes direct writes. What is missing is on the slot, so the routing
+    // arrives with the bypass unavailable and no queue to fall back on. Reachable
+    // state, named refusal.
+    let (sys, wsys, funds, clk, file, cap) =
+        write_under_policy(&mut sc, false, true, true, false, false);
+
+    sc.return_to_sender(cap);
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+// === The fifth spelling is refused, not stored ===
+
+#[test]
+#[expected_failure(abort_code = warlot::inner_file::EPolicyOpensNoRoute)]
+fun a_file_cannot_be_born_admitting_operators_with_no_route() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, _file_id, _cap_id) =
+        stage(&mut sc, true, true, false, false);
+
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::inner_file::EPolicyOpensNoRoute)]
+fun the_owner_cannot_set_a_policy_with_no_route() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, file_id, _cap_id) =
+        stage(&mut sc, true, true, true, true);
+
+    // It would mean exactly what `operators_allowed: false` means, and a state
+    // with two spellings is one a reader gets wrong.
+    sc.next_tx(ALICE);
+    let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    entry_file_access::set_operator_policy(&sys, &mut file, true, false, false, sc.ctx());
+
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+#[test]
+fun shutting_operators_out_needs_no_route_at_all() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, wsys, funds, clk, file_id, _cap_id) =
+        stage(&mut sc, true, true, true, true);
+
+    // The refusal above is about `allowed: true` alone. Closing the file is
+    // still one call, and the other two bits stop meaning anything.
+    sc.next_tx(ALICE);
+    let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    entry_file_access::set_operator_policy(&sys, &mut file, false, false, false, sc.ctx());
+
+    assert!(!file.operators_allowed(), 0);
+    assert!(!file.operators_may_bypass_draft(), 1);
+    assert!(!file.operators_may_draft(), 2);
+
+    ts::return_shared(file);
+    finish(sys, wsys, funds, clk, sc);
+}
+
+// === An operator-created file is born writable by its creator ===
+
+#[test]
+fun a_file_an_operator_creates_admits_that_operator_on_both_routes() {
+    let mut sc = ts::begin(ADMIN);
+    let (sys, mut wsys, mut funds, clk, _file_id, _cap_id) =
+        stage(&mut sc, true, true, true, true);
+
+    sc.next_tx(BACKEND);
+    let cap = sc.take_from_sender<AdminCap>();
+    let first_revision = fixtures::certified_blob(
+        &mut wsys,
+        fixtures::blob_size(),
+        fixtures::blob_epochs_ahead(),
+        &mut funds,
+        sc.ctx(),
+    );
+
+    // The call names no policy at all. `create_inner_file` means "make me a file
+    // you will maintain", and one the operator cannot write to is not that.
+    let made = entry_file_create::create_file_as_operator(
+        &sys,
+        &cap,
+        ALICE,
+        fixtures::file_writers(),
+        fixtures::file_track_back(),
+        vector[first_revision],
+        SET,
+        CYCLES,
+        &clk,
+        fixtures::commit_for(b"born open"),
+        DRAFT_EPOCHS,
+        sc.ctx(),
+    );
+
+    sc.next_tx(BACKEND);
+    let mut file = ts::take_shared_by_id<InnerFile>(&sc, made);
+    assert!(file.operators_allowed(), 0);
+    assert!(file.operators_may_bypass_draft(), 1);
+    assert!(file.operators_may_draft(), 2);
+
+    // And it is the owner, not the operator, who narrows it afterwards.
+    sc.next_tx(ALICE);
+    entry_file_access::set_operator_policy(&sys, &mut file, true, true, false, sc.ctx());
+    assert!(!file.operators_may_draft(), 3);
+
+    sc.next_tx(BACKEND);
+    sc.return_to_sender(cap);
     ts::return_shared(file);
     finish(sys, wsys, funds, clk, sc);
 }
@@ -948,7 +1225,7 @@ fun only_the_file_owner_sets_the_operator_policy() {
 fun rotating_the_capability_writes_nothing_on_chain() {
     let mut sc = ts::begin(ADMIN);
     let (sys, mut wsys, mut funds, clk, file_id, cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     let slots_before = operator::operator_ids(sys.operator_set());
     let (until_before, bypass_before) = (
@@ -1002,7 +1279,7 @@ fun rotating_the_capability_writes_nothing_on_chain() {
 fun an_original_capability_is_refused_as_an_operator_credential() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // Enrol the original's own id, so membership cannot be what refuses it. The
     // only thing left is the state tag.
@@ -1058,7 +1335,7 @@ fun an_original_capability_is_refused_as_an_operator_credential() {
 #[expected_failure(abort_code = warlot::entry_admin::ENotOriginalCap)]
 fun a_duplicate_cannot_reach_the_treasury() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let mut cap = sc.take_from_sender<AdminCap>();
@@ -1072,7 +1349,7 @@ fun a_duplicate_cannot_reach_the_treasury() {
 #[expected_failure(abort_code = warlot::entry_admin::ENotOriginalCap)]
 fun a_duplicate_cannot_mint_a_system() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let mut cap = sc.take_from_sender<AdminCap>();
@@ -1086,7 +1363,7 @@ fun a_duplicate_cannot_mint_a_system() {
 #[expected_failure(abort_code = warlot::entry_admin::ENotOriginalCap)]
 fun a_duplicate_cannot_change_a_cost() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(BACKEND);
     let mut cap = sc.take_from_sender<AdminCap>();
@@ -1100,7 +1377,7 @@ fun a_duplicate_cannot_change_a_cost() {
 #[expected_failure(abort_code = warlot::entry_admin::ENotOriginalCap)]
 fun a_duplicate_cannot_enrol_another_operator() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     // Otherwise a leaked hot key could enrol a second one and outlive its own
     // retirement.
@@ -1125,7 +1402,7 @@ fun a_duplicate_cannot_enrol_another_operator() {
 fun a_capability_from_another_system_is_refused() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // A successor system, and a duplicate minted against it. Its id is put in
     // *this* system's set, so membership cannot be what refuses it.
@@ -1184,7 +1461,7 @@ fun a_capability_from_another_system_is_refused() {
 fun a_slot_is_refreshed_rather_than_duplicated() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, wsys, funds, mut clk, _file_id, cap_id) =
-        stage(&mut sc, false, true, true);
+        stage(&mut sc, false, true, true, true);
 
     assert!(operator::operator_count(sys.operator_set()) == 1, 0);
     assert!(operator::operator_expiry(sys.operator_set(), cap_id) == OPERATOR_UNTIL_MS, 1);
@@ -1221,7 +1498,7 @@ fun a_slot_is_refreshed_rather_than_duplicated() {
 #[test]
 fun retiring_an_id_that_holds_no_slot_is_a_no_op() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ADMIN);
     let cap = sc.take_from_sender<AdminCap>();
@@ -1241,7 +1518,7 @@ fun retiring_an_id_that_holds_no_slot_is_a_no_op() {
 #[expected_failure(abort_code = warlot::operator::EInvalidOperatorExpiry)]
 fun a_slot_cannot_be_born_expired() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ADMIN);
     let cap = sc.take_from_sender<AdminCap>();
@@ -1263,7 +1540,7 @@ fun a_slot_cannot_be_born_expired() {
 #[expected_failure(abort_code = warlot::operator::EOperatorSetFull)]
 fun the_operator_set_is_bounded() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ADMIN);
     let cap = sc.take_from_sender<AdminCap>();
@@ -1293,7 +1570,7 @@ fun the_operator_set_is_bounded() {
 fun a_file_holds_no_queue_and_no_deny_list_until_it_needs_them() {
     let mut sc = ts::begin(ADMIN);
     let (sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, false);
+        stage(&mut sc, true, true, false, true);
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -1338,7 +1615,7 @@ fun a_file_holds_no_queue_and_no_deny_list_until_it_needs_them() {
 #[expected_failure(abort_code = warlot::inner_file::ENoDraftQueue)]
 fun merging_from_a_file_that_never_drafted_is_refused_by_name() {
     let mut sc = ts::begin(ADMIN);
-    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -1355,7 +1632,7 @@ fun merging_from_a_file_that_never_drafted_is_refused_by_name() {
 #[expected_failure(abort_code = warlot::operator::EAlreadyAnOperator)]
 fun enrolling_a_capability_that_already_holds_a_slot_is_refused() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, cap_id) = stage(&mut sc, true, true, true, true);
 
     // Moving a live key's deadline is `refresh_operator`. Letting the enrolment
     // do it would mean an admin onboarding what they believed was a new key
@@ -1380,7 +1657,7 @@ fun enrolling_a_capability_that_already_holds_a_slot_is_refused() {
 #[expected_failure(abort_code = warlot::operator::ENotAnOperator)]
 fun refreshing_a_capability_that_holds_no_slot_is_refused() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, cap_id) = stage(&mut sc, true, true, true, true);
 
     // The key was retired ,  by another admin, or in an earlier transaction of
     // the same batch. A refresh that fell back to enrolling would put it back.
@@ -1405,7 +1682,7 @@ fun refreshing_a_capability_that_holds_no_slot_is_refused() {
 #[expected_failure(abort_code = warlot::permission::EOperatorRoleAlreadyGranted)]
 fun granting_the_operator_role_twice_is_refused() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     // Alice's registration granted it. A second grant would narrow or widen what
     // she already has while reading like a first one.
@@ -1428,7 +1705,7 @@ fun granting_the_operator_role_twice_is_refused() {
 #[expected_failure(abort_code = warlot::permission::EOperatorRoleNotGranted)]
 fun replacing_an_operator_role_that_was_never_granted_is_refused() {
     let mut sc = ts::begin(ADMIN);
-    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (mut sys, wsys, funds, clk, _file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(MALLORY);
     entry_register::all_register_user_publicly(&mut sys, b"mallory".to_string(), &clk, sc.ctx());
@@ -1450,7 +1727,7 @@ fun replacing_an_operator_role_that_was_never_granted_is_refused() {
 fun the_operator_role_narrows_without_being_withdrawn() {
     let mut sc = ts::begin(ADMIN);
     let (mut sys, mut wsys, mut funds, clk, file_id, _cap_id) =
-        stage(&mut sc, true, true, true);
+        stage(&mut sc, true, true, true, true);
 
     // Alice keeps the role but takes away the bit that lets the operator create
     // files for her, while leaving the one that lets it store.
@@ -1500,7 +1777,7 @@ fun the_operator_role_narrows_without_being_withdrawn() {
 #[test]
 fun a_denial_is_made_once_and_moved_after_that() {
     let mut sc = ts::begin(ADMIN);
-    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -1519,7 +1796,7 @@ fun a_denial_is_made_once_and_moved_after_that() {
 #[expected_failure(abort_code = warlot::deny_list::EAlreadyDenied)]
 fun denying_an_already_denied_writer_is_refused() {
     let mut sc = ts::begin(ADMIN);
-    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -1538,7 +1815,7 @@ fun denying_an_already_denied_writer_is_refused() {
 #[expected_failure(abort_code = warlot::deny_list::ENotDenied)]
 fun moving_a_denial_that_was_never_made_is_refused() {
     let mut sc = ts::begin(ADMIN);
-    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
@@ -1556,7 +1833,7 @@ fun moving_a_denial_that_was_never_made_is_refused() {
 #[expected_failure(abort_code = warlot::entry_file_access::ENotDenied)]
 fun moving_a_denial_on_a_file_with_no_deny_list_is_refused() {
     let mut sc = ts::begin(ADMIN);
-    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true);
+    let (sys, wsys, funds, clk, file_id, _cap_id) = stage(&mut sc, true, true, true, true);
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);

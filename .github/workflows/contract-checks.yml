@@ -30,14 +30,14 @@ jobs:
     # warnings at all, so the testnet package reported clean while the same
     # sources under the mainnet package reported thirty.
     #
-    # `--no-lint` is there for the mirror image of that. The publish-oriented
-    # linters run only against a package the CLI does not already know as
-    # published, so with them on, the mainnet package would fail on
-    # `admin_cap::transfer_to` and `inner_file::share` — two deliberate design
-    # choices — while the testnet package would not see them at all. Gating the
-    # two packages differently, for a reason that has nothing to do with the
-    # change under review, is worse than not gating the lints. Run
-    # `sui move build --build-env mainnet` locally to see them.
+    # The lints are gated too, now that the three deliberate shapes they fire on
+    # carry `#[allow(lint(...))]` and say why: `admin_cap::transfer_to`,
+    # `inner_file::share` and `project_object::share`. Before that they could
+    # only be ignored, because the publish-oriented linters run against a package
+    # the CLI does not already know as published — so they reach the mainnet
+    # package and never the testnet one, and gating them would have failed the
+    # two packages differently for a reason unrelated to the change under review.
+    # Answering them in source is what makes one gate cover both.
     runs-on: ubuntu-latest
     env:
       # Matches `toolchain-version` in Testnet Walrus Contract Manager/Published.toml.
@@ -81,11 +81,11 @@ jobs:
       - name: testnet package
         working-directory: Testnet Walrus Contract Manager
         run: |
-          sui move build --build-env testnet --no-lint --warnings-are-errors
-          sui move test  --build-env testnet --no-lint --warnings-are-errors
+          sui move build --build-env testnet --warnings-are-errors
+          sui move test  --build-env testnet --warnings-are-errors
 
       - name: mainnet package
         working-directory: Mainnet Walrus Contract Manager/warlot protocol
         run: |
-          sui move build --build-env mainnet --no-lint --warnings-are-errors
-          sui move test  --build-env mainnet --no-lint --warnings-are-errors
+          sui move build --build-env mainnet --warnings-are-errors
+          sui move test  --build-env mainnet --warnings-are-errors

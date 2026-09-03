@@ -18,12 +18,15 @@ use warlot::{admin_cap::AdminCap, creation, system_config::SystemConfig};
 /// marks a pass non-decaying: a delegate acting on someone else's behalf is
 /// given authority with an end date, never authority without one.
 ///
-/// `operators_allowed` and `operators_may_bypass_draft` are the owner's terms for
-/// system operators on this one file, taken here so a file can be born closed
-/// rather than needing a second transaction to shut it. Open is the ordinary
-/// answer, because admitting operators at all is a decision the account owner
-/// already made when they granted the role; these are the per-file escape hatch
-/// from it.
+/// The three operator bits are the owner's terms for system operators on this one
+/// file, taken here so a file can be born closed rather than needing a second
+/// transaction to shut it. Open is the ordinary answer, because admitting
+/// operators at all is a decision the account owner already made when they
+/// granted the role; these are the per-file escape hatch from it.
+///
+/// A file that admits operators and opens neither route is refused, not
+/// normalised ,  see `inner_file::set_operator_policy` for the four states the
+/// three bits are there to spell.
 public fun create_file(
     system_cfg: &SystemConfig,
     owner: address,
@@ -37,6 +40,7 @@ public fun create_file(
     draft_epoch_duration: u32,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
+    operators_may_draft: bool,
     should_include_pass: bool,
     pass_duration: u64,
     ctx: &mut TxContext,
@@ -56,6 +60,7 @@ public fun create_file(
         draft_epoch_duration,
         operators_allowed,
         operators_may_bypass_draft,
+        operators_may_draft,
         option::none(),
         should_include_pass,
         pass_duration,
@@ -71,6 +76,14 @@ public fun create_file(
 /// operator does not need one: the credential is what authorises the write, and a
 /// pass minted to a rotating key would have to be re-minted per file per key,
 /// which is the cost this whole path exists to remove.
+///
+/// It names no operator policy either. The file is born admitting its creator on
+/// both routes, because `create_inner_file` means "make me a file you will
+/// maintain" and one the operator cannot write to is not what that grant asked
+/// for. Letting the call carry the three bits would make it the one place a file's
+/// terms for operators were chosen by an operator, which is the opposite of what
+/// `InnerFile.operators_allowed` says it is for. The owner narrows it afterwards
+/// with `entry_file_access::set_operator_policy`.
 public fun create_file_as_operator(
     system_cfg: &SystemConfig,
     admin_cap: &AdminCap,
@@ -83,8 +96,6 @@ public fun create_file_as_operator(
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
-    operators_allowed: bool,
-    operators_may_bypass_draft: bool,
     ctx: &mut TxContext,
 ): ID {
     system_cfg.assert_version();
@@ -102,8 +113,9 @@ public fun create_file_as_operator(
         clock,
         commit,
         draft_epoch_duration,
-        operators_allowed,
-        operators_may_bypass_draft,
+        true,
+        true,
+        true,
         option::some(auth),
         false,
         0,

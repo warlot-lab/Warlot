@@ -32,11 +32,18 @@ const ENoAddBlobGrant: vector<u8> =
 /// bypass bit an admin sets on an operator's slot cannot reach past this one: a
 /// write skips the draft queue only if the slot and the file both say so, so
 /// refusing here is final.
+///
+/// The three bits are taken together because they are one statement about one
+/// file, and the fifth spelling ,  admitting operators while opening neither
+/// route ,  is refused rather than stored. This is also the call that undoes what
+/// `create_file_as_operator` opens: a file created by an operator is born writable
+/// by it, and narrowing that is the owner's act.
 public fun set_operator_policy(
     system_cfg: &SystemConfig,
     inner_file: &mut InnerFile,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
+    operators_may_draft: bool,
     ctx: &mut TxContext,
 ) {
     system_cfg.assert_version();
@@ -45,6 +52,7 @@ public fun set_operator_policy(
     inner_file.set_operator_policy(
         operators_allowed,
         operators_may_bypass_draft,
+        operators_may_draft,
         object::id(system_cfg),
         ctx.sender(),
     );

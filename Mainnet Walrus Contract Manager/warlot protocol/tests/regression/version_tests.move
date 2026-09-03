@@ -18,6 +18,7 @@ use warlot::{
     admin_cap::AdminCap,
     blob_config::BlobConfig,
     entry_admin,
+    entry_compaction,
     entry_file_access,
     entry_file_create,
     entry_file_draft,
@@ -407,6 +408,7 @@ fun gate_create_file() {
         1,
         true,
         true,
+        true,
         false,
         0,
         sc.ctx(),
@@ -432,6 +434,7 @@ fun gate_initialize_project_file() {
         &clk,
         fixtures::commit_for(b"blocked"),
         1,
+        true,
         true,
         true,
         false,
@@ -659,6 +662,377 @@ fun gate_self_withdraw_blobs() {
     ts::return_shared(file);
     ts::return_shared(sys);
     sc.end();
+}
+
+// === The operator set, administered by the capability ===
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_enrol_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    let slot = object::id(&cap);
+    entry_admin::enrol_operator(&mut sys, &cap, slot, PASS_EXPIRY_MS, true, &clk, sc.ctx());
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_refresh_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    let slot = object::id(&cap);
+    entry_admin::refresh_operator(&mut sys, &cap, slot, PASS_EXPIRY_MS, true, &clk, sc.ctx());
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_retire_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    let slot = object::id(&cap);
+    entry_admin::retire_operator(&mut sys, &cap, slot, sc.ctx());
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+// === Delegation, by address and by role ===
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_replace_grant() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    entry_permission::replace_grant(
+        &mut sys,
+        ALICE,
+        BOB,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        sc.ctx(),
+    );
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_grant_operator_role() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    entry_permission::grant_operator_role(&mut sys, ALICE, true, true, true, true, true, sc.ctx());
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_replace_operator_role() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    entry_permission::replace_operator_role(
+        &mut sys,
+        ALICE,
+        true,
+        true,
+        true,
+        true,
+        true,
+        sc.ctx(),
+    );
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_revoke_operator_role() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    entry_permission::revoke_operator_role(&mut sys, ALICE, sc.ctx());
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+// === Compaction ===
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_plan_compaction() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, mut config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+
+    // The plan is a hot potato, so the call below is what consumes it rather
+    // than a second thing under test. The abort has already happened by then.
+    let plan = entry_compaction::plan_compaction(&sys, &config);
+    entry_compaction::register_layout(
+        &sys,
+        &mut config,
+        plan,
+        0,
+        1,
+        vector[],
+        vector[],
+        &clk,
+        sc.ctx(),
+    );
+
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_register_layout() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, file, pass, mut config, holder, wsys, funds, clk) = file_world(&mut sc, false);
+
+    // A plan cannot be built through a closed gate, so it is built while the
+    // system is current and the version moves under it.
+    let plan = entry_compaction::plan_compaction(&sys, &config);
+    system_config::set_version_for_testing(&mut sys, STALE_VERSION);
+
+    entry_compaction::register_layout(
+        &sys,
+        &mut config,
+        plan,
+        0,
+        1,
+        vector[],
+        vector[],
+        &clk,
+        sc.ctx(),
+    );
+
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_register_layout_as_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, file, pass, mut config, holder, wsys, funds, clk) = file_world(&mut sc, false);
+    let cap = sc.take_from_sender<AdminCap>();
+
+    let plan = entry_compaction::plan_compaction(&sys, &config);
+    system_config::set_version_for_testing(&mut sys, STALE_VERSION);
+
+    entry_compaction::register_layout_as_operator(
+        &sys,
+        &cap,
+        &mut config,
+        plan,
+        0,
+        1,
+        vector[],
+        vector[],
+        &clk,
+        sc.ctx(),
+    );
+
+    destroy(cap);
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+// === The file surface ===
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_set_operator_policy() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_file_access::set_operator_policy(&sys, &mut file, true, true, true, sc.ctx());
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_redeny_writer() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_file_access::redeny_writer(&sys, &mut file, BOB, 0, &clk, sc.ctx());
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_create_file_as_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let cap = sc.take_from_sender<AdminCap>();
+
+    let _ = entry_file_create::create_file_as_operator(
+        &sys,
+        &cap,
+        ALICE,
+        fixtures::file_writers(),
+        fixtures::file_track_back(),
+        vector[],
+        fixtures::file_epoch_set(),
+        CYCLES,
+        &clk,
+        fixtures::commit_for(b"blocked"),
+        1,
+        sc.ctx(),
+    );
+
+    destroy(cap);
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_write_as_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let cap = sc.take_from_sender<AdminCap>();
+
+    entry_file_write::write_as_operator(
+        &mut file,
+        &cap,
+        false,
+        option::none(),
+        &clk,
+        &sys,
+        vector[],
+        fixtures::commit_for(b"blocked"),
+        vector[],
+        sc.ctx(),
+    );
+
+    destroy(cap);
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+// === The project surface ===
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_open_project_holder() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    entry_file_project::open_project_holder(&mut sys, sc.ctx());
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_open_project_holder_as_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (mut sys, cap, funds, clk) = stale_admin(&mut sc);
+    entry_file_project::open_project_holder_as_operator(&mut sys, &cap, ALICE, &clk, sc.ctx());
+    finish_admin(sys, cap, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_create_project() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, config, mut holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let _ = entry_file_project::create_project(&mut holder, &sys, sc.ctx());
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_create_project_as_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, config, mut holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let cap = sc.take_from_sender<AdminCap>();
+
+    let _ = entry_file_project::create_project_as_operator(
+        &mut holder,
+        &sys,
+        &cap,
+        &clk,
+        sc.ctx(),
+    );
+
+    destroy(cap);
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_set_file_set_root() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, config, mut holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_file_project::set_file_set_root(
+        &mut holder,
+        object::id_from_address(@0x0),
+        vector[],
+        &sys,
+        sc.ctx(),
+    );
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_set_file_set_root_as_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, config, mut holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let cap = sc.take_from_sender<AdminCap>();
+
+    entry_file_project::set_file_set_root_as_operator(
+        &mut holder,
+        object::id_from_address(@0x0),
+        vector[],
+        &sys,
+        &cap,
+        &clk,
+        sc.ctx(),
+    );
+
+    destroy(cap);
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_initialize_project_file_as_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, file, pass, config, mut holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let cap = sc.take_from_sender<AdminCap>();
+
+    entry_file_project::initialize_project_file_as_operator(
+        &mut holder,
+        object::id_from_address(@0x0),
+        &sys,
+        &cap,
+        ALICE,
+        fixtures::file_writers(),
+        fixtures::file_track_back(),
+        vector[],
+        fixtures::file_epoch_set(),
+        CYCLES,
+        &clk,
+        fixtures::commit_for(b"blocked"),
+        1,
+        sc.ctx(),
+    );
+
+    destroy(cap);
+    finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
+}
+
+// === Adoption ===
+
+#[test]
+#[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
+fun gate_foreign_blob_add_as_operator() {
+    let mut sc = ts::begin(ALICE);
+    let (sys, cap, funds, clk) = stale_admin(&mut sc);
+    entry_upload::foreign_blob_add_as_operator(
+        &sys,
+        &cap,
+        ALICE,
+        CYCLES,
+        START_EPOCHS,
+        vector[],
+        &clk,
+        sc.ctx(),
+    );
+    finish_admin(sys, cap, funds, clk, sc);
 }
 
 // === Controls ===

@@ -278,6 +278,7 @@ fun init_db(
         DRAFT_EPOCHS,
         true,
         true,
+        true,
         false,
         0,
         sc.ctx(),

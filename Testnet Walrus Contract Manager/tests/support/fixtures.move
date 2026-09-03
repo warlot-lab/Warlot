@@ -176,6 +176,7 @@ public fun inner_file(
         FILE_DRAFT_EPOCHS,
         true,
         true,
+        true,
         false,
         0,
         ctx,

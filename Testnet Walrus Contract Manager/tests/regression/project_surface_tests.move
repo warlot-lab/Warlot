@@ -30,6 +30,7 @@ use warlot::{
     entry_register,
     file_set,
     fixtures,
+    inner_file::InnerFile,
     project_object::{Self, ProjectHolder},
     system_config::{Self, SystemConfig},
     user,
@@ -236,6 +237,137 @@ fun an_operator_without_can_set_root_is_refused_the_root() {
     finish(sys, holder, wsys, funds, clk, sc);
 }
 
+// === The backend bootstraps an account that never signs again ===
+
+#[test]
+fun an_operator_runs_the_project_surface_with_no_user_signature() {
+    let mut sc = ts::begin(ADMIN);
+    let (mut sys, mut wsys, mut funds, clk) = stage_registered(&mut sc);
+
+    // Every transaction from here is the backend's. Alice signed her
+    // registration and nothing after it ,  which is the property the operator
+    // form of `open_project_holder` exists to buy, and the one the owner-only
+    // form could not.
+    sc.next_tx(BACKEND);
+    let cap = sc.take_from_sender<AdminCap>();
+    entry_file_project::open_project_holder_as_operator(&mut sys, &cap, ALICE, &clk, sc.ctx());
+
+    sc.next_tx(BACKEND);
+    let mut holder = sc.take_shared<ProjectHolder>();
+
+    // The credential decided that a holder exists. It did not decide whose.
+    assert!(project_object::project_admin(&holder) == ALICE, 0);
+    assert!(user::project_holder_id(user::get_user(&sys, ALICE)) == object::id(&holder), 1);
+    assert!(!user::has_project_holder(user::get_user(&sys, BACKEND)), 2);
+
+    let project_id = entry_file_project::create_project_as_operator(
+        &mut holder,
+        &sys,
+        &cap,
+        &clk,
+        sc.ctx(),
+    );
+
+    sc.next_tx(BACKEND);
+    let raw_blob = fixtures::certified_blob(
+        &mut wsys,
+        fixtures::blob_size(),
+        fixtures::blob_epochs_ahead(),
+        &mut funds,
+        sc.ctx(),
+    );
+    entry_file_project::initialize_project_file_as_operator(
+        &mut holder,
+        project_id,
+        &sys,
+        &cap,
+        ALICE,
+        fixtures::file_writers(),
+        fixtures::file_track_back(),
+        vector[raw_blob],
+        fixtures::file_epoch_set(),
+        CYCLES,
+        &clk,
+        fixtures::commit_for(b"the database"),
+        DRAFT_EPOCHS,
+        sc.ctx(),
+    );
+
+    sc.next_tx(BACKEND);
+    entry_file_project::set_file_set_root_as_operator(
+        &mut holder,
+        project_id,
+        A_ROOT,
+        &sys,
+        &cap,
+        &clk,
+        sc.ctx(),
+    );
+
+    // A project, its database and its commitment, all under Alice's account.
+    assert!(project_object::has_project(&holder, project_id), 3);
+    assert!(project_object::db_inner_file(&holder, project_id).is_some(), 4);
+    assert!(project_object::file_set_root(&holder, project_id) == A_ROOT, 5);
+
+    // The database the operator was told to build is one it can maintain.
+    let db_id = project_object::db_inner_file(&holder, project_id).destroy_some();
+    let db = ts::take_shared_by_id<InnerFile>(&sc, db_id);
+    assert!(db.owner() == ALICE, 6);
+    assert!(db.operators_allowed(), 7);
+    assert!(db.operators_may_bypass_draft(), 8);
+    assert!(db.operators_may_draft(), 9);
+
+    ts::return_shared(db);
+    sc.return_to_sender(cap);
+    finish(sys, holder, wsys, funds, clk, sc);
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::permission::INVALIDACCESS)]
+fun an_operator_without_can_init_db_opens_no_holder() {
+    let mut sc = ts::begin(ADMIN);
+    let (mut sys, wsys, funds, clk) = stage_registered(&mut sc);
+
+    sc.next_tx(ALICE);
+    entry_permission::replace_operator_role(
+        &mut sys,
+        ALICE,
+        true,
+        true,
+        false,
+        true,
+        true,
+        sc.ctx(),
+    );
+
+    sc.next_tx(BACKEND);
+    let cap = sc.take_from_sender<AdminCap>();
+    entry_file_project::open_project_holder_as_operator(&mut sys, &cap, ALICE, &clk, sc.ctx());
+
+    sc.return_to_sender(cap);
+    destroy(wsys);
+    destroy(funds);
+    clock::destroy_for_testing(clk);
+    ts::return_shared(sys);
+    sc.end();
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::user::EProjectHolderExists)]
+fun an_operator_is_refused_a_second_holder() {
+    let mut sc = ts::begin(ADMIN);
+    let (mut sys, holder, wsys, funds, clk) = stage(&mut sc);
+
+    // Alice opened hers. The marker refuses the credential exactly as it refuses
+    // her, because uniqueness is a property of the account and not of who asked.
+    sc.next_tx(BACKEND);
+    let cap = sc.take_from_sender<AdminCap>();
+    entry_file_project::open_project_holder_as_operator(&mut sys, &cap, ALICE, &clk, sc.ctx());
+
+    sc.return_to_sender(cap);
+    finish(sys, holder, wsys, funds, clk, sc);
+}
+
 // === Private functions ===
 
 /// A system holding one live operator slot, a registered Alice who granted the
@@ -243,6 +375,25 @@ fun an_operator_without_can_set_root_is_refused_the_root() {
 fun stage(
     sc: &mut ts::Scenario,
 ): (SystemConfig, ProjectHolder, System, Coin<WAL>, Clock) {
+    let (mut sys, wsys, funds, clk) = stage_registered(sc);
+
+    sc.next_tx(ALICE);
+    entry_file_project::open_project_holder(&mut sys, sc.ctx());
+
+    sc.next_tx(ALICE);
+    let holder = sc.take_shared<ProjectHolder>();
+
+    (sys, holder, wsys, funds, clk)
+}
+
+/// The same world, stopped before any holder exists.
+///
+/// Alice is registered and has granted the operator role; she has signed nothing
+/// else. What a test does from here decides whether opening the holder needs her
+/// signature.
+fun stage_registered(
+    sc: &mut ts::Scenario,
+): (SystemConfig, System, Coin<WAL>, Clock) {
     system_config::init_for_testing(sc.ctx());
 
     sc.next_tx(ADMIN);
@@ -288,13 +439,7 @@ fun stage(
         sc.ctx(),
     );
 
-    sc.next_tx(ALICE);
-    entry_file_project::open_project_holder(&mut sys, sc.ctx());
-
-    sc.next_tx(ALICE);
-    let holder = sc.take_shared<ProjectHolder>();
-
-    (sys, holder, wsys, funds, clk)
+    (sys, wsys, funds, clk)
 }
 
 /// Create a file through the real entry point and name it as the project's database.
@@ -328,6 +473,7 @@ fun init_db(
         clk,
         fixtures::commit_for(b"the database"),
         DRAFT_EPOCHS,
+        true,
         true,
         true,
         false,

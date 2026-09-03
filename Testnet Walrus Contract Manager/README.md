@@ -29,12 +29,20 @@ sources/
 
 ```
 entry     ──► events, system, identity, storage, innerfile, product
-innerfile ──► storage
-storage   ──► identity
+innerfile ──► storage, identity, system
+product   ──► storage
+storage   ──► identity, system
 identity  ──► system
 system    ──► version
 events    ──► (sui::event only)
 ```
+
+Every domain may also import `events`, which invariant 3 below is what permits, so those edges are
+left off the ladder rather than drawn six times.
+
+`innerfile` and `product` are peers rather than a stack: both sit directly above `storage` and
+neither imports the other. `product` reaches `storage` for `file_set`, the Merkle commitment a
+project's file set resolves against.
 
 Three invariants, checkable by reading the `use` lines of any module:
 

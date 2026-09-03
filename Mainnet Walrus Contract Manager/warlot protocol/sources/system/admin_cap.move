@@ -75,6 +75,11 @@ public(package) fun new(
 /// The announcement is made here rather than at the mint, because a capability
 /// nobody holds is not authority over anything: the holder is part of what has
 /// to be announced, and this is the one place it is known.
+///
+/// The lint reads a private `transfer` as a custody policy `public_transfer`
+/// could walk around; routing every hand-over through here is the point, and it
+/// is what lets the mint be announced with its holder.
+#[allow(lint(custom_state_change))]
 public(package) fun transfer_to(admin_cap: AdminCap, receiver: address, ctx: &TxContext) {
     system_events::emit_admin_cap_minted(
         admin_cap.system_config_id,

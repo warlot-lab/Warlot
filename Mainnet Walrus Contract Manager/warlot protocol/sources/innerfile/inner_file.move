@@ -33,6 +33,9 @@ const EPassRevoked: vector<u8> = b"this pass has been revoked by the file owner"
 const EOperatorsRefused: vector<u8> = b"THIS FILE'S OWNER DOES NOT ADMIT SYSTEM OPERATORS";
 #[error]
 const ENoDraftQueue: vector<u8> = b"THIS FILE HAS NEVER HELD A DRAFT";
+#[error]
+const EPolicyOpensNoRoute: vector<u8> =
+    b"A FILE THAT ADMITS OPERATORS MUST LEAVE THEM A DIRECT WRITE, A DRAFT, OR BOTH";
 
 // === Constants ===
 
@@ -71,6 +74,20 @@ public struct InnerFile has key, store {
     /// to skip the queue. The owner wins: an admin granting bypass on the slot
     /// cannot override a file whose owner refused it here.
     operators_may_bypass_draft: bool,
+    /// Whether a system operator's writes may be proposed into this file's draft
+    /// queue.
+    ///
+    /// The bit that makes the other two honest. With only `allowed` and
+    /// `operators_may_bypass_draft` there was no way to say "write directly or
+    /// not at all": clearing the bypass moved the operator's output into the
+    /// queue rather than refusing it, so an owner who wanted no operator content
+    /// here got a queue full of it, custodied by whichever wallet the credential
+    /// was leased to that day.
+    ///
+    /// The three together spell four states ,  refused, direct only, queue only,
+    /// or either ,  and `new` and `set_operator_policy` refuse the fifth spelling
+    /// where a file admits operators and opens neither route.
+    operators_may_draft: bool,
     /// How many epochs a draft on this file lives for.
     ///
     /// Held here rather than only on the queue, because the queue is built on the
@@ -222,6 +239,12 @@ public fun operators_may_bypass_draft(inner_file: &InnerFile): bool {
     inner_file.operators_may_bypass_draft
 }
 
+/// Whether a system operator's writes may be proposed into this file's draft
+/// queue.
+public fun operators_may_draft(inner_file: &InnerFile): bool {
+    inner_file.operators_may_draft
+}
+
 /// How many epochs a draft on this file lives for.
 public fun draft_epoch_duration(inner_file: &InnerFile): u32 { inner_file.draft_epoch_duration }
 
@@ -257,6 +280,7 @@ public(package) fun new(
     cycle_end: u64,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
+    operators_may_draft: bool,
     draft_epoch_duration: u32,
     first_revision: FileData,
     clock: &Clock,
@@ -267,12 +291,19 @@ public(package) fun new(
         INVALIDTRACKBACKLENGTH,
     );
 
+    assert_policy_opens_a_route(
+        operators_allowed,
+        operators_may_bypass_draft,
+        operators_may_draft,
+    );
+
     InnerFile {
         id: object::new(ctx),
         owner,
         writers_length,
         operators_allowed,
         operators_may_bypass_draft,
+        operators_may_draft,
         draft_epoch_duration,
         file_history: FileTrack {
             root_change: option::none(),
@@ -295,6 +326,11 @@ public(package) fun new(
 /// never deny anybody and never take a draft. They are attached by the first call
 /// that puts something in them, which is a change to when they are created and to
 /// nothing else about them.
+///
+/// Shared because the protocol reaches files that way: a file has an owner,
+/// writer pass holders and operators, and only a shared object appears in all
+/// three's transactions. `InnerFile.owner` is the authority, not Sui ownership.
+#[allow(lint(share_owned))]
 public(package) fun share(inner_file: InnerFile, system_id: ID) {
     // Announced at the share rather than at construction, because a file that is
     // never shared is a file nobody can reach.
@@ -312,6 +348,7 @@ public(package) fun share(inner_file: InnerFile, system_id: ID) {
         inner_file.draft_epoch_duration,
         inner_file.operators_allowed,
         inner_file.operators_may_bypass_draft,
+        inner_file.operators_may_draft,
         inner_file.created_at_ms,
         first_revision.commit(),
         first_revision.blob_config_id(),
@@ -320,7 +357,7 @@ public(package) fun share(inner_file: InnerFile, system_id: ID) {
     transfer::public_share_object(inner_file);
 }
 
-/// Replace both operator bits, and announce them.
+/// Replace all three operator bits, and announce them.
 ///
 /// Wholesale rather than one at a time, the same way an address delegation is
 /// set, so one call always leaves the file holding exactly what the owner named.
@@ -330,17 +367,26 @@ public(package) fun set_operator_policy(
     inner_file: &mut InnerFile,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
+    operators_may_draft: bool,
     system_id: ID,
     set_by: address,
 ) {
+    assert_policy_opens_a_route(
+        operators_allowed,
+        operators_may_bypass_draft,
+        operators_may_draft,
+    );
+
     inner_file.operators_allowed = operators_allowed;
     inner_file.operators_may_bypass_draft = operators_may_bypass_draft;
+    inner_file.operators_may_draft = operators_may_draft;
 
     innerfile_events::emit_file_operator_policy_set(
         system_id,
         object::id(inner_file),
         operators_allowed,
         operators_may_bypass_draft,
+        operators_may_draft,
         set_by,
     );
 }
@@ -483,6 +529,23 @@ public(package) fun new_owner_pass(file_id: ID, ctx: &mut TxContext): WriterPass
 }
 
 // === Private functions ===
+
+/// Abort if the policy admits operators without leaving them anywhere to write.
+///
+/// `allowed` with neither route open is the same state as `allowed: false`, and
+/// two spellings of one state is how a reader concludes the wrong one. Refused
+/// rather than normalised, because silently rewriting an owner's terms would
+/// announce a policy they did not set.
+fun assert_policy_opens_a_route(
+    operators_allowed: bool,
+    operators_may_bypass_draft: bool,
+    operators_may_draft: bool,
+) {
+    assert!(
+        !operators_allowed || operators_may_bypass_draft || operators_may_draft,
+        EPolicyOpensNoRoute,
+    );
+}
 
 /// Abort if the file's owner has refused `writer`, or has revoked `credential_id`.
 ///

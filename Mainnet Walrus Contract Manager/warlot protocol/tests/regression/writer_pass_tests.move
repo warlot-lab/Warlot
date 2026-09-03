@@ -316,6 +316,7 @@ fun delegated_pass_has_duration() {
         true,
         true,
         true,
+        true,
         PASS_EXPIRY_MS,
         sc.ctx(),
     );
@@ -369,6 +370,7 @@ fun a_delegated_pass_cannot_be_immortal() {
         &clk,
         fixtures::commit_for(b"first"),
         1,
+        true,
         true,
         true,
         true,
