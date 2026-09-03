@@ -22,7 +22,7 @@ use warlot::{
     entry_register,
     file_data,
     fixtures,
-    inner_file::{Self, InnerFile},
+    inner_file::InnerFile,
     system_config::{Self, SystemConfig},
     writer_pass::WriterPass,
 };
@@ -65,7 +65,7 @@ fun root_change_can_be_set() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    let mut owner_pass = sc.take_from_sender<WriterPass>();
+    let owner_pass = sc.take_from_sender<WriterPass>();
     let head = file_data::blob_config_id(vector::borrow(file.track_back(), 0));
     let head_config = ts::take_shared_by_id<BlobConfig>(&sc, head);
 
@@ -74,7 +74,7 @@ fun root_change_can_be_set() {
     entry_file_fallback::set_root_change(
         &sys,
         &mut file,
-        &mut owner_pass,
+        &owner_pass,
         fixtures::commit_for(b"first"),
         &head_config,
         &clk,
@@ -88,7 +88,7 @@ fun root_change_can_be_set() {
     entry_file_fallback::set_root_change(
         &sys,
         &mut file,
-        &mut owner_pass,
+        &owner_pass,
         fixtures::commit_for(b"second"),
         &head_config,
         &clk,
@@ -133,7 +133,7 @@ fun recovery_sequence() {
     // The state Alice will come back to.
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    let mut owner_pass = sc.take_from_sender<WriterPass>();
+    let owner_pass = sc.take_from_sender<WriterPass>();
     let known_good = file_data::blob_config_id(vector::borrow(file.track_back(), 0));
 
     // Alice delegates to Bob: the account bit that lets him store under her
@@ -143,7 +143,7 @@ fun recovery_sequence() {
 
     // Bob is compromised and writes straight into the history.
     sc.next_tx(BOB);
-    let mut bob_pass = sc.take_from_sender<WriterPass>();
+    let bob_pass = sc.take_from_sender<WriterPass>();
     let bob_pass_id = object::id(&bob_pass);
     let raw_blob = fixtures::certified_blob(
         &mut wsys,
@@ -154,7 +154,7 @@ fun recovery_sequence() {
     );
     entry_file_write::write_(
         &mut file,
-        &mut bob_pass,
+        &bob_pass,
         false,
         option::none(),
         &clk,
@@ -180,7 +180,7 @@ fun recovery_sequence() {
     entry_file_fallback::set_root_change(
         &sys,
         &mut file,
-        &mut owner_pass,
+        &owner_pass,
         fixtures::commit_for(b"first"),
         &known_good_config,
         &clk,
@@ -227,7 +227,7 @@ fun no_leak() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    let mut owner_pass = sc.take_from_sender<WriterPass>();
+    let owner_pass = sc.take_from_sender<WriterPass>();
 
     let depth = fixtures::file_track_back() as u64;
     let writes = depth + WRITES_PAST_THE_WINDOW;
@@ -260,7 +260,7 @@ fun no_leak() {
 
         entry_file_write::force_write_innerfile(
             &mut file,
-            &mut owner_pass,
+            &owner_pass,
             &clk,
             &sys,
             vector[raw_blob],
@@ -322,7 +322,7 @@ fun merge_reparents() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    let mut owner_pass = sc.take_from_sender<WriterPass>();
+    let owner_pass = sc.take_from_sender<WriterPass>();
     // Bob only ever drafts here, and a draft's content is stored under Bob, so
     // he does not need to be able to store under Alice to do it. `create_pass`
     // asks for the grant anyway: it refuses any pass minted to an address that
@@ -332,7 +332,7 @@ fun merge_reparents() {
     entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
-    let mut bob_pass = sc.take_from_sender<WriterPass>();
+    let bob_pass = sc.take_from_sender<WriterPass>();
     let raw_blob = fixtures::certified_blob(
         &mut wsys,
         fixtures::blob_size(),
@@ -342,7 +342,7 @@ fun merge_reparents() {
     );
     entry_file_write::write_(
         &mut file,
-        &mut bob_pass,
+        &bob_pass,
         true,
         option::none(),
         &clk,
@@ -362,7 +362,7 @@ fun merge_reparents() {
     entry_file_draft::merge_draft_into_file(
         &sys,
         &mut file,
-        &mut owner_pass,
+        &owner_pass,
         &mut draft_config,
         0,
         true,

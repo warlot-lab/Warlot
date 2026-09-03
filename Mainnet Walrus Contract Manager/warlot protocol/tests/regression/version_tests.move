@@ -471,10 +471,10 @@ fun gate_revoke_pass() {
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_force_write_innerfile() {
     let mut sc = ts::begin(ALICE);
-    let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
     entry_file_write::force_write_innerfile(
         &mut file,
-        &mut pass,
+        &pass,
         &clk,
         &sys,
         vector[],
@@ -489,10 +489,10 @@ fun gate_force_write_innerfile() {
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_write_() {
     let mut sc = ts::begin(ALICE);
-    let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
     entry_file_write::write_(
         &mut file,
-        &mut pass,
+        &pass,
         true,
         option::none(),
         &clk,
@@ -509,11 +509,11 @@ fun gate_write_() {
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_set_root_change() {
     let mut sc = ts::begin(ALICE);
-    let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
     entry_file_fallback::set_root_change(
         &sys,
         &mut file,
-        &mut pass,
+        &pass,
         fixtures::commit_for(b"blocked"),
         &config,
         &clk,
@@ -526,8 +526,8 @@ fun gate_set_root_change() {
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_remove_root_change() {
     let mut sc = ts::begin(ALICE);
-    let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_file_fallback::remove_root_change(&sys, &mut file, &mut pass, &clk, sc.ctx());
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_file_fallback::remove_root_change(&sys, &mut file, &pass, &clk, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -535,12 +535,12 @@ fun gate_remove_root_change() {
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_merge_draft_into_file() {
     let mut sc = ts::begin(ALICE);
-    let (sys, mut file, mut pass, mut config, holder, wsys, funds, clk) =
+    let (sys, mut file, pass, mut config, holder, wsys, funds, clk) =
         file_world(&mut sc, true);
     entry_file_draft::merge_draft_into_file(
         &sys,
         &mut file,
-        &mut pass,
+        &pass,
         &mut config,
         0,
         true,
@@ -555,8 +555,8 @@ fun gate_merge_draft_into_file() {
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_delete_draft() {
     let mut sc = ts::begin(ALICE);
-    let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_file_draft::delete_draft(&sys, &mut file, &mut pass, 0, &clk, sc.ctx());
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_file_draft::delete_draft(&sys, &mut file, &pass, 0, &clk, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -564,8 +564,8 @@ fun gate_delete_draft() {
 #[expected_failure(abort_code = warlot::version::EWrongPackageVersion)]
 fun gate_clear_drafts() {
     let mut sc = ts::begin(ALICE);
-    let (sys, mut file, mut pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_file_draft::clear_drafts(&sys, &mut file, &mut pass, 0, 1, &clk, sc.ctx());
+    let (sys, mut file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
+    entry_file_draft::clear_drafts(&sys, &mut file, &pass, 0, 1, &clk, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 

@@ -50,7 +50,7 @@ public struct DenyList has key, store {
 
 /// Whether `writer` has a denial recorded.
 public(package) fun contains(deny_obj: &DenyList, writer: address): bool {
-    dfield::exists_(&deny_obj.id, writer)
+    dfield::exists(&deny_obj.id, writer)
 }
 
 /// The timestamp in ms until which `writer` is denied; zero means indefinitely.
@@ -60,7 +60,7 @@ public(package) fun period(deny_obj: &DenyList, writer: address): u64 {
 
 /// Whether the pass `pass_id` has been revoked.
 public(package) fun is_pass_revoked(deny_obj: &DenyList, pass_id: ID): bool {
-    dfield::exists_<ID>(&deny_obj.id, pass_id)
+    dfield::exists<ID>(&deny_obj.id, pass_id)
 }
 
 // === Package functions ===
@@ -70,7 +70,7 @@ public(package) fun is_pass_revoked(deny_obj: &DenyList, pass_id: ID): bool {
 /// A file that has never denied anybody and never revoked a pass holds none, so
 /// every read has to ask this first.
 public(package) fun attached(file_uid: &UID): bool {
-    ofields::exists_<vector<u8>>(file_uid, DENYLISTKEY)
+    ofields::exists<vector<u8>>(file_uid, DENYLISTKEY)
 }
 
 /// The deny list attached to `file_uid`.
@@ -90,7 +90,7 @@ public(package) fun borrow_mut(file_uid: &mut UID): &mut DenyList {
 /// that was never made does not, so a file cannot be given a deny list by
 /// somebody asking it to forget one.
 public(package) fun borrow_mut_or_attach(file_uid: &mut UID, ctx: &mut TxContext): &mut DenyList {
-    if (!ofields::exists_<vector<u8>>(file_uid, DENYLISTKEY)) {
+    if (!ofields::exists<vector<u8>>(file_uid, DENYLISTKEY)) {
         ofields::add<vector<u8>, DenyList>(file_uid, DENYLISTKEY, DenyList { id: object::new(ctx) });
     };
 
@@ -115,7 +115,7 @@ public(package) fun deny(
     denied_by: address,
 ) {
     assert!(period == 0 || period > now_ms, INVALIDTIME);
-    assert!(!dfield::exists_(&deny_obj.id, writer), EAlreadyDenied);
+    assert!(!dfield::exists(&deny_obj.id, writer), EAlreadyDenied);
 
     dfield::add<address, u64>(&mut deny_obj.id, writer, period);
 
@@ -137,7 +137,7 @@ public(package) fun redeny(
     denied_by: address,
 ) {
     assert!(period == 0 || period > now_ms, INVALIDTIME);
-    assert!(dfield::exists_(&deny_obj.id, writer), ENotDenied);
+    assert!(dfield::exists(&deny_obj.id, writer), ENotDenied);
 
     *dfield::borrow_mut<address, u64>(&mut deny_obj.id, writer) = period;
 
@@ -155,7 +155,7 @@ public(package) fun undeny(
     file_id: ID,
     undenied_by: address,
 ) {
-    if (!dfield::exists_(&deny_obj.id, writer)) {
+    if (!dfield::exists(&deny_obj.id, writer)) {
         return
     };
 
@@ -178,7 +178,7 @@ public(package) fun revoke_pass(
     file_id: ID,
     revoked_by: address,
 ) {
-    if (dfield::exists_<ID>(&deny_obj.id, pass_id)) {
+    if (dfield::exists<ID>(&deny_obj.id, pass_id)) {
         return
     };
 

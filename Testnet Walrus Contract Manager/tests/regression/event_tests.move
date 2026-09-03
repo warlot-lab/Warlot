@@ -9,7 +9,7 @@ module warlot::event_tests;
 // === Imports ===
 
 use std::unit_test::destroy;
-use sui::{clock, coin, event, test_scenario as ts};
+use sui::{clock, event, test_scenario as ts};
 use wal::wal::WAL;
 use warlot::{
     admin_cap::AdminCap,
@@ -365,7 +365,8 @@ fun stored_by_differs() {
     assert!(blob_sizes == vector[BLOB_SIZE], 7);
     assert!(size == BLOB_SIZE, 8);
     assert!(epoch_set == SET, 9);
-    assert!(cycle_limit.borrow() == CYCLES, 10);
+    let cycles = CYCLES;
+    assert!(cycle_limit.borrow() == cycles, 10);
 
     // The config records no timestamp of its own now, so the store's is only in
     // the stream.

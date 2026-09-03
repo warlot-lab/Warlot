@@ -3,7 +3,7 @@ module warlot::entry_admin;
 
 // === Imports ===
 
-use sui::{clock::Clock, coin::Coin};
+use sui::clock::Clock;
 use wal::wal::WAL;
 use warlot::{admin_cap::{Self, AdminCap}, system_config::{Self, SystemConfig}, vault};
 

@@ -11,7 +11,7 @@ use warlot::{
     draft::{Self, Draft, FileDraftHolder},
     file_data::FileData,
     innerfile_events,
-    operator::{Self, OperatorAuth},
+    operator::OperatorAuth,
     writer_pass::{Self, WriterPass},
 };
 
@@ -227,7 +227,7 @@ public fun draft_epoch_duration(inner_file: &InnerFile): u32 { inner_file.draft_
 
 /// Whether this file holds a draft queue yet.
 public fun has_draft_queue(inner_file: &InnerFile): bool {
-    ofields::exists_<vector<u8>>(&inner_file.id, FILEDRAFTKEY)
+    ofields::exists<vector<u8>>(&inner_file.id, FILEDRAFTKEY)
 }
 
 /// Whether this file holds a deny list yet.
@@ -281,7 +281,7 @@ public(package) fun new(
                 epoch_set,
                 cycle_end,
             },
-            track_back: vector::singleton(first_revision),
+            track_back: vector[first_revision],
             last_modified: clock.timestamp_ms(),
         },
         created_at_ms: clock.timestamp_ms(),
@@ -361,7 +361,7 @@ public(package) fun uid_mut(inner_file: &mut InnerFile): &mut UID {
 /// queue has no draft to resolve, so refusing by name here says the same thing
 /// the index lookup used to say and says it one step earlier.
 public(package) fun get_draft_holder(inner_file: &mut InnerFile): &mut FileDraftHolder {
-    assert!(ofields::exists_<vector<u8>>(&inner_file.id, FILEDRAFTKEY), ENoDraftQueue);
+    assert!(ofields::exists<vector<u8>>(&inner_file.id, FILEDRAFTKEY), ENoDraftQueue);
 
     ofields::borrow_mut<vector<u8>, FileDraftHolder>(&mut inner_file.id, FILEDRAFTKEY)
 }
@@ -414,7 +414,7 @@ public(package) fun pin_draft(
     let file_id = object::id(inner_file);
     let draft_epoch_duration = inner_file.draft_epoch_duration;
 
-    if (!ofields::exists_<vector<u8>>(&inner_file.id, FILEDRAFTKEY)) {
+    if (!ofields::exists<vector<u8>>(&inner_file.id, FILEDRAFTKEY)) {
         ofields::add<vector<u8>, FileDraftHolder>(
             &mut inner_file.id,
             FILEDRAFTKEY,

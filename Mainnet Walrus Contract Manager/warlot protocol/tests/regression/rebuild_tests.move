@@ -19,7 +19,7 @@ module warlot::rebuild_tests;
 // === Imports ===
 
 use std::unit_test::destroy;
-use sui::{clock, coin, test_scenario as ts};
+use sui::{clock, test_scenario as ts};
 use wal::wal::WAL;
 use walrus::blob::Blob;
 use warlot::{
@@ -229,11 +229,11 @@ fun rebuild_matches_chain() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    let mut owner_pass = sc.take_from_sender<WriterPass>();
+    let owner_pass = sc.take_from_sender<WriterPass>();
     let owner_pass_id = object::id(&owner_pass);
 
     let depth = FILE_TRACK_BACK as u64;
-    let mut written = 0;
+    let mut written = 0u64;
     while (written < 3) {
         sc.next_tx(ALICE);
 
@@ -250,7 +250,7 @@ fun rebuild_matches_chain() {
         let revision = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut funds, sc.ctx());
         entry_file_write::force_write_innerfile(
             &mut file,
-            &mut owner_pass,
+            &owner_pass,
             &clk,
             &sys,
             vector[revision],
@@ -270,7 +270,7 @@ fun rebuild_matches_chain() {
     entry_file_fallback::set_root_change(
         &sys,
         &mut file,
-        &mut owner_pass,
+        &owner_pass,
         fixtures::commit_for(b"known good"),
         &head_config,
         &clk,
@@ -280,7 +280,7 @@ fun rebuild_matches_chain() {
     tick(&mut clk);
 
     sc.next_tx(ALICE);
-    entry_file_fallback::remove_root_change(&sys, &mut file, &mut owner_pass, &clk, sc.ctx());
+    entry_file_fallback::remove_root_change(&sys, &mut file, &owner_pass, &clk, sc.ctx());
     ledger.absorb();
 
     // --- a pass, a draft, and the merge that accepts it --------------------
@@ -290,12 +290,12 @@ fun rebuild_matches_chain() {
     tick(&mut clk);
 
     sc.next_tx(BOB);
-    let mut bob_pass = sc.take_from_sender<WriterPass>();
+    let bob_pass = sc.take_from_sender<WriterPass>();
     let bob_pass_id = object::id(&bob_pass);
     let proposal = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut bob_funds, sc.ctx());
     entry_file_write::write_(
         &mut file,
-        &mut bob_pass,
+        &bob_pass,
         true,
         option::none(),
         &clk,
@@ -316,7 +316,7 @@ fun rebuild_matches_chain() {
     entry_file_draft::merge_draft_into_file(
         &sys,
         &mut file,
-        &mut owner_pass,
+        &owner_pass,
         &mut draft_config,
         0,
         true,

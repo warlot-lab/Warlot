@@ -12,9 +12,8 @@ module warlot::upload_tests;
 // === Imports ===
 
 use std::unit_test::destroy;
-use sui::{clock, coin::Coin, event, test_scenario as ts};
+use sui::{clock, event, test_scenario as ts};
 use wal::wal::WAL;
-use walrus::system::System;
 use warlot::{
     admin_cap::AdminCap,
     blob_config::{Self, BlobConfig},
@@ -160,7 +159,7 @@ fun system_config_untouched() {
     // --- a write into the file's history ----------------------------------
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    let mut pass = sc.take_from_sender<WriterPass>();
+    let pass = sc.take_from_sender<WriterPass>();
     let revision = fixtures::certified_blob(
         &mut wsys,
         fixtures::blob_size(),
@@ -170,7 +169,7 @@ fun system_config_untouched() {
     );
     entry_file_write::force_write_innerfile(
         &mut file,
-        &mut pass,
+        &pass,
         &clk,
         system,
         vector[revision],
@@ -259,7 +258,7 @@ fun an_adoption_is_one_config() {
     sc.next_tx(ALICE);
     let registry = sc.take_from_sender<Registry>();
     let mut blobs = vector[];
-    let mut i = 0;
+    let mut i = 0u64;
     while (i < 3) {
         blobs.push_back(
             fixtures::certified_blob(
@@ -291,7 +290,8 @@ fun an_adoption_is_one_config() {
     assert!(blob_config::owner(&config) == ALICE, 4);
     assert!(config.blob_ids().length() == 3, 5);
     assert!(blob_config::epoch_set(&config) == SET, 6);
-    assert!(blob_config::cycle_limit(&config).borrow() == CYCLES, 7);
+    let cycles = CYCLES;
+    assert!(blob_config::cycle_limit(&config).borrow() == cycles, 7);
     // An adoption is not a compaction, so it leaves no receipt.
     assert!(!blob_config::has_layout(&config), 8);
 

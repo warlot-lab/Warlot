@@ -83,7 +83,7 @@ public fun deposit<T>(vault: &mut Vault, payment: Coin<T>) {
     let system = vault.system;
     let amount = coin::value(&payment);
 
-    if (df::exists_(&vault.id, type_name_str)) {
+    if (df::exists(&vault.id, type_name_str)) {
         let vault_balance = df::borrow_mut<String, Balance<T>>(&mut vault.id, type_name_str);
         balance::join(vault_balance, coin::into_balance(payment));
     } else {
@@ -107,7 +107,7 @@ public fun withdraw<T>(
 
     let type_name_str = get_type_name_string<T>();
 
-    assert!(df::exists_(&vault.id, type_name_str), ENoBalanceFound);
+    assert!(df::exists(&vault.id, type_name_str), ENoBalanceFound);
 
     let system = vault.system;
 
@@ -129,7 +129,7 @@ public fun withdraw<T>(
 public fun balance_of<T>(vault: &Vault): u64 {
     let type_name_str = get_type_name_string<T>();
 
-    if (!df::exists_(&vault.id, type_name_str)) {
+    if (!df::exists(&vault.id, type_name_str)) {
         return 0
     };
 

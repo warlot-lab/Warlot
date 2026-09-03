@@ -14,6 +14,7 @@ const ENotOwner: vector<u8> = b"NOT THE OWNER OF THIS BLOB CONFIG";
 #[error]
 const ELayoutAlreadyRegistered: vector<u8> =
     b"THIS CONFIG ALREADY CARRIES A LAYOUT";
+#[test_only]
 #[error]
 const ENoLayout: vector<u8> = b"THIS CONFIG CARRIES NO LAYOUT";
 
@@ -80,13 +81,15 @@ public(package) fun blob_count(blob_cfg: &BlobConfig): u64 {
     blob_cfg.blobs.length()
 }
 
+#[test_only]
 /// Whether a compaction has registered a layout on this config.
-public(package) fun has_layout(blob_cfg: &BlobConfig): bool {
+public fun has_layout(blob_cfg: &BlobConfig): bool {
     blob_cfg.layout.is_some()
 }
 
+#[test_only]
 /// This config's layout, or an abort because it carries none.
-public(package) fun layout(blob_cfg: &BlobConfig): &Layout {
+public fun layout(blob_cfg: &BlobConfig): &Layout {
     assert!(blob_cfg.layout.is_some(), ENoLayout);
 
     blob_cfg.layout.borrow()

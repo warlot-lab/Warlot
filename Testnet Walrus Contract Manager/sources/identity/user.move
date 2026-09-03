@@ -101,7 +101,7 @@ public fun get_user(system_cfg: &SystemConfig, user: address): &User {
 
 /// Whether `user` is registered on this system.
 public fun check_user(system_cfg: &SystemConfig, user: address): bool {
-    ofields::exists_(system_config::uid(system_cfg), user)
+    ofields::exists(system_config::uid(system_cfg), user)
 }
 
 /// The address that controls this user.
@@ -172,7 +172,7 @@ public(package) fun create_user(
 /// a global loop that no longer exists.
 public(package) fun add_user(system_cfg: &mut SystemConfig, user: User, ctx: &TxContext) {
     let new_user = ctx.sender();
-    assert!(!ofields::exists_(system_config::uid(system_cfg), new_user), EUserExist);
+    assert!(!ofields::exists(system_config::uid(system_cfg), new_user), EUserExist);
 
     let user_id = object::id(&user);
 

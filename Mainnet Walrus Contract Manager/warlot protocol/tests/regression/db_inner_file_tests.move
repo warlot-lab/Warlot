@@ -43,7 +43,7 @@ const A_ROOT: vector<u8> = x"f54b57602bd89af3a5e9271c664b77641b176665c51d604e277
 #[expected_failure(abort_code = warlot::project_object::DBEXIST)]
 fun still_unique() {
     let mut sc = ts::begin(ALICE);
-    let (mut sys, mut holder, mut wsys, mut funds, clk) = world(&mut sc);
+    let (sys, mut holder, mut wsys, mut funds, clk) = world(&mut sc);
     let project_id = project_object::create_project(&mut holder, sc.ctx());
 
     sc.next_tx(ALICE);
@@ -60,7 +60,7 @@ fun still_unique() {
 #[test]
 fun the_first_database_is_recorded() {
     let mut sc = ts::begin(ALICE);
-    let (mut sys, mut holder, mut wsys, mut funds, clk) = world(&mut sc);
+    let (sys, mut holder, mut wsys, mut funds, clk) = world(&mut sc);
     let project_id = project_object::create_project(&mut holder, sc.ctx());
 
     assert!(project_object::has_project(&holder, project_id), 0);
@@ -90,7 +90,7 @@ fun the_first_database_is_recorded() {
 #[expected_failure(abort_code = warlot::project_object::ENoSuchProject)]
 fun a_database_needs_a_project_to_belong_to() {
     let mut sc = ts::begin(ALICE);
-    let (mut sys, mut holder, mut wsys, mut funds, clk) = world(&mut sc);
+    let (sys, mut holder, mut wsys, mut funds, clk) = world(&mut sc);
 
     // Under the previous shape a project was addressed by a name the caller
     // typed, so a miss and a project were the same lookup. It is a minted id now

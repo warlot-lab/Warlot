@@ -9,13 +9,83 @@ jobs:
   event-contract:
     # Every emitter has a call site, every event type is declared under
     # sources/events/, the event modules import nothing internal, every abort is
-    # named, and the two packages stay byte-identical.
+    # a named constant carrying a message, and the two packages stay
+    # byte-identical.
     #
-    # Static checks only, so this job needs no Move toolchain and no network.
-    # `sui move build` and `sui move test` are run locally against the pinned
-    # toolchain; wiring them in here belongs with the rest of the CI work.
+    # Static checks only, so this job needs no Move toolchain and no network,
+    # which is why it stays separate from the one below and reports first.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: event and package contract
         run: ./scripts/check-events.sh
+
+  move:
+    # Compile and test both packages against the toolchain the published
+    # package was built with.
+    #
+    # `--warnings-are-errors` is the point of the job. A warning nobody has to
+    # clear is one that accumulates, and the two that mattered most here were
+    # invisible locally: a package with a `Published.toml` is compiled without
+    # warnings at all, so the testnet package reported clean while the same
+    # sources under the mainnet package reported thirty.
+    #
+    # `--no-lint` is there for the mirror image of that. The publish-oriented
+    # linters run only against a package the CLI does not already know as
+    # published, so with them on, the mainnet package would fail on
+    # `admin_cap::transfer_to` and `inner_file::share` — two deliberate design
+    # choices — while the testnet package would not see them at all. Gating the
+    # two packages differently, for a reason that has nothing to do with the
+    # change under review, is worse than not gating the lints. Run
+    # `sui move build --build-env mainnet` locally to see them.
+    runs-on: ubuntu-latest
+    env:
+      # Matches `toolchain-version` in Testnet Walrus Contract Manager/Published.toml.
+      # This is the one line to change when the toolchain moves.
+      SUI_RELEASE: testnet-v1.73.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: cache the sui binary
+        id: sui-binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin/sui
+          key: sui-${{ env.SUI_RELEASE }}-ubuntu-x86_64
+
+      # The release archive carries every Sui binary and unpacks them flat, so
+      # name the one wanted rather than paying to write the other nine.
+      - name: install sui
+        if: steps.sui-binary.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.local/bin
+          curl -fsSL \
+            "https://github.com/MystenLabs/sui/releases/download/${SUI_RELEASE}/sui-${SUI_RELEASE}-ubuntu-x86_64.tgz" \
+            | tar -xz -C ~/.local/bin ./sui
+          chmod +x ~/.local/bin/sui
+
+      - name: put sui on the path
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: confirm the toolchain
+        run: sui --version
+
+      # Both Walrus dependencies are pinned to a full SHA, so the lock files
+      # change only when the pin does and their hash is a stable key.
+      - name: cache the dependency fetch
+        uses: actions/cache@v4
+        with:
+          path: ~/.move
+          key: move-deps-${{ hashFiles('**/Move.lock') }}
+
+      - name: testnet package
+        working-directory: Testnet Walrus Contract Manager
+        run: |
+          sui move build --build-env testnet --no-lint --warnings-are-errors
+          sui move test  --build-env testnet --no-lint --warnings-are-errors
+
+      - name: mainnet package
+        working-directory: Mainnet Walrus Contract Manager/warlot protocol
+        run: |
+          sui move build --build-env mainnet --no-lint --warnings-are-errors
+          sui move test  --build-env mainnet --no-lint --warnings-are-errors

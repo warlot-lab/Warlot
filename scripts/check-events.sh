@@ -88,6 +88,11 @@ done
 
 # ---------------------------------------------------------------------------
 # 4. No bare-integer abort anywhere in sources.
+#
+# Two greps, because a named constant is only half the convention. The first
+# refuses a literal at the abort site; the second refuses a `u64` error
+# constant, which passes the first grep while still aborting as a bare number
+# a caller has to look up. An `#[error] vector<u8>` carries its own message.
 # ---------------------------------------------------------------------------
 echo "== named aborts =="
 for pkg in "$MAINNET" "$TESTNET"; do
@@ -99,6 +104,15 @@ for pkg in "$MAINNET" "$TESTNET"; do
         printf '        %s\n' "$bare"
     else
         pass "$label: every abort is a named constant"
+    fi
+
+    numeric=$(grep -rnE '^const E[A-Za-z0-9_]*: u64' \
+                "$pkg/sources" --include='*.move' || true)
+    if [ -n "$numeric" ]; then
+        fail "$label: error constant with no message:"
+        printf '        %s\n' "$numeric"
+    else
+        pass "$label: every error constant carries a message"
     fi
 done
 

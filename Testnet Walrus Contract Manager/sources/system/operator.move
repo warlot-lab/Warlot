@@ -76,7 +76,7 @@ public struct OperatorAuth has copy, drop {
 
 /// How many operators this system holds.
 public fun operator_count(operators: &OperatorSet): u64 {
-    operators.slots.size()
+    operators.slots.length()
 }
 
 /// Whether `cap_id` holds a slot, expired or not.
@@ -138,7 +138,7 @@ public(package) fun enrol(
 ) {
     assert!(expires_at_ms > now_ms, EInvalidOperatorExpiry);
     assert!(!operators.slots.contains(&cap_id), EAlreadyAnOperator);
-    assert!(operators.slots.size() < MAX_OPERATORS, EOperatorSetFull);
+    assert!(operators.slots.length() < MAX_OPERATORS, EOperatorSetFull);
 
     operators.slots.insert(cap_id, Operator { expires_at_ms, may_bypass_draft });
 }

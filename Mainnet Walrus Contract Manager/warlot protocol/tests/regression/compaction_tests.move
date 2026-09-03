@@ -103,7 +103,7 @@ fun stage(
     sc.next_tx(ALICE);
     let system_id = object::id(&sys);
     let mut predecessors = vector<ID>[];
-    let mut i = 0;
+    let mut i = 0u64;
     while (i < 3) {
         predecessors.push_back(
             fixtures::shared_config(
@@ -194,7 +194,7 @@ fun three_files(): Quilt {
 /// `count` patches whose paths are already ascending, as a full quilt's would be.
 fun many_files(count: u64): Quilt {
     let mut patches = vector[];
-    let mut i = 0;
+    let mut i = 0u64;
     while (i < count) {
         // Zero-padded decimal, which orders the same as the raw bytes.
         let mut name = b"f/";
@@ -645,17 +645,18 @@ fun no_state_machine() {
     assert!(event::events_by_type<BlobWithdrawn>().is_empty(), 0);
 
     sc.next_tx(MALLORY);
+    let cycles = CYCLES;
     predecessors.do_ref!(|id| {
         let mut old = ts::take_shared_by_id<BlobConfig>(&sc, *id);
         assert!(blob_config::owner(&old) == ALICE, 1);
         assert!(!blob_config::has_layout(&old), 2);
-        assert!(blob_config::cycle_limit(&old).borrow() == CYCLES, 3);
+        assert!(blob_config::cycle_limit(&old).borrow() == cycles, 3);
 
         // And a superseded config is still renewable by anyone, which is what
         // stops a compaction the owner has not accepted from starving the
         // content it claims to replace.
         entry_renew::renew_blob(&sys, &mut wsys, &mut old, &mut funds, sc.ctx());
-        assert!(blob_config::cycle_limit(&old).borrow() == CYCLES - 1, 4);
+        assert!(blob_config::cycle_limit(&old).borrow() == cycles - 1, 4);
         ts::return_shared(old);
     });
 

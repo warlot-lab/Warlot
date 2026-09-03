@@ -9,7 +9,7 @@ use sui::{clock::Clock, coin::{Self, Coin}};
 use wal::wal::WAL;
 use walrus::{blob::{Self, Blob}, encoding, messages, system::{Self, System}};
 use warlot::{
-    blob_config::{Self, BlobConfig},
+    blob_config,
     commit,
     entry_file_create,
     entry_register,

@@ -176,7 +176,7 @@ fun revoked_pass_refused() {
     entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
-    let mut bob_pass = sc.take_from_sender<WriterPass>();
+    let bob_pass = sc.take_from_sender<WriterPass>();
     let bob_pass_id = object::id(&bob_pass);
 
     // The pass is still in Bob's account, and stays there. The record on the
@@ -195,7 +195,7 @@ fun revoked_pass_refused() {
     );
     entry_file_write::write_(
         &mut file,
-        &mut bob_pass,
+        &bob_pass,
         true,
         option::none(),
         &clk,

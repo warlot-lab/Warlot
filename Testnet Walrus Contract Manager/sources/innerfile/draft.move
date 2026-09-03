@@ -4,7 +4,7 @@ module warlot::draft;
 // === Imports ===
 
 use sui::{clock::Clock, dynamic_object_field as ofields};
-use warlot::{credential::{Self, Credential}, draft_events, file_data::FileData};
+use warlot::{credential::Credential, draft_events, file_data::FileData};
 
 // === Errors ===
 
@@ -142,7 +142,7 @@ public(package) fun resolve_draft_to_file(
     file_id: ID,
     merged_by: address,
 ): FileData {
-    assert!(ofields::exists_(&draft_holder.id, draft_index), INVALIDDRAFTINDEX);
+    assert!(ofields::exists(&draft_holder.id, draft_index), INVALIDDRAFTINDEX);
     let old_total_draft = draft_holder.total_draft;
     draft_holder.total_draft = old_total_draft - 1;
 
@@ -194,12 +194,6 @@ public(package) fun fetch_and_delete_latest_draft(
     )
 }
 
-/// Mutable access to one draft.
-public(package) fun get_draft(draft_holder: &mut FileDraftHolder, draft: u64): &mut Draft {
-    assert!(ofields::exists_(&draft_holder.id, draft), INVALIDDRAFT);
-    ofields::borrow_mut<u64, Draft>(&mut draft_holder.id, draft)
-}
-
 /// Delete one draft, returning the revision it proposed.
 public(package) fun delete_draft(
     draft_holder: &mut FileDraftHolder,
@@ -209,7 +203,7 @@ public(package) fun delete_draft(
     file_id: ID,
     deleted_by: address,
 ): Option<FileData> {
-    assert!(ofields::exists_(&draft_holder.id, draft), INVALIDDRAFT);
+    assert!(ofields::exists(&draft_holder.id, draft), INVALIDDRAFT);
     let draft_obj = ofields::remove<u64, Draft>(&mut draft_holder.id, draft);
     let Draft { id, issue: _, file } = draft_obj;
     id.delete();
@@ -251,7 +245,7 @@ public(package) fun clear_drafts(
     let mut i = from_index;
 
     while (i < to_index) {
-        if (ofields::exists_(&draft_holder.id, i)) {
+        if (ofields::exists(&draft_holder.id, i)) {
             let proposed = delete_draft(draft_holder, i, clock, system_id, file_id, deleted_by);
             revisions.push_back(option::destroy_some(proposed));
         };

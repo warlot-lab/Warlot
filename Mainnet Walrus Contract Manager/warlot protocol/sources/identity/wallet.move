@@ -11,13 +11,14 @@ use sui::{
     dynamic_field as df,
     dynamic_object_field as dof,
 };
-use wal::wal::WAL;
 use warlot::identity_events;
 
 // === Errors ===
 
-const EInsufficientFunds: u64 = 1;
-const ENoBalance: u64 = 2;
+#[error]
+const EInsufficientFunds: vector<u8> = b"THIS WALLET HOLDS LESS THAN THAT";
+#[error]
+const ENoBalance: vector<u8> = b"THIS WALLET HOLDS NONE OF THAT COIN TYPE";
 
 // === Constants ===
 
@@ -63,7 +64,7 @@ public(package) fun deposit_coin<T>(wallet: &mut Wallet, coin: Coin<T>, ctx: &mu
     let type_key = get_type_key<T>();
     let bank = borrow_bank_mut_or_attach(wallet, ctx);
 
-    if (df::exists_(&bank.id, type_key)) {
+    if (df::exists(&bank.id, type_key)) {
         let balance = df::borrow_mut<String, Balance<T>>(&mut bank.id, type_key);
         balance::join(balance, coin::into_balance(coin));
     } else {
@@ -114,7 +115,7 @@ public(package) fun withdraw<T>(
 
     let bank = borrow_bank_mut(wallet);
 
-    assert!(df::exists_(&bank.id, type_key), ENoBalance);
+    assert!(df::exists(&bank.id, type_key), ENoBalance);
 
     let balance = df::borrow_mut<String, Balance<T>>(&mut bank.id, type_key);
     assert!(balance::value(balance) >= amount, EInsufficientFunds);
@@ -140,7 +141,7 @@ public(package) fun withdraw_all<T>(
 
     let bank = borrow_bank_mut(wallet);
 
-    assert!(df::exists_(&bank.id, type_key), ENoBalance);
+    assert!(df::exists(&bank.id, type_key), ENoBalance);
 
     let balance = df::borrow_mut<String, Balance<T>>(&mut bank.id, type_key);
     let total = balance::value(balance);
@@ -164,7 +165,7 @@ public(package) fun get_balance<T>(wallet: &Wallet): u64 {
     let type_key = get_type_key<T>();
     let bank = borrow_bank(wallet);
 
-    if (!df::exists_(&bank.id, type_key)) {
+    if (!df::exists(&bank.id, type_key)) {
         return 0
     };
 
@@ -172,23 +173,10 @@ public(package) fun get_balance<T>(wallet: &Wallet): u64 {
     balance::value(balance)
 }
 
+#[test_only]
 /// Whether the wallet holds at least `estimate` of `T`.
-public(package) fun has_estimate<T>(wallet: &Wallet, estimate: u64): bool {
+public fun has_estimate<T>(wallet: &Wallet, estimate: u64): bool {
     get_balance<T>(wallet) >= estimate
-}
-
-/// The address this wallet belongs to.
-public(package) fun get_owner(wallet: &Wallet): address {
-    wallet.owner
-}
-
-/// Withdraw the wallet's entire WAL balance.
-public(package) fun get_coin_wal(
-    wallet: &mut Wallet,
-    system_id: ID,
-    ctx: &mut TxContext,
-): Coin<WAL> {
-    withdraw_all<WAL>(wallet, system_id, ctx)
 }
 
 // === Test-only helpers ===
@@ -207,7 +195,7 @@ fun get_type_key<T>(): String {
 
 /// Whether this wallet has ever taken a deposit.
 fun has_bank(wallet: &Wallet): bool {
-    dof::exists_<vector<u8>>(&wallet.id, BANK_KEY)
+    dof::exists<vector<u8>>(&wallet.id, BANK_KEY)
 }
 
 fun borrow_bank_mut(wallet: &mut Wallet): &mut Bank {

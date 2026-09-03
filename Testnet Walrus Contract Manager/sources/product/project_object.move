@@ -121,7 +121,7 @@ public fun project_admin(project_holder: &ProjectHolder): address {
 
 /// Whether this holder holds a project with that id.
 public fun has_project(project_holder: &ProjectHolder, project_id: ID): bool {
-    ofields::exists_<ID>(&project_holder.id, project_id)
+    ofields::exists<ID>(&project_holder.id, project_id)
 }
 
 /// The inner file a project names as its database, if it has named one.

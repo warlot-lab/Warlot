@@ -14,7 +14,7 @@ module warlot::layout;
 
 // === Imports ===
 
-use warlot::{file_set, id_set};
+use warlot::file_set;
 
 // === Errors ===
 
@@ -134,5 +134,3 @@ public(package) fun new(
     }
 }
 
-/// The root a layout that supersedes nothing carries.
-public(package) fun empty_superseded_root(): vector<u8> { id_set::empty_root() }

@@ -64,7 +64,7 @@ fun writers_length_enforced() {
     entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
 
     sc.next_tx(BOB);
-    let mut bob_pass = sc.take_from_sender<WriterPass>();
+    let bob_pass = sc.take_from_sender<WriterPass>();
 
     // One draft past the cap the file declares.
     let cap = file.writers_length() as u64;
@@ -79,7 +79,7 @@ fun writers_length_enforced() {
         );
         entry_file_write::write_(
             &mut file,
-            &mut bob_pass,
+            &bob_pass,
             true,
             option::none(),
             &clk,
@@ -127,7 +127,7 @@ fun clearing_takes_a_range_and_leaves_the_rest() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    let mut owner_pass = sc.take_from_sender<WriterPass>();
+    let owner_pass = sc.take_from_sender<WriterPass>();
 
     // Three drafts from the owner's own pass, which needs no delegation.
     let mut i = 0u64;
@@ -141,7 +141,7 @@ fun clearing_takes_a_range_and_leaves_the_rest() {
         );
         entry_file_write::write_(
             &mut file,
-            &mut owner_pass,
+            &owner_pass,
             true,
             option::none(),
             &clk,
@@ -157,14 +157,14 @@ fun clearing_takes_a_range_and_leaves_the_rest() {
     assert!(draft::total_draft(inner_file::get_draft_holder(&mut file)) == 3, 0);
 
     // A range clears what it names and nothing else.
-    entry_file_draft::clear_drafts(&sys, &mut file, &mut owner_pass, 0, 2, &clk, sc.ctx());
+    entry_file_draft::clear_drafts(&sys, &mut file, &owner_pass, 0, 2, &clk, sc.ctx());
 
     assert!(draft::total_draft(inner_file::get_draft_holder(&mut file)) == 1, 1);
 
     // The index only ever moves forward, so the draft that survived keeps its own.
     assert!(draft::available_index(inner_file::get_draft_holder(&mut file)) == 3, 2);
 
-    entry_file_draft::clear_drafts(&sys, &mut file, &mut owner_pass, 2, 3, &clk, sc.ctx());
+    entry_file_draft::clear_drafts(&sys, &mut file, &owner_pass, 2, 3, &clk, sc.ctx());
 
     assert!(draft::total_draft(inner_file::get_draft_holder(&mut file)) == 0, 3);
 

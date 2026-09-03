@@ -7,7 +7,7 @@ use std::string::String;
 use sui::{clock::Clock, coin::{Self, Coin}};
 use wal::wal::WAL;
 use warlot::{
-    registry::{Self, Registry},
+    registry::Registry,
     system_config::{Self, SystemConfig},
     user,
     vault,

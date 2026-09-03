@@ -35,15 +35,19 @@ const HASH_C: vector<u8> = x"6b23c0d5f35d1b11f9b683f0b0a617355deb11277d91ae091d3
 
 #[test]
 fun vectors() {
+    let hash_a = HASH_A;
+    let hash_b = HASH_B;
+    let hash_c = HASH_C;
+
     // The content hashes first: a leaf built over the wrong content hash would
     // otherwise fail here as if the leaf construction were wrong.
-    assert!(hash::sha2_256(b"A") == HASH_A, 0);
-    assert!(hash::sha2_256(b"B") == HASH_B, 1);
-    assert!(hash::sha2_256(b"C") == HASH_C, 2);
+    assert!(hash::sha2_256(b"A") == hash_a, 0);
+    assert!(hash::sha2_256(b"B") == hash_b, 1);
+    assert!(hash::sha2_256(b"C") == hash_c, 2);
 
-    assert!(file_set::leaf(&b"docs/a.txt", &HASH_A) == LEAF_A, 3);
-    assert!(file_set::leaf(&b"docs/b.txt", &HASH_B) == LEAF_B, 4);
-    assert!(file_set::leaf(&b"img/c.png", &HASH_C) == LEAF_C, 5);
+    assert!(file_set::leaf(&b"docs/a.txt", &hash_a) == LEAF_A, 3);
+    assert!(file_set::leaf(&b"docs/b.txt", &hash_b) == LEAF_B, 4);
+    assert!(file_set::leaf(&b"img/c.png", &hash_c) == LEAF_C, 5);
 
     assert!(file_set::root(vector[]) == ROOT_EMPTY, 6);
     assert!(file_set::root(vector[entry_a()]) == ROOT_A, 7);
@@ -102,14 +106,16 @@ fun ordering_is_on_raw_bytes() {
     // `Z` is 0x5A and `a` is 0x61, so a byte-wise order puts `Z` first while a
     // case-insensitive collation would not. Postgres under a non-C collation
     // disagrees with this, which is exactly why the format pins raw bytes.
-    let upper = file_set::new_entry(b"Z.txt", HASH_A);
-    let lower = file_set::new_entry(b"a.txt", HASH_B);
+    let hash_a = HASH_A;
+    let hash_b = HASH_B;
+    let upper = file_set::new_entry(b"Z.txt", hash_a);
+    let lower = file_set::new_entry(b"a.txt", hash_b);
 
     assert!(
         file_set::root(vector[upper, lower]) ==
             file_set::node(
-                &file_set::leaf(&b"Z.txt", &HASH_A),
-                &file_set::leaf(&b"a.txt", &HASH_B),
+                &file_set::leaf(&b"Z.txt", &hash_a),
+                &file_set::leaf(&b"a.txt", &hash_b),
             ),
         0,
     );
@@ -120,8 +126,9 @@ fun length_prefix_separates_path_from_content() {
     // Without the length prefix, `("docs/a", H)` and `("docs", "/a" || H)` would
     // serialise to the same preimage. The second is not a legal entry, so the
     // property is asserted on the leaf function directly.
-    let split = file_set::leaf(&b"docs/a", &HASH_A);
-    let joined = file_set::leaf(&b"docs", &HASH_A);
+    let hash_a = HASH_A;
+    let split = file_set::leaf(&b"docs/a", &hash_a);
+    let joined = file_set::leaf(&b"docs", &hash_a);
 
     assert!(split != joined, 0);
 }

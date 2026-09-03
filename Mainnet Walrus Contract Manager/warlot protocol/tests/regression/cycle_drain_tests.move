@@ -111,7 +111,8 @@ fun a_renewal_that_does_no_work_spends_no_cycle() {
         i = i + 1;
     };
 
-    assert!(config.cycle_limit().borrow() == CYCLES, 0);
+    let cycles = CYCLES;
+    assert!(config.cycle_limit().borrow() == cycles, 0);
     assert!(zero.value() == 0, 1);
 
     ts::return_shared(config);

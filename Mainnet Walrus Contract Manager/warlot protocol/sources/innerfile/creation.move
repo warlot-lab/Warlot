@@ -12,13 +12,12 @@ module warlot::creation;
 use sui::clock::Clock;
 use walrus::blob::Blob;
 use warlot::{
-    file_data::FileData,
-    inner_file::{Self, InnerFile},
+    inner_file,
     operator::OperatorAuth,
     revision,
     system_config::SystemConfig,
     user,
-    writer_pass::{Self, WriterPass},
+    writer_pass,
 };
 
 // === Errors ===
