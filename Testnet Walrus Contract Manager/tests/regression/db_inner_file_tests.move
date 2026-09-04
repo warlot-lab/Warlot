@@ -272,7 +272,7 @@ fun init_db(
         fixtures::file_track_back(),
         vector[raw_blob],
         fixtures::file_epoch_set(),
-        CYCLES,
+        option::some(CYCLES),
         clk,
         fixtures::commit_for(b"the database"),
         DRAFT_EPOCHS,

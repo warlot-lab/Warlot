@@ -90,7 +90,15 @@ use warlot::{
         SystemTiersChanged,
         SystemVersionMigrated
     },
-    treasury_events::{Self, SystemWithdraw, VaultCoinSupportChanged, VaultDeposited}
+    treasury_events::{Self, SystemWithdraw, VaultCoinSupportChanged, VaultDeposited},
+    upgrade_events::{
+        Self,
+        UpgradeAuthorised,
+        UpgradeAuthorityCreated,
+        UpgradeAuthorityDestroyed,
+        UpgradeCommitted,
+        UpgradePolicyRestricted
+    }
 };
 
 // === Errors ===
@@ -197,7 +205,7 @@ public struct FileRow has drop {
     writers_length: u8,
     track_back_length: u8,
     epoch_set: u32,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
     operators_may_draft: bool,
@@ -235,6 +243,18 @@ public struct DenyRow has drop {
 }
 
 /// Everything the stream says the chain holds.
+/// The package's upgrade authority, as the stream describes it.
+public struct UpgradeRow has drop {
+    authority_id: ID,
+    system_id: ID,
+    /// The package the authority governs, moved on by every commit.
+    package: ID,
+    version: u64,
+    policy: u8,
+    /// False once the authority has been destroyed and the package frozen.
+    live: bool,
+}
+
 public struct Ledger has drop {
     systems: vector<SystemRow>,
     users: vector<UserRow>,
@@ -243,6 +263,7 @@ public struct Ledger has drop {
     files: vector<FileRow>,
     passes: vector<PassRow>,
     denials: vector<DenyRow>,
+    upgrades: vector<UpgradeRow>,
     /// How many events the replay has applied, for the completeness guard.
     applied: u64,
 }
@@ -259,6 +280,7 @@ public fun new(): Ledger {
         files: vector[],
         passes: vector[],
         denials: vector[],
+        upgrades: vector[],
         applied: 0,
     }
 }
@@ -273,6 +295,7 @@ public fun absorb(ledger: &mut Ledger) {
 
     // Creations first, then the mutations that name them, then the removals.
     ledger.apply_system();
+    ledger.apply_upgrade();
     ledger.apply_treasury();
     ledger.apply_identity();
     ledger.apply_storage();
@@ -314,6 +337,13 @@ public fun file(ledger: &Ledger, file_id: ID): &FileRow {
     let i = ledger.files.find_index!(|row| row.file_id == file_id);
     assert!(i.is_some(), ENoSuchRow);
     &ledger.files[i.destroy_some()]
+}
+
+/// The reconstructed upgrade authority.
+public fun upgrade(ledger: &Ledger, authority_id: ID): &UpgradeRow {
+    let i = ledger.upgrades.find_index!(|row| row.authority_id == authority_id);
+    assert!(i.is_some(), ENoSuchRow);
+    &ledger.upgrades[i.destroy_some()]
 }
 
 /// The reconstructed writer pass.
@@ -412,6 +442,18 @@ public fun live_configs(ledger: &Ledger, owner: address): u64 {
 
 /// How many events the replay has applied.
 public fun applied(ledger: &Ledger): u64 { ledger.applied }
+
+// === View functions ,  upgrade rows ===
+
+public fun upgrade_system(row: &UpgradeRow): ID { row.system_id }
+
+public fun upgrade_package(row: &UpgradeRow): ID { row.package }
+
+public fun upgrade_version(row: &UpgradeRow): u64 { row.version }
+
+public fun upgrade_policy(row: &UpgradeRow): u8 { row.policy }
+
+public fun upgrade_live(row: &UpgradeRow): bool { row.live }
 
 // === View functions ,  system rows ===
 
@@ -531,7 +573,7 @@ public fun file_track_back_length(row: &FileRow): u8 { row.track_back_length }
 
 public fun file_epoch_set(row: &FileRow): u32 { row.epoch_set }
 
-public fun file_cycle_end(row: &FileRow): u64 { row.cycle_end }
+public fun file_cycle_end(row: &FileRow): Option<u64> { row.cycle_end }
 
 public fun file_created_at_ms(row: &FileRow): u64 { row.created_at_ms }
 
@@ -581,6 +623,12 @@ fun system_mut(ledger: &mut Ledger, system_id: ID): &mut SystemRow {
     let i = ledger.systems.find_index!(|row| row.system_id == system_id);
     assert!(i.is_some(), ENoSuchRow);
     &mut ledger.systems[i.destroy_some()]
+}
+
+fun upgrade_mut(ledger: &mut Ledger, authority_id: ID): &mut UpgradeRow {
+    let i = ledger.upgrades.find_index!(|row| row.authority_id == authority_id);
+    assert!(i.is_some(), ENoSuchRow);
+    &mut ledger.upgrades[i.destroy_some()]
 }
 
 fun user_mut(ledger: &mut Ledger, user: address): &mut UserRow {
@@ -716,6 +764,61 @@ fun apply_system(ledger: &mut Ledger) {
             row.operator_until.remove(i);
             row.operator_bypass.remove(i);
         };
+        ledger.applied = ledger.applied + 1;
+    });
+}
+
+fun apply_upgrade(ledger: &mut Ledger) {
+    event::events_by_type<UpgradeAuthorityCreated>().do_ref!(|e| {
+        let (system_id, authority_id, _upgrade_cap, package, version, policy, _created_by) =
+            upgrade_events::read_upgrade_authority_created(e);
+
+        ledger.upgrades.push_back(UpgradeRow {
+            authority_id,
+            system_id,
+            package,
+            version,
+            policy,
+            live: true,
+        });
+        ledger.applied = ledger.applied + 1;
+    });
+
+    // The authorisation moves nothing the reconstruction keeps. Its package id is
+    // the one being left behind and its digest names a build, neither of which is
+    // state; what makes it worth carrying is that a consumer can tell which build
+    // an upgrade installed, and the count below is what makes ignoring it here a
+    // deliberate choice rather than an omission.
+    event::events_by_type<UpgradeAuthorised>().do_ref!(|e| {
+        let (_system_id, authority_id, _package, _policy, _digest, _authorised_by) =
+            upgrade_events::read_upgrade_authorised(e);
+        ledger.upgrade_mut(authority_id);
+        ledger.applied = ledger.applied + 1;
+    });
+
+    event::events_by_type<UpgradePolicyRestricted>().do_ref!(|e| {
+        let (_system_id, authority_id, policy, _restricted_by) =
+            upgrade_events::read_upgrade_policy_restricted(e);
+        ledger.upgrade_mut(authority_id).policy = policy;
+        ledger.applied = ledger.applied + 1;
+    });
+
+    event::events_by_type<UpgradeCommitted>().do_ref!(|e| {
+        let (_system_id, authority_id, package, version, _committed_by) =
+            upgrade_events::read_upgrade_committed(e);
+        let row = ledger.upgrade_mut(authority_id);
+        row.package = package;
+        row.version = version;
+        ledger.applied = ledger.applied + 1;
+    });
+
+    event::events_by_type<UpgradeAuthorityDestroyed>().do_ref!(|e| {
+        let (_system_id, authority_id, package, version, _destroyed_by) =
+            upgrade_events::read_upgrade_authority_destroyed(e);
+        let row = ledger.upgrade_mut(authority_id);
+        row.package = package;
+        row.version = version;
+        row.live = false;
         ledger.applied = ledger.applied + 1;
     });
 }

@@ -61,7 +61,7 @@ fun writers_length_enforced() {
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
     let owner_pass = sc.take_from_sender<WriterPass>();
     entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, false, sc.ctx());
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
 
     sc.next_tx(BOB);
     let bob_pass = sc.take_from_sender<WriterPass>();

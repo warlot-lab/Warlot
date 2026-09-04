@@ -120,7 +120,7 @@ fun system_config_untouched() {
     entry_upload::foreign_blob_add(
         system,
         ALICE,
-        CYCLES,
+        option::some(CYCLES),
         SET,
         vector[foreign],
         &clk,
@@ -144,7 +144,7 @@ fun system_config_untouched() {
         fixtures::file_track_back(),
         vector[first_revision],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"first"),
         DRAFT_EPOCHS,
@@ -273,7 +273,7 @@ fun an_adoption_is_one_config() {
         i = i + 1;
     };
 
-    entry_upload::foreign_blob_add(&sys, ALICE, CYCLES, SET, blobs, &clk, sc.ctx());
+    entry_upload::foreign_blob_add(&sys, ALICE, option::some(CYCLES), SET, blobs, &clk, sc.ctx());
 
     // One custody announcement, naming one config that holds all three blobs.
     let stored = event::events_by_type<BlobStored>();
@@ -365,7 +365,7 @@ fun an_operator_adopts_for_the_owner() {
         &sys,
         &backend_cap,
         ALICE,
-        CYCLES,
+        option::some(CYCLES),
         SET,
         vector[foreign],
         &clk,

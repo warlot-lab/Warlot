@@ -145,7 +145,7 @@ fun stage(
         fixtures::file_track_back(),
         vector[first_revision],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"first"),
         DRAFT_EPOCHS,
@@ -269,7 +269,7 @@ fun an_enrolled_operator_creates_a_file() {
         fixtures::file_track_back(),
         vector[first_revision],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"made for alice"),
         DRAFT_EPOCHS,
@@ -301,7 +301,7 @@ fun an_explicit_address_grant_still_works_with_no_capability() {
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
     entry_permission::grant(&mut sys, ALICE, MALLORY, true, true, true, true, true, true, sc.ctx());
-    entry_file_access::create_pass(&sys, &file, MALLORY, PAST_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, MALLORY, PAST_EXPIRY_MS, false, &clk, sc.ctx());
 
     sc.next_tx(MALLORY);
     let pass = sc.take_from_sender<warlot::writer_pass::WriterPass>();
@@ -430,7 +430,7 @@ fun a_user_who_never_granted_the_role_is_not_acted_for() {
         fixtures::file_track_back(),
         vector[first_revision],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"uninvited"),
         DRAFT_EPOCHS,
@@ -1195,7 +1195,7 @@ fun a_file_an_operator_creates_admits_that_operator_on_both_routes() {
         fixtures::file_track_back(),
         vector[first_revision],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"born open"),
         DRAFT_EPOCHS,

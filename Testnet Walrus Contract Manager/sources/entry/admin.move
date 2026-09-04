@@ -278,7 +278,7 @@ public fun retire_operator(
     system_cfg.retire_operator(operator_cap, ctx.sender());
 }
 
-// === Private functions ===
+// === Package functions ===
 
 /// Assert `admin_cap` is an original and was minted for `system_cfg_id`.
 ///
@@ -286,7 +286,13 @@ public fun retire_operator(
 /// not authority over an arbitrary system: `mint_system` builds successors and
 /// `migrate_system` moves users between them, so a capability that carried
 /// across systems would collapse the isolation those two are for.
-fun assert_original_cap_for(admin_cap: &AdminCap, system_cfg_id: ID) {
+///
+/// Reachable from the package rather than private, so that `entry_upgrade` gates
+/// the package's own upgrade on this same check instead of on a copy of it. A
+/// second implementation that drifted would be an authority boundary that is
+/// weaker in one place than in the others, and the code is what says the two are
+/// the same root of trust.
+public(package) fun assert_original_cap_for(admin_cap: &AdminCap, system_cfg_id: ID) {
     assert!(admin_cap.state() == admin_cap::state_original(), ENotOriginalCap);
     assert!(admin_cap.system_config_id() == system_cfg_id, ECapForAnotherSystem);
 }

@@ -145,7 +145,7 @@ fun rebuild_matches_chain() {
         &sys,
         vector[alice_blob],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         ALICE,
         option::none(),
         &clk,
@@ -160,7 +160,7 @@ fun rebuild_matches_chain() {
         &sys,
         vector[bob_blob],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         ALICE,
         option::none(),
         &clk,
@@ -183,7 +183,7 @@ fun rebuild_matches_chain() {
     entry_upload::foreign_blob_add(
         &sys,
         ALICE,
-        CYCLES,
+        option::some(CYCLES),
         SET,
         vector[foreign_one, foreign_two],
         &clk,
@@ -214,7 +214,7 @@ fun rebuild_matches_chain() {
         FILE_TRACK_BACK,
         vector[first_revision],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"r0"),
         FILE_DRAFT_EPOCHS,
@@ -286,7 +286,7 @@ fun rebuild_matches_chain() {
 
     // --- a pass, a draft, and the merge that accepts it --------------------
     sc.next_tx(ALICE);
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
     ledger.absorb();
     tick(&mut clk);
 

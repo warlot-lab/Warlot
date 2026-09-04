@@ -170,7 +170,7 @@ public fun inner_file(
         FILE_TRACK_BACK,
         vector[first_revision],
         FILE_EPOCH_SET,
-        FILE_CYCLES,
+        option::some(FILE_CYCLES),
         clock,
         commit,
         FILE_DRAFT_EPOCHS,
@@ -193,7 +193,7 @@ public fun file_track_back(): u8 { FILE_TRACK_BACK }
 public fun file_writers(): u8 { FILE_WRITERS }
 
 /// How many renewal cycles a fixture file's revisions are bought for.
-public fun file_cycles(): u64 { FILE_CYCLES }
+public fun file_cycles(): Option<u64> { option::some(FILE_CYCLES) }
 
 /// The unencoded size of every blob a fixture mints.
 public fun blob_size(): u64 { BLOB_SIZE }

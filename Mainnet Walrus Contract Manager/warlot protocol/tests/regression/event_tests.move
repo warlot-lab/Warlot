@@ -329,7 +329,7 @@ fun stored_by_differs() {
         &sys,
         vector[raw_blob],
         SET,
-        CYCLES,
+        option::some(CYCLES),
         ALICE,
         option::none(),
         &clk,

@@ -16,6 +16,7 @@ use warlot::{
     operator::OperatorAuth,
     revision,
     system_config::SystemConfig,
+    tier,
     user,
     writer_pass,
 };
@@ -41,7 +42,7 @@ public(package) fun new_file(
     track_back_length: u8,
     blobs: vector<Blob>,
     epoch_set: u32,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     clock: &Clock,
     commit: vector<u8>,
     draft_epoch_duration: u32,
@@ -54,6 +55,12 @@ public(package) fun new_file(
     ctx: &mut TxContext,
 ): ID {
     let system_id = object::id(system_cfg);
+
+    // Creating a file buys its term, and the term is fixed here for the life of
+    // the file. This is the last moment it can be refused, and the only one that
+    // should: every later revision carries this same value and is a continuation
+    // of the mandate rather than a new purchase.
+    tier::validate(system_cfg, epoch_set);
 
     let first_revision = revision::store_revision(
         system_cfg,

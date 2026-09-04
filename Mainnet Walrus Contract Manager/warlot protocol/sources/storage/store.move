@@ -5,7 +5,7 @@ module warlot::store;
 
 use sui::clock::Clock;
 use walrus::blob::{Self, Blob};
-use warlot::{blob_config, operator::OperatorAuth, system_config::SystemConfig, tier, user};
+use warlot::{blob_config, operator::OperatorAuth, system_config::SystemConfig, user};
 
 // === Errors ===
 
@@ -29,7 +29,7 @@ public(package) fun raw_store_blob(
     system_cfg: &SystemConfig,
     blobs: vector<Blob>,
     epoch_set: u32,
-    cycle_limit: u64,
+    cycle_limit: Option<u64>,
     owner: address,
     operator: Option<OperatorAuth>,
     clock: &Clock,
@@ -42,7 +42,7 @@ public(package) fun raw_store_blob(
         owner,
         blobs,
         epoch_set,
-        option::some(cycle_limit),
+        cycle_limit,
         clock,
         ctx,
     );
@@ -55,19 +55,35 @@ public(package) fun raw_store_blob(
 }
 
 /// Measure `raw_blobs` and take them into custody under `owner`.
+///
+/// **`epoch_set` arrives already validated, and this function does not re-check
+/// it.** The two places that do are `upload::adopt` and `creation::new_file` ,
+/// the funnels every path that *buys* a term passes through. A caller added later
+/// that reaches here without going through one of them would store on a term the
+/// system does not sell, and nothing here would stop it.
+///
+/// It is written this way because the alternative was worse. Validating on every
+/// store put the check on the revision path too, where the term is the file's own,
+/// fixed at creation with no setter; retuning the tier table then froze every
+/// existing file bought on a dropped term, permanently, with no action available
+/// to its owner. `tier::validate` exists to refuse a caller *buying* a term the
+/// system does not sell, and a revision is not a purchase ,  it is the system
+/// honouring a term it already sold.
+///
+/// `tier_tests::a_dropped_term_freezes_no_file` pins both halves of that, so a
+/// later change that puts the check back on the write path, or takes it off a
+/// buying path, fails there rather than in production.
 public(package) fun store_blob_internal(
     system_cfg: &SystemConfig,
     raw_blobs: vector<Blob>,
     epoch_set: u32,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     owner: address,
     operator: Option<OperatorAuth>,
     clock: &Clock,
     ctx: &mut TxContext,
 ): (ID, u64) {
     assert!(!raw_blobs.is_empty(), ENoBlobs);
-
-    let set = tier::validate(system_cfg, epoch_set);
 
     let mut size = 0;
 
@@ -79,7 +95,7 @@ public(package) fun store_blob_internal(
     let config_id = raw_store_blob(
         system_cfg,
         raw_blobs,
-        set,
+        epoch_set,
         cycle_end,
         owner,
         operator,

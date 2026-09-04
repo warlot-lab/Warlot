@@ -9,7 +9,7 @@
     "std::string::String": "JSON string",
     "Option<T>": "T's encoding, or null when none",
     "vector<T>": "JSON array of T's encoding",
-    "vector<u8>": "CONFIRMED (s6, testnet). Base64 JSON string, NOT an array of numbers. A 32-byte commit sent as 00112233445566778899aabbccddeeff twice reads back as \"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8=\". This is a special case: vector<u16> and vector<ID> are still arrays. A decoder must base64-decode every `commit`, `previous_commit`, `file_set_root`, `previous_root` and any other vector<u8> field.",
+    "vector<u8>": "CONFIRMED (s6, testnet). Base64 JSON string, NOT an array of numbers. A 32-byte commit sent as 00112233445566778899aabbccddeeff twice reads back as \"ABEiM0RVZneImaq7zN3u/wARIjNEVWZ3iJmqu8zd7v8=\". This is a special case: vector<u16> and vector<ID> are still arrays. A decoder must base64-decode every `commit`, `previous_commit`, `file_set_root`, `previous_root`, `digest` and any other vector<u8> field.",
     "vector<vector<u8>>": "JSON array of base64 strings. Each element is a vector<u8> and follows that rule; the outer vector follows the vector<T> rule. Applies to LayoutRegistered.paths and .content_hashes."
   },
   "_filters": {
@@ -683,7 +683,7 @@
         },
         {
           "name": "cycle_end",
-          "move_type": "u64"
+          "move_type": "Option<u64>"
         },
         {
           "name": "draft_epoch_duration",
@@ -1969,6 +1969,181 @@
         "coin_type": "0x2::sui::SUI",
         "amount": "1024",
         "new_balance": "1024"
+      }
+    },
+    "<PACKAGE>::upgrade_events::UpgradeAuthorityCreated": {
+      "module": "upgrade_events",
+      "summary": "The framework upgrade capability was placed under a system's authority.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "authority_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "upgrade_cap",
+          "move_type": "ID"
+        },
+        {
+          "name": "package",
+          "move_type": "ID"
+        },
+        {
+          "name": "version",
+          "move_type": "u64"
+        },
+        {
+          "name": "policy",
+          "move_type": "u8"
+        },
+        {
+          "name": "created_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x205e777fb7651bbf61c5bbe1b164b2e1e42eef8646d0fd810e52a7d0a718b90c",
+        "authority_id": "0x7b6b0a9a1c2b9e2f4d0e5a8c3f1b7d9e0a4c6b8d2e5f0a1c3b7d9e2f4a6c8b0d",
+        "upgrade_cap": "0x3c8f5b1d7e9a0c2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f2a4c6e8b0d2f4a6c8e0b",
+        "package": "0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
+        "version": "1",
+        "policy": 0,
+        "created_by": "0x8eab6353d26005a7553bb98d1702ec64fda48d7bc31ed6e77c24f0e9a8ba7575"
+      }
+    },
+    "<PACKAGE>::upgrade_events::UpgradeAuthorised": {
+      "module": "upgrade_events",
+      "summary": "An upgrade was authorised: a ticket was issued for one specific set of bytecode.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "authority_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "package",
+          "move_type": "ID"
+        },
+        {
+          "name": "policy",
+          "move_type": "u8"
+        },
+        {
+          "name": "digest",
+          "move_type": "vector<u8>"
+        },
+        {
+          "name": "authorised_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x205e777fb7651bbf61c5bbe1b164b2e1e42eef8646d0fd810e52a7d0a718b90c",
+        "authority_id": "0x7b6b0a9a1c2b9e2f4d0e5a8c3f1b7d9e0a4c6b8d2e5f0a1c3b7d9e2f4a6c8b0d",
+        "package": "0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
+        "policy": 0,
+        "digest": "rIxD7sCbr2OIZ+18SC4+uyo4/Va8ObQTkiAkARwOmeA=",
+        "authorised_by": "0x8eab6353d26005a7553bb98d1702ec64fda48d7bc31ed6e77c24f0e9a8ba7575"
+      }
+    },
+    "<PACKAGE>::upgrade_events::UpgradeCommitted": {
+      "module": "upgrade_events",
+      "summary": "An upgrade was committed: the package the authority governs is now the new one, and its version has advanced by one.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "authority_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "package",
+          "move_type": "ID"
+        },
+        {
+          "name": "version",
+          "move_type": "u64"
+        },
+        {
+          "name": "committed_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x205e777fb7651bbf61c5bbe1b164b2e1e42eef8646d0fd810e52a7d0a718b90c",
+        "authority_id": "0x7b6b0a9a1c2b9e2f4d0e5a8c3f1b7d9e0a4c6b8d2e5f0a1c3b7d9e2f4a6c8b0d",
+        "package": "0x9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0",
+        "version": "2",
+        "committed_by": "0x8eab6353d26005a7553bb98d1702ec64fda48d7bc31ed6e77c24f0e9a8ba7575"
+      }
+    },
+    "<PACKAGE>::upgrade_events::UpgradePolicyRestricted": {
+      "module": "upgrade_events",
+      "summary": "The upgrade policy was tightened.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "authority_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "policy",
+          "move_type": "u8"
+        },
+        {
+          "name": "restricted_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x205e777fb7651bbf61c5bbe1b164b2e1e42eef8646d0fd810e52a7d0a718b90c",
+        "authority_id": "0x7b6b0a9a1c2b9e2f4d0e5a8c3f1b7d9e0a4c6b8d2e5f0a1c3b7d9e2f4a6c8b0d",
+        "policy": 128,
+        "restricted_by": "0x8eab6353d26005a7553bb98d1702ec64fda48d7bc31ed6e77c24f0e9a8ba7575"
+      }
+    },
+    "<PACKAGE>::upgrade_events::UpgradeAuthorityDestroyed": {
+      "module": "upgrade_events",
+      "summary": "The authority was destroyed and the package made immutable.",
+      "fields": [
+        {
+          "name": "system_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "authority_id",
+          "move_type": "ID"
+        },
+        {
+          "name": "package",
+          "move_type": "ID"
+        },
+        {
+          "name": "version",
+          "move_type": "u64"
+        },
+        {
+          "name": "destroyed_by",
+          "move_type": "address"
+        }
+      ],
+      "parsedJson": {
+        "system_id": "0x205e777fb7651bbf61c5bbe1b164b2e1e42eef8646d0fd810e52a7d0a718b90c",
+        "authority_id": "0x7b6b0a9a1c2b9e2f4d0e5a8c3f1b7d9e0a4c6b8d2e5f0a1c3b7d9e2f4a6c8b0d",
+        "package": "0x9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0",
+        "version": "2",
+        "destroyed_by": "0x8eab6353d26005a7553bb98d1702ec64fda48d7bc31ed6e77c24f0e9a8ba7575"
       }
     }
   }

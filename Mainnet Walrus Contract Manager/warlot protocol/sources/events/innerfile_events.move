@@ -26,7 +26,9 @@ public struct InnerFileCreated has copy, drop, store {
     writers_length: u8,
     track_back_length: u8,
     epoch_set: u32,
-    cycle_end: u64,
+    /// How many renewal cycles each revision is bought for; `null` for a mandate
+    /// with no limit. The same shape `storage_events` reports as `cycle_limit`.
+    cycle_end: Option<u64>,
     draft_epoch_duration: u32,
     /// Whether a system operator's credential may write this file at all.
     operators_allowed: bool,
@@ -110,7 +112,7 @@ public(package) fun emit_inner_file_created(
     writers_length: u8,
     track_back_length: u8,
     epoch_set: u32,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     draft_epoch_duration: u32,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
@@ -247,7 +249,7 @@ public fun read_inner_file_created(e: &InnerFileCreated): (
     u8,
     u8,
     u32,
-    u64,
+    Option<u64>,
     u32,
     bool,
     bool,

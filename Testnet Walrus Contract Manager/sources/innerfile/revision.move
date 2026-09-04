@@ -24,7 +24,7 @@ public(package) fun store_revision(
     system_cfg: &SystemConfig,
     blobs: vector<Blob>,
     epoch_set: u32,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     store_to: address,
     commit: vector<u8>,
     commit_by: address,

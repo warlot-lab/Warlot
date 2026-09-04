@@ -46,8 +46,25 @@ public fun validate(system_cfg: &SystemConfig, epoch_set: u32): u32 {
 /// Read off chain, by whoever reserves the storage: registration happens against
 /// Walrus before the protocol ever sees the blob, so this is the one place the
 /// reserve rule is written down in a form both sides can agree on.
+///
+/// Answers for any term, sold or not. It used to validate first, which meant that
+/// a term dropped from the tier table left the backend unable to compute the
+/// reserve for a revision it is still allowed to write ,  the refusal arriving one
+/// step ahead of the write it was meant to prepare.
+///
+/// The margin belongs to the live table's longest term, and no unsold term is
+/// that, on either side of the ladder ,  a dropped one falls inside the table's
+/// range and one above the top is outside it, and both are answered with
+/// themselves.
+///
+/// An answer here is not permission. A caller who is *buying* must ask `validate`
+/// or `is_tier` first: reserving against this for a term the system does not sell
+/// buys Walrus storage that the store then refuses.
+/// `tier_tests::registration_term_answers_for_terms_the_table_does_not_sell` pins
+/// both shapes, so restoring the validation fails there rather than in the
+/// backend.
 public fun registration_term(system_cfg: &SystemConfig, epoch_set: u32): u32 {
-    let term = validate(system_cfg, epoch_set);
+    let term = epoch_set;
     let tier_table = system_cfg.tier_table();
 
     if (term == tier_table[tier_table.length() - 1]) {

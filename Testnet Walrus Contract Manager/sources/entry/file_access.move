@@ -22,6 +22,8 @@ const ENotDenied: vector<u8> = b"THIS WRITER IS NOT DENIED ON THIS FILE";
 #[error]
 const ENoAddBlobGrant: vector<u8> =
     b"AN ADMIN PASS CANNOT BE MINTED TO AN ADDRESS THAT MAY NOT STORE FOR THE OWNER";
+#[error]
+const EInvalidPassDuration: vector<u8> = b"A DELEGATED PASS MUST EXPIRE AT A FUTURE TIMESTAMP";
 
 // === Public functions ===
 
@@ -210,16 +212,24 @@ public fun revoke_passes(
 /// recipient would widen a delegation past what the caller asked for, so the
 /// order is load-bearing where it applies: grant `add_blob`, then mint the admin
 /// pass.
+///
+/// `duration` must be a future timestamp, which is the same rule `creation` puts
+/// on the pass it mints to a delegate. Zero is not "no expiry needed": it is the
+/// sentinel for a pass the system never decays, so a client that left the field
+/// unset was minting permanent write authority over a file and getting no signal
+/// that it had. Two paths mint a pass to a third party and they now agree.
 public fun create_pass(
     system_cfg: &SystemConfig,
     file: &InnerFile,
     writer: address,
     duration: u64,
     admin_pass: bool,
+    clock: &Clock,
     ctx: &mut TxContext,
 ) {
     system_cfg.assert_version();
     assert!(file.owner() == ctx.sender(), ENotFileOwner);
+    assert!(duration > clock.timestamp_ms(), EInvalidPassDuration);
 
     if (admin_pass) {
         let owners_obj = user::get_user(system_cfg, file.owner());

@@ -9,7 +9,14 @@ module warlot::renew_tests;
 
 use std::unit_test::destroy;
 use sui::{clock, test_scenario as ts};
-use warlot::{entry_register, fixtures, store, system_config::{Self, SystemConfig}, tier};
+use warlot::{
+    entry_register,
+    entry_upload,
+    fixtures,
+    store,
+    system_config::{Self, SystemConfig},
+    tier
+};
 
 // === Constants ===
 
@@ -41,13 +48,16 @@ fun tier_rejected() {
     let raw_blob = fixtures::certified_blob(&mut wsys, BLOB_SIZE, START_EPOCHS, &mut funds, sc.ctx());
 
     // 30 is not sold. The call fails; it does not come back as 52.
-    let (_, _) = store::store_blob_internal(
+    //
+    // Asked through the entry point rather than of `store_blob_internal`, which no
+    // longer checks: the term is refused where it is bought, and adoption is one
+    // of the two places that buys one.
+    entry_upload::foreign_blob_add(
         &sys,
-        vector[raw_blob],
-        OFF_LADDER,
-        CYCLES,
         ALICE,
-        option::none(),
+        option::some(CYCLES),
+        OFF_LADDER,
+        vector[raw_blob],
         &clk,
         sc.ctx(),
     );

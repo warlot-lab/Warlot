@@ -381,7 +381,7 @@ fun gate_foreign_blob_add() {
     entry_upload::foreign_blob_add(
         &sys,
         ALICE,
-        CYCLES,
+        option::some(CYCLES),
         fixtures::file_epoch_set(),
         vector[],
         &clk,
@@ -402,7 +402,7 @@ fun gate_create_file() {
         fixtures::file_track_back(),
         vector[],
         fixtures::file_epoch_set(),
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"blocked"),
         1,
@@ -430,7 +430,7 @@ fun gate_initialize_project_file() {
         fixtures::file_track_back(),
         vector[],
         fixtures::file_epoch_set(),
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"blocked"),
         1,
@@ -616,7 +616,7 @@ fun gate_clear_drafts() {
 fun gate_create_pass() {
     let mut sc = ts::begin(ALICE);
     let (sys, file, pass, config, holder, wsys, funds, clk) = file_world(&mut sc, true);
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
     finish_file(sys, file, pass, config, holder, wsys, funds, clk, sc);
 }
 
@@ -868,7 +868,7 @@ fun gate_create_file_as_operator() {
         fixtures::file_track_back(),
         vector[],
         fixtures::file_epoch_set(),
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"blocked"),
         1,
@@ -1004,7 +1004,7 @@ fun gate_initialize_project_file_as_operator() {
         fixtures::file_track_back(),
         vector[],
         fixtures::file_epoch_set(),
-        CYCLES,
+        option::some(CYCLES),
         &clk,
         fixtures::commit_for(b"blocked"),
         1,
@@ -1026,7 +1026,7 @@ fun gate_foreign_blob_add_as_operator() {
         &sys,
         &cap,
         ALICE,
-        CYCLES,
+        option::some(CYCLES),
         START_EPOCHS,
         vector[],
         &clk,

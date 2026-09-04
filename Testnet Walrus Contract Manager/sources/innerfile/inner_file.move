@@ -114,7 +114,16 @@ public struct FileTrack has store {
 /// The storage terms the file's revisions are stored under.
 public struct WarlotState has store {
     epoch_set: u32,
-    cycle_end: u64,
+    /// How many renewal cycles each revision is bought for; `none` for a mandate
+    /// with no limit.
+    ///
+    /// An `Option` rather than a count because the two are different mandates and
+    /// not one with a large number in it. `0` was not available to mean "forever"
+    /// ,  `some(0)` already means *store this and never renew it*, which renewal
+    /// reports as `RenewSkipped(cycle_exhausted)` ,  so a file bought for life
+    /// had no way to say so, and the chain recorded a finite count where its owner
+    /// meant none.
+    cycle_end: Option<u64>,
 }
 
 // === Public functions ===
@@ -202,8 +211,9 @@ public fun epoch_set(inner_file: &InnerFile): u32 {
     inner_file.file_history.warlot_state.epoch_set
 }
 
-/// How many renewal cycles this file's blobs are bought for.
-public fun cycle_end(inner_file: &InnerFile): u64 {
+/// How many renewal cycles this file's blobs are bought for, or `none` for a
+/// mandate with no limit.
+public fun cycle_end(inner_file: &InnerFile): Option<u64> {
     inner_file.file_history.warlot_state.cycle_end
 }
 
@@ -277,7 +287,7 @@ public(package) fun new(
     writers_length: u8,
     track_back_length: u8,
     epoch_set: u32,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     operators_allowed: bool,
     operators_may_bypass_draft: bool,
     operators_may_draft: bool,

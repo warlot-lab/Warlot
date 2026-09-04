@@ -10,6 +10,12 @@
 /// pin the refusal that closed it, and its edge: a **draft-only** pass is refused
 /// nothing, because a queued write is custodied by whoever pushed it and stores
 /// under their own address, where no grant on the owner's account is read at all.
+///
+/// A pass minted to a third party must expire in the future. Zero is the sentinel
+/// for a pass the system never decays, so a client that left the field unset was
+/// minting permanent write authority and getting no signal that it had, while the
+/// other path that mints a pass to a delegate had checked the same value all
+/// along.
 #[test_only]
 module warlot::writer_pass_tests;
 
@@ -72,7 +78,7 @@ fun expires() {
 
     sc.next_tx(ALICE);
     let file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
 
     sc.next_tx(BOB);
     let bob_pass = sc.take_from_sender<WriterPass>();
@@ -115,26 +121,25 @@ fun immortal_is_deniable() {
         sc.ctx(),
     );
 
-    // A pass the system does not decay, held by an address the owner then denies.
+    // The owner's own pass, which creation mints non-decaying, against a denial of
+    // the owner's own address. It is the only non-decaying pass the protocol
+    // issues ,  `create_pass` refuses a duration that is not in the future, and a
+    // `WriterPass` has no `store`, so one cannot be handed on to anybody else.
+    //
+    // What this protects is the shortcut in `verify_pass`: an immortal pass skips
+    // the decay check, and it must not skip the deny check with it.
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_file_access::create_pass(
-        &sys,
-        &file,
-        BOB,
-        writer_pass::immortal_duration(),
-        false,
-        sc.ctx(),
-    );
-    entry_file_access::deny_writer(&sys, &mut file, BOB, FOREVER, &clk, sc.ctx());
+    entry_file_access::deny_writer(&sys, &mut file, ALICE, FOREVER, &clk, sc.ctx());
 
-    sc.next_tx(BOB);
-    let bob_pass = sc.take_from_sender<WriterPass>();
-    assert!(bob_pass.is_immortal(), 0);
+    sc.next_tx(ALICE);
+    let owner_pass = sc.take_from_sender<WriterPass>();
+    assert!(owner_pass.is_immortal(), 0);
+    assert!(owner_pass.duration() == writer_pass::immortal_duration(), 1);
 
-    inner_file::verify_pass(&file, BOB, &bob_pass, &clk);
+    inner_file::verify_pass(&file, ALICE, &owner_pass, &clk);
 
-    destroy(bob_pass);
+    destroy(owner_pass);
     destroy(funds);
     destroy(wsys);
     clock::destroy_for_testing(clk);
@@ -173,8 +178,8 @@ fun the_batch_refuses_every_pass_in_one_call() {
     // finishing with a delegate usually has several ids to refuse.
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
 
     sc.next_tx(BOB);
     let pass_ids = ts::ids_for_sender<WriterPass>(&sc);
@@ -235,7 +240,7 @@ fun revoked_pass_refused() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
 
     sc.next_tx(BOB);
     let bob_pass = sc.take_from_sender<WriterPass>();
@@ -413,7 +418,7 @@ fun a_pass_cannot_be_minted_to_an_address_that_cannot_store() {
     // its first write with an error naming a grant nobody mentioned at the mint.
     sc.next_tx(ALICE);
     let file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, &clk, sc.ctx());
 
     destroy(funds);
     destroy(wsys);
@@ -450,7 +455,7 @@ fun a_granted_recipient_gets_a_pass_and_can_use_it() {
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
     entry_permission::grant(&mut sys, ALICE, BOB, true, false, false, false, false, false, sc.ctx());
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, true, &clk, sc.ctx());
 
     sc.next_tx(BOB);
     let bob_pass = sc.take_from_sender<WriterPass>();
@@ -525,7 +530,7 @@ fun a_draft_only_pass_needs_no_grant() {
 
     sc.next_tx(ALICE);
     let mut file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
-    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, sc.ctx());
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
 
     assert!(!permission::has_delegate(user::get_user(&sys, ALICE).uid(), BOB), 0);
 
@@ -563,4 +568,81 @@ fun a_draft_only_pass_needs_no_grant() {
     ts::return_shared(file);
     ts::return_shared(sys);
     sc.end();
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::entry_file_access::EInvalidPassDuration)]
+fun a_pass_that_never_expires_is_refused() {
+    let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut sys = sc.take_shared<SystemConfig>();
+    let clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
+    let file_id = fixtures::inner_file(
+        &mut wsys,
+        &mut sys,
+        ALICE,
+        b"alice",
+        fixtures::commit_for(b"first"),
+        &mut funds,
+        &clk,
+        sc.ctx(),
+    );
+
+    sc.next_tx(ALICE);
+    let file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+
+    // Zero reads as "no expiry needed" to a client and as "never decays" to the
+    // contract. It is refused rather than reconciled.
+    entry_file_access::create_pass(
+        &sys,
+        &file,
+        BOB,
+        writer_pass::immortal_duration(),
+        false,
+        &clk,
+        sc.ctx(),
+    );
+
+    abort
+}
+
+#[test]
+#[expected_failure(abort_code = warlot::entry_file_access::EInvalidPassDuration)]
+fun a_pass_that_has_already_expired_is_refused() {
+    let mut sc = ts::begin(ALICE);
+    system_config::init_for_testing(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut wsys = fixtures::walrus_system(sc.ctx());
+
+    sc.next_tx(ALICE);
+    let mut sys = sc.take_shared<SystemConfig>();
+    let mut clk = clock::create_for_testing(sc.ctx());
+    let mut funds = fixtures::wal(sc.ctx());
+    let file_id = fixtures::inner_file(
+        &mut wsys,
+        &mut sys,
+        ALICE,
+        b"alice",
+        fixtures::commit_for(b"first"),
+        &mut funds,
+        &clk,
+        sc.ctx(),
+    );
+
+    sc.next_tx(ALICE);
+    let file = ts::take_shared_by_id<InnerFile>(&sc, file_id);
+    clk.set_for_testing(PAST_EXPIRY_MS);
+
+    // Harmless where it lands ,  the pass is useless from the moment it is minted
+    // ,  but a mint that cannot be used is a mistake, and it said so nowhere.
+    entry_file_access::create_pass(&sys, &file, BOB, PASS_EXPIRY_MS, false, &clk, sc.ctx());
+
+    abort
 }

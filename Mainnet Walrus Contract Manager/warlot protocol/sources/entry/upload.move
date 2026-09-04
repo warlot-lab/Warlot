@@ -11,6 +11,7 @@ use warlot::{
     storage_events,
     store,
     system_config::SystemConfig,
+    tier,
 };
 
 // === Errors ===
@@ -52,7 +53,7 @@ const MAX_ADOPTION_BATCH: u64 = 100;
 public fun foreign_blob_add(
     system_cfg: &SystemConfig,
     owner: address,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     epoch_set: u32,
     blobs: vector<Blob>,
     clock: &Clock,
@@ -79,7 +80,7 @@ public fun foreign_blob_add_as_operator(
     system_cfg: &SystemConfig,
     admin_cap: &AdminCap,
     owner: address,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     epoch_set: u32,
     blobs: vector<Blob>,
     clock: &Clock,
@@ -107,7 +108,7 @@ public fun foreign_blob_add_as_operator(
 fun adopt(
     system_cfg: &SystemConfig,
     owner: address,
-    cycle_end: u64,
+    cycle_end: Option<u64>,
     epoch_set: u32,
     blobs: vector<Blob>,
     operator: Option<OperatorAuth>,
@@ -117,6 +118,11 @@ fun adopt(
     system_cfg.assert_version();
 
     assert!(blobs.length() <= MAX_ADOPTION_BATCH, EBatchTooLarge);
+
+    // Adoption buys a term, so the term is checked here. The store itself no
+    // longer checks: doing it there put the same check on every revision of every
+    // file, where the term is the file's own and cannot be changed.
+    tier::validate(system_cfg, epoch_set);
 
     let blob_count = blobs.length();
 

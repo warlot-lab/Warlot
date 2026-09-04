@@ -138,6 +138,32 @@ same shapes.
 | `SystemOperatorRefreshed` | system/config.move , `refresh_operator` | `system_id`, `admin_cap`, `until_ms`, `may_bypass_draft`, `refreshed_by` |
 | `SystemOperatorRetired` | system/config.move , `retire_operator` | `system_id`, `admin_cap`, `retired_by` |
 
+### Upgrade ,  `upgrade_events`
+
+The package's own code. Nothing here is raised until the capability publication
+mints is taken into custody, and after `UpgradeAuthorityDestroyed` nothing here
+is raised again.
+
+| Event | Emitted from | Fields |
+|---|---|---|
+| `UpgradeAuthorityCreated` | system/upgrade.move , `new` | `system_id`, `authority_id`, `upgrade_cap`, `package`, `version`, `policy`, `created_by` |
+| `UpgradeAuthorised` | system/upgrade.move , `authorise` | `system_id`, `authority_id`, `package`, `policy`, `digest`, `authorised_by` |
+| `UpgradeCommitted` | system/upgrade.move , `commit` | `system_id`, `authority_id`, `package`, `version`, `committed_by` |
+| `UpgradePolicyRestricted` | system/upgrade.move , `restrict_to_additive`, `restrict_to_dep_only` | `system_id`, `authority_id`, `policy`, `restricted_by` |
+| `UpgradeAuthorityDestroyed` | system/upgrade.move , `destroy` | `system_id`, `authority_id`, `package`, `version`, `destroyed_by` |
+
+`policy` is the framework's own constant: `0` compatible, `128` additive, `192`
+dependency-only. It is not `1`, `2`, `3`, whatever the Sui documentation site
+says ,  the values above are what `sui::package` declares and what a consumer
+will actually read.
+
+`UpgradeCommitted` is the one event that invalidates every other reader's
+assumption about the protocol at once. Every `SystemConfig` is behind the package
+from that moment, so the whole entry surface aborts `EWrongPackageVersion` until a
+matching `SystemVersionMigrated` arrives for each system. A consumer that sees the
+first and not the second is looking at a protocol that is refusing every call, and
+that is a state to alert on rather than to retry through.
+
 ### Treasury ,  `treasury_events`
 
 | Event | Emitted from | Fields |
