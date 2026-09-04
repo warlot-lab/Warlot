@@ -116,13 +116,14 @@ rule about it.
 |---|---|---|
 | An operator slot's `until_ms` | strictly in the future. **No maximum** | `EInvalidOperatorExpiry` |
 | A delegated pass minted at file creation | strictly in the future | `EInvalidPassDuration` |
-| A pass minted by `create_pass` | **unchecked** — and `0` is the sentinel for a pass the system does not decay | — |
+| A pass minted by `create_pass` | strictly in the future | `EInvalidPassDuration` |
 | A denial's period | `0` denies indefinitely; anything else must be in the future | `INVALIDTIME` |
 
-The asymmetry between the two pass routes is deliberate on the creation side and simply absent on the
-other. A delegate acting on someone else's behalf during file creation is given authority with an end
-date, and the future check is also what keeps the value away from the non-decaying sentinel. An owner
-calling `create_pass` on their own file is choosing for themselves, and may pass `0`.
+The two pass routes hold the same rule, and the check is what keeps the value away from the
+non-decaying sentinel. `0` reads as "no expiry needed" to a client and as "never decays" to the
+contract, so a client that left the field unset was minting permanent write authority over a file and
+getting no signal that it had. The only non-decaying pass the protocol issues is the owner's own, on
+their own file, minted by creation — and a `WriterPass` has no `store`, so it cannot be handed on.
 
 `Registry.decay_at` is set to 10,000,000,000 ms — about 116 days — past creation and is **read by
 nothing**. No entry point moves it and no check consults it.
@@ -144,7 +145,7 @@ Knowing where a bound is not is as useful as knowing where one is.
 | Configs in one `self_withdraw_blobs` | the transaction's shared-object input limit. The batch call saves per-call overhead and lifts no ceiling |
 | Draft indices ever issued | nothing — `available_index` only moves forward, including across deletions, so an index used once never names a different draft later |
 | Coin types in a vault or a wallet | nothing — one dynamic field per type name |
-| Renewal cycles on a config | the caller's `cycle_end`. A mandate of `0` can never do work; the `Option` supports an indefinite mandate and **no entry point creates one** |
+| Renewal cycles on a config | the caller's `cycle_end`. `some(0)` can never do work, and `none` is an indefinite mandate every creating entry point can ask for |
 
 The absent per-user counters are a deliberate refusal, not an oversight: totals no contract reads
 belong in a database, and putting them on chain would mean paying consensus for them and keeping them

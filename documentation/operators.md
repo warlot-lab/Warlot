@@ -133,5 +133,5 @@ duplicate to the wallet, `enrol_operator` with an `until_ms`, and then **`refres
 it expires**. `operator::authorise` aborts `EOperatorExpired` once a slot lapses, taking that wallet
 out of service silently from the contract's side.
 
-Nothing schedules the refresh. See [upgrades.md](upgrades.md) section 4 and
+Nothing schedules the refresh. See [upgrades.md](upgrades.md) section 5 and
 [deployment.md](deployment.md).

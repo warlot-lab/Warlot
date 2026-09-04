@@ -1,6 +1,6 @@
 # The entry surface
 
-All 62 public functions in `sources/entry/`. Nothing below it is callable: every domain module keeps
+All 68 public functions in `sources/entry/`. Nothing below it is callable: every domain module keeps
 its mutators `public(package)` and exposes them here, which is also why every signature on this page
 is frozen at publish and almost nothing beneath it is.
 
@@ -12,8 +12,9 @@ the exception rather than the template.
 **Two things stated once and not repeated.**
 
 *The version gate.* Every public function taking a `SystemConfig` asserts the stored version against
-the package's before it does anything else, aborting `EWrongPackageVersion`. Two do not:
-`migrate_version`, which is the call that clears that state, and `supersede`, which takes no system.
+the package's before it does anything else, aborting `EWrongPackageVersion`. `migrate_version` does
+not, because it is the call that clears that state. `supersede` and the six calls in `entry_upgrade`
+take no `SystemConfig` at all, so there is nothing for them to check.
 `scripts/check-events.sh` section 6 proves the coverage against `version_tests.move`, keying on the
 *parameter* rather than on the presence of `assert_version` — a function that received the system and
 stopped checking would drop out of the narrower rule's set silently.
@@ -22,9 +23,8 @@ stopped checking would drop out of the narrower rule's set silently.
 ownership. See [objects.md](objects.md).
 
 Refusals name the aborts a caller can reasonably hit. They are not exhaustive over every frame
-beneath: a `&Coin` too small for a fee aborts inside the framework, and a `SystemConfig` whose tier
-table no longer sells a file's storage term aborts `EInvalidTier` three frames down on a call that
-looks nothing to do with tiers.
+beneath: a `&Coin` too small for a fee aborts inside the framework, and a delegation the sender does
+not hold aborts in `user` rather than at the entry point that read it.
 
 ---
 
@@ -234,6 +234,11 @@ Refuses more than 100 blobs (`EBatchTooLarge`), none at all (`ENoBlobs`), a stor
 does not sell (`EInvalidTier`), and an unregistered `owner` (`EUserNotFound`). Storing under an address
 that is not the sender needs `add_blob_to_address` on that address, checked three frames down in
 `store::raw_store_blob` (`INVALIDACCESS`).
+
+`cycle_end` is an `Option<u64>`: a count of renewal cycles, or `none` for a mandate with no limit,
+renewed for as long as it is paid for. `some(0)` is the other end of the range — stored, never renewed
+— which is why a count could never have expressed "no limit" and the field is an `Option` rather than
+a sentinel.
 
 `owner` is an address rather than a `&Registry`, and that is worth one paragraph because the same
 shape recurs. A `Registry` is an owned object with no `store`, so only the address it names could ever
@@ -497,6 +502,9 @@ Refuses a window depth outside 1 to 8 (`INVALIDTRACKBACKLENGTH`), a policy that 
 opening neither route (`EPolicyOpensNoRoute`), no blobs (`ENoBlobs`), a term the system does not sell
 (`EInvalidTier`), and an unregistered `owner` (`EUserNotFound`).
 
+`cycle_end` is an `Option<u64>` and it is fixed here for the life of the file: every later revision is
+bought on the same mandate, and there is no setter. `none` is a mandate with no limit.
+
 ### What the operator form does not take
 
 **No policy.** The file is born admitting its creator on both routes. `create_inner_file` means *"make
@@ -627,14 +635,16 @@ stream yields the config to pass.
 From `verify_pass` or `verify_operator`: a pass for another file (`INVALIDPASS`), a decayed pass
 (`DECAYEXCEEDED`), a denied writer address (`INVALIDWRITER`), a revoked credential id
 (`EPassRevoked`), and for an operator a file that admits none (`EOperatorsRefused`). From the store
-beneath: `ENoBlobs`, `EInvalidTier`, and `EUserNotFound` where the address being stored for is not
-registered on **this** system — the file's owner for a write into history, the sender for a queued
-one. From the queue: `EDraftLimitReached` once the file holds as many open drafts as `writers_length`
-allows.
+beneath: `ENoBlobs` and `EUserNotFound` where the address being stored for is not registered on
+**this** system — the file's owner for a write into history, the sender for a queued one. From the
+queue: `EDraftLimitReached` once the file holds as many open drafts as `writers_length` allows.
 
-`EInvalidTier` on a write is the non-obvious one. Every revision is stored under the file's own
-`epoch_set`, and that term is validated against the system's tier table on every write — so a file
-whose term was later dropped from the table can no longer be written to.
+**A write cannot abort `EInvalidTier`**, and that is deliberate. A file's `epoch_set` is fixed at
+creation and has no setter, so re-checking it against the live tier table on every revision meant
+that retuning the ladder froze every existing file bought on a dropped term — permanently, with no
+action available to the owner, who could not move the file to a term still sold. The term is now
+validated where it is *bought*: `create_file` and its three siblings, and `foreign_blob_add` and its
+operator sibling. A revision is not a purchase; it is the system honouring a term it already sold.
 
 ---
 
@@ -755,8 +765,12 @@ at a time leaves a window in which some of them still write.
 ### 4. Minting a pass — `create_pass`
 
 ```move
-create_pass(system, file, writer, duration, admin_pass, ctx)
+create_pass(system, file, writer, duration, admin_pass, clock, ctx)
 ```
+
+`duration` must be strictly in the future (`EInvalidPassDuration`), the same rule the creation path
+holds. `0` is the sentinel for a pass the system never decays, so the check is also what keeps an
+unset field from minting permanent write authority.
 
 An **admin** pass is refused unless `writer` may already store blobs under the file's owner
 (`ENoAddBlobGrant`), on the strength of an address-keyed grant alone — deliberately blind to the
@@ -830,3 +844,43 @@ revocation coarser than you need in exactly the moment you need precision. See
 `initialize_project_file` creates the file through the same path as any other, so it also carries every
 refusal `create_file` does. Its operator form takes no policy either, for the same reason: `can_init_db`
 is a grant to build the account's database, and a database the operator cannot write is not one.
+
+---
+
+## `entry_upgrade` — the package's own code
+
+Six calls, and the only surface in the protocol that acts on the package rather than on anything
+stored in it. Every one of them needs the **original** `AdminCap` for the system the authority names,
+through the same `assert_original_cap_for` the treasury and the operator set go through. A duplicate
+is refused, and so is an original minted for another system.
+
+```move
+take_custody(cap, admin_cap, ctx)
+authorise_upgrade(authority, admin_cap, digest, ctx): UpgradeTicket
+commit_upgrade(authority, admin_cap, receipt, ctx)
+restrict_to_additive(authority, admin_cap, ctx)
+restrict_to_dep_only(authority, admin_cap, ctx)
+make_immutable(authority, admin_cap, ctx)
+```
+
+**Nothing here takes a `SystemConfig`, and nothing here asserts the version.** It is the one exception
+besides `migrate_version`, and it is the same exception: an upgrade is the repair, and a build that
+broke migration would otherwise have taken away the only lever that could fix it. The full argument,
+and the shape of the three-command upgrade transaction, is in [upgrades.md](upgrades.md) §2.
+
+`authorise_upgrade` returns an `UpgradeTicket`, so it cannot be an `entry` function and cannot be
+called on its own. The ticket has no abilities: a transaction that issues one and does not spend it in
+the same transaction's `Upgrade` command does not commit at all.
+
+### The refusals
+
+| | |
+|---|---|
+| `ENotOriginalCap` | a duplicate capability, including a live operator credential |
+| `ECapForAnotherSystem` | an original minted for a different system |
+| `ETooPermissive` | from `sui::package`, for a ratchet asked to move the loose way |
+| `EAlreadyAuthorized` | from `sui::package`, for a second ticket while one is outstanding |
+
+There is no refusal for "this capability governs another package". The framework exposes no way to
+check it that keeps working past the first upgrade, so the ids are announced in
+`UpgradeAuthorityCreated` and recorded in [deployment.md](deployment.md) instead.

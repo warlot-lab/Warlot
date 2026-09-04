@@ -335,7 +335,7 @@ everybody throughout.
 | `pending_owner: Option<address>` | who may **take** custody, once they ask for it. `none` until offered, which costs a config that is never handed on one byte |
 | `blobs: vector<Blob>` | the content. Fixed at creation — nothing adds to or removes from it |
 | `epoch_set: u32` | how many epochs ahead the blobs are kept paid for. A sustained target, not a one-off purchase: each renewal tops them back up to `current_epoch + epoch_set` |
-| `cycle_limit: Option<u64>` | how many renewal cycles remain. `none` means indefinite — and **no path creates one**: `raw_store_blob` is the sole constructor's only caller and always passes `some` |
+| `cycle_limit: Option<u64>` | how many renewal cycles remain; `none` is an indefinite mandate, renewed for as long as it is paid for. `some(0)` is the other end — stored, never renewed — so a count could never have expressed "no limit" |
 | `layout: Option<Layout>` | the compaction receipt. `none` on every config an ordinary upload creates, filled once and never again |
 
 **Lifecycle.** Created by `store::raw_store_blob` — the single constructor call site in the package,
@@ -446,7 +446,7 @@ object appears in all three's transactions. `InnerFile.owner` is the authority, 
 | `created_at_ms` | |
 
 `FileTrack` holds `root_change: Option<FileData>` — the fallback; `track_back_length: u8`, the window
-depth, 1 to 8; `warlot_state: WarlotState`, the `epoch_set` and `cycle_end` every revision of this
+depth, 1 to 8; `warlot_state: WarlotState`, the `epoch_set` and `cycle_end: Option<u64>` every revision of this
 file is stored under; `track_back: vector<FileData>`, **newest first**; and `last_modified`.
 
 **The three operator bits spell four states.** They are the file owner's terms and are gated on the
@@ -519,12 +519,12 @@ rather than into the draft queue.
 |---|---|---|
 | the owner's own pass, on every file creation | non-decaying | yes |
 | the creator's pass, when `should_include_pass` and the creator is not the owner | `pass_duration`, asserted **strictly in the future** | yes |
-| `entry_file_access::create_pass` | whatever the owner passes — and `0` mints a non-decaying pass | the owner's choice |
+| `entry_file_access::create_pass` | `duration`, asserted **strictly in the future** | the owner's choice |
 
-The two are not the same rule. The creation branch refuses a duration that is not in the future, which
-also keeps it away from the non-decaying sentinel: a delegate acting on someone else's behalf is
-given authority with an end date. `create_pass` applies no such check, so an owner deliberately
-minting a permanent pass can do so by passing `0`.
+Both delegated routes hold the same rule, and it is the check that keeps the value away from the
+non-decaying sentinel: a delegate acting on someone else's behalf is given authority with an end
+date. The owner's own pass is the only non-decaying one the protocol issues, and since a `WriterPass`
+has no `store`, it cannot be handed to anybody else.
 
 An **admin** pass through `create_pass` is refused unless the recipient may already store blobs under
 the file's owner (`ENoAddBlobGrant`) — the store underneath such a write checks `add_blob` as well, so

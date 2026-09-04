@@ -39,7 +39,7 @@ Three things follow from it, and most of the rest of this documentation is conse
 | [permissions.md](permissions.md) | The six bits, the dependency chain between them, and the two independent places a grant lives |
 | [operators.md](operators.md) | The credential a rotating backend signs with: three independent gates, and who revokes each |
 | [custody.md](custody.md) | Who owns a `BlobConfig` on every path that creates one, how custody moves, and why deletion is not delegable |
-| [entry-points.md](entry-points.md) | All 62 public functions, each section shaped like its subject |
+| [entry-points.md](entry-points.md) | All 68 public functions, each section shaped like its subject |
 | [refusals.md](refusals.md) | What the contract will not do, and why |
 
 **Building against it**
@@ -54,7 +54,7 @@ Three things follow from it, and most of the rest of this documentation is conse
 
 | | |
 |---|---|
-| [upgrades.md](upgrades.md) | What an upgrade may and may not change, and the migration path when it may not |
+| [upgrades.md](upgrades.md) | What an upgrade may and may not change, who may perform one, and the migration path when it may not |
 | [deployment.md](deployment.md) | Every on-chain object a deployment depends on, per network, with its custody |
 
 ## If you are
