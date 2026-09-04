@@ -8,11 +8,11 @@ sets once, executable by anyone.
 
 ## Status
 
-Three separate claims, because you are deciding against all three:
+Three separate claims:
 
 | | |
 |---|---|
-| **Sui testnet** | **Deployed.** Package `0x466c3980d0f8603c3c0bfa64a23c88d36c4ee492cd5a62d3a0e95060a1a3d237` — see [deployment.md](documentation/deployment.md) |
+| **Sui testnet** | **Deployed.** Package `0x466c3980d0f8603c3c0bfa64a23c88d36c4ee492cd5a62d3a0e95060a1a3d237`, see [deployment.md](documentation/deployment.md) |
 | **Sui mainnet** | **Not deployed.** No `Published.toml` exists for the mainnet package |
 | **External audit** | **Not completed.** No third party has reviewed this code |
 
