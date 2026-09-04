@@ -241,19 +241,21 @@ fun registration_term_answers_for_terms_the_table_does_not_sell() {
     let mut admin_cap = sc.take_from_sender<AdminCap>();
 
     let retuned = RETUNED;
+    let dropped = SOLD;
     entry_admin::update_tier_table(&mut admin_cap, &mut sys, retuned, HORIZON, sc.ctx());
-    assert!(!sys.tier_table().contains(&SOLD), 0);
+    assert!(!sys.tier_table().contains(&dropped), 0);
 
     // The reserve for a revision its owner is still allowed to write. Validating
     // here refused to answer, which put the failure one step ahead of the write
     // the answer was meant to prepare, and left the freeze in place from the
     // caller's side even once the write itself was allowed.
-    assert!(tier::registration_term(&sys, SOLD) == SOLD, 1);
+    assert!(tier::registration_term(&sys, dropped) == dropped, 1);
 
     // A term the table has never sold is answered the same way. The margin belongs
     // to the live table's longest term, and an unsold term is not it on either
     // side of the ladder.
-    assert!(tier::registration_term(&sys, UNSOLD) == UNSOLD, 2);
+    let unsold = UNSOLD;
+    assert!(tier::registration_term(&sys, unsold) == unsold, 2);
 
     // The margin is still read off the live table rather than a stale one, and it
     // still leaves the blob an epoch below the horizon.
